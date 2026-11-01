@@ -174,6 +174,8 @@ MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成：用一�
 
 ## 贡献者
 
+不管是提 issue 报告问题、提建议，还是改代码、写文档、做设计、帮忙测试，都算贡献。感谢每一位帮过忙的人：
+
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
 <!-- prettier-ignore-start -->
 <!-- markdownlint-disable -->
