@@ -166,6 +166,7 @@ MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成：用一�
 ## 交流与反馈
 
 - 问题与建议：[GitHub Issues](https://github.com/HZDavy/MoteDeck/issues)
+- 有问题欢迎反馈🐧群：1134307509
 - 官网：[hzdavy.github.io/MoteDeck](https://hzdavy.github.io/MoteDeck/)
 
 ---
