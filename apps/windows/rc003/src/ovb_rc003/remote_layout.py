@@ -80,19 +80,19 @@ class ButtonHotspot:
 # key_mapping.py's module docstring and settings_ui.py's
 # _USER_FACING_BUTTON_IDS, which this table's ordering matches).
 BUTTON_HOTSPOTS: Tuple[ButtonHotspot, ...] = (
-    ButtonHotspot("power", x=0.386, y=0.099, width=0.15, height=0.072),
-    ButtonHotspot("mic", x=0.630, y=0.099, width=0.15, height=0.072, is_voice=True),
-    ButtonHotspot("up", x=0.502, y=0.179, width=0.18, height=0.065),
-    ButtonHotspot("left", x=0.362, y=0.246, width=0.15, height=0.080),
-    ButtonHotspot("ok", x=0.502, y=0.246, width=0.19, height=0.095),
-    ButtonHotspot("right", x=0.638, y=0.246, width=0.15, height=0.080),
-    ButtonHotspot("down", x=0.502, y=0.317, width=0.18, height=0.065),
-    ButtonHotspot("back", x=0.406, y=0.389, width=0.17, height=0.080),
-    ButtonHotspot("volume_up", x=0.604, y=0.390, width=0.16, height=0.080),
-    ButtonHotspot("home", x=0.406, y=0.479, width=0.17, height=0.080),
-    ButtonHotspot("volume_down", x=0.604, y=0.480, width=0.16, height=0.080),
-    ButtonHotspot("menu", x=0.406, y=0.569, width=0.17, height=0.080),
-    ButtonHotspot("tv", x=0.604, y=0.569, width=0.17, height=0.080),
+    ButtonHotspot("power", x=0.3806, y=0.1100, width=0.150, height=0.072),
+    ButtonHotspot("mic", x=0.6125, y=0.1100, width=0.150, height=0.072, is_voice=True),
+    ButtonHotspot("up", x=0.4965, y=0.1727, width=0.170, height=0.058),
+    ButtonHotspot("left", x=0.3630, y=0.2606, width=0.075, height=0.110),
+    ButtonHotspot("ok", x=0.4965, y=0.2606, width=0.160, height=0.110),
+    ButtonHotspot("right", x=0.6301, y=0.2606, width=0.075, height=0.110),
+    ButtonHotspot("down", x=0.4965, y=0.3485, width=0.170, height=0.058),
+    ButtonHotspot("back", x=0.3944, y=0.4132, width=0.170, height=0.080),
+    ButtonHotspot("volume_up", x=0.5986, y=0.4132, width=0.160, height=0.080),
+    ButtonHotspot("home", x=0.3944, y=0.5071, width=0.170, height=0.080),
+    ButtonHotspot("volume_down", x=0.5986, y=0.5071, width=0.160, height=0.080),
+    ButtonHotspot("menu", x=0.3944, y=0.5994, width=0.170, height=0.080),
+    ButtonHotspot("tv", x=0.5986, y=0.5994, width=0.170, height=0.080),
 )
 
 # button_id -> hotspot, and the fixed display order every list/model uses -
@@ -103,23 +103,27 @@ BUTTON_HOTSPOTS_BY_ID: Dict[str, ButtonHotspot] = {
 BUTTON_ORDER: Tuple[str, ...] = tuple(hotspot.button_id for hotspot in BUTTON_HOTSPOTS)
 
 
+# 2026-10: every key below is measured from the bundled 453×1443 photo (ring
+# centroids), not guessed. Like the RC003 table, the markers sit on the outer
+# edge of each printed key instead of its centre so they never cover the icon,
+# and every left/right pair is mirrored about the body centre line x = 0.48786
+# (221 px) so the two columns stay perfectly even.
 CHROMECAST_HOTSPOTS = (
-    ButtonHotspot("up", .50, .060, .22, .045),
-    ButtonHotspot("left", .20, .152, .17, .065),
-    ButtonHotspot("ok", .50, .152, .28, .095),
-    ButtonHotspot("right", .81, .152, .17, .065),
-    ButtonHotspot("down", .50, .250, .22, .045),
-    # 2026-10: every circle below is measured from the bundled 453×1443 photo
-    # (ring centroids), not guessed; the previous .26 column sat off-centre and
-    # made the markers and their connector lines miss the printed keys.
-    ButtonHotspot("back", .249, .358, .30, .100),
-    ButtonHotspot("mic", .738, .359, .30, .100, is_voice=True),
-    ButtonHotspot("home", .248, .486, .30, .100),
-    ButtonHotspot("volume_mute", .728, .486, .30, .100),
-    ButtonHotspot("youtube", .248, .613, .30, .100),
-    ButtonHotspot("netflix", .725, .613, .30, .100),
-    ButtonHotspot("power", .249, .733, .18, .057),
-    ButtonHotspot("input_source", .729, .734, .18, .057),
+    # D-pad: markers on the arrow band at 0.70 R, R = 196 px.
+    ButtonHotspot("up", .48786, .06168, .22, .045),
+    ButtonHotspot("left", .18322, .15731, .17, .065),
+    ButtonHotspot("ok", .48786, .15731, .28, .095),
+    ButtonHotspot("right", .79249, .15731, .17, .065),
+    ButtonHotspot("down", .48786, .25295, .22, .045),
+    # Round keys: pushed 0.45 r outwards and 0.25 r downwards off the ring.
+    ButtonHotspot("back", .17550, .37041, .32, .105),
+    ButtonHotspot("mic", .80022, .37041, .32, .105, is_voice=True),
+    ButtonHotspot("home", .17550, .49827, .32, .105),
+    ButtonHotspot("volume_mute", .80022, .49827, .32, .105),
+    ButtonHotspot("youtube", .17550, .62474, .32, .105),
+    ButtonHotspot("netflix", .80022, .62474, .32, .105),
+    ButtonHotspot("power", .20431, .74134, .20, .062),
+    ButtonHotspot("input_source", .77141, .74134, .20, .062),
     # Side rocker: the supplied front photo shows only its right edge.
     ButtonHotspot("volume_up", .98, .208, .04, .035),
     ButtonHotspot("volume_down", .98, .252, .04, .035),

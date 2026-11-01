@@ -37,7 +37,7 @@ class ButtonHotspotTableTests(unittest.TestCase):
     def test_mic_hotspot_uses_the_calibrated_voice_coordinates(self):
         # The fixed microphone hotspot is part of the Windows layout contract.
         mic = remote_layout.hotspot_for("mic")
-        self.assertEqual((mic.x, mic.y, mic.width, mic.height), (0.630, 0.099, 0.15, 0.072))
+        self.assertEqual((mic.x, mic.y, mic.width, mic.height), (0.6125, 0.1100, 0.150, 0.072))
 
     def test_hotspot_for_unknown_button_returns_none(self):
         self.assertIsNone(remote_layout.hotspot_for("does_not_exist"))
