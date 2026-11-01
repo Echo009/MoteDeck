@@ -4500,10 +4500,14 @@ class VoiceMappingProductBoundaryTests(_AppWiringTestCase):
         _stamp_voice_mode(
             refreshed, config.VOICE_INPUT_SOURCE_LOCAL, "测试麦克风"
         )
+        # 本用例集覆盖短按锁存语义，需要关掉"短按切换模式"（默认已打开），
+        # 否则话筒键短按会去轮换语音槽位而不是锁存。
+        refreshed["voice_cycle_short_press"] = False
         config.save_config(self.app._config_path, refreshed)
         _stamp_voice_mode(
             self.app._config, config.VOICE_INPUT_SOURCE_LOCAL, "测试麦克风"
         )
+        self.app._config["voice_cycle_short_press"] = False
         # 写盘是为了让后面 load/save 一轮的设置写入也带上模式2；但必须同步
         # 刷新 mtime 记录，否则下一次按键会触发一次"设置已变化"重载，把用例
         # 在内存里改的按键映射冲掉。
