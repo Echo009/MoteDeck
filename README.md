@@ -224,5 +224,6 @@ Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](h
     <td align="center"><a href="https://github.com/oblitum"><img src="https://avatars.githubusercontent.com/u/1269815?v=4" width="64px;" alt="oblitum"/><br /><sub><b>oblitum</b></sub></a><br /><sub>Interception</sub></td>
     <td align="center"><a href="https://github.com/k2-fsa"><img src="https://avatars.githubusercontent.com/u/71431748?v=4" width="64px;" alt="k2-fsa"/><br /><sub><b>k2-fsa</b></sub></a><br /><sub>sherpa-onnx</sub></td>
     <td align="center"><a href="https://github.com/QwenAudio"><img src="https://avatars.githubusercontent.com/u/167062371?v=4" width="64px;" alt="QwenAudio"/><br /><sub><b>QwenAudio</b></sub></a><br /><sub>SenseVoice</sub></td>
+    <td align="center"><a href="https://github.com/csukuangfj"><img src="https://avatars.githubusercontent.com/u/5284924?v=4" width="64px;" alt="csukuangfj"/><br /><sub><b>csukuangfj</b></sub></a><br /><sub>SenseVoice 模型</sub></td>
   </tr>
 </table>
