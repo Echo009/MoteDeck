@@ -813,9 +813,14 @@ YouTube、Netflix、信源和静音键。按键动作按型号分别保存。</p
 </div>
 <div class="admonition tip">
 <p class="admonition-title">部分输入法必须改用驱动级映射</p>
-<p>输入法（微软拼音、搜狗拼音、QQ 拼音等）会拦截或改写合成按键：<code>SendInput</code> 注入的快捷键在中文输入状态常常不生效、粘连，或只触发一半（组合键和长按尤其明显）。
-这类情况把对应按键的注入方式切成 Interception——按键在键盘驱动层产生，输入法收到的与真实键盘一致，不再被当成输入法自己的按键吞掉。
-只有出现上述现象时才需要切；其余按键继续用默认的 <code>SendInput</code>，兼容性更好。</p>
+<p>部分输入法（微软拼音、搜狗拼音、QQ 拼音等）会拦截 <code>SendInput</code> 合成按键，导致对应的<strong>语音键</strong>按了没反应、语音输入无法激活。这类情况需要把该语音键的注入方式改成 Interception 映射。</p>
+<p>使用前要做两件事：</p>
+<ol>
+<li>在按键页把对应按键的注入方式切到 Interception；</li>
+<li>按提示安装驱动，安装完成后<strong>重启电脑</strong>才会生效。</li>
+</ol>
+<p>⚠️ 驱动是键盘驱动层的常驻组件，可能触发部分在线游戏的反作弊检测。如果需要在装了反作弊的游戏里正常运行，先卸载驱动再玩；卸载不会被拦截，随时可以重新装回。</p>
+<p>没有上述现象的输入法保持默认 <code>SendInput</code> 即可，兼容性更好。</p>
 </div>
 <h2 id="按应用配置">按应用配置<a class="headerlink" href="#按应用配置" title="Permanent link">&para;</a></h2>
 <p>按键页顶部有一条应用条（第一项固定是「全局」，末尾的「+」用于新增应用）：</p>
