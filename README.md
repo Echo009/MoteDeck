@@ -163,7 +163,7 @@ $env:PYTHONPATH = Join-Path (Get-Location) 'src'
 
 ## 关于名字
 
-MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成，指用遥控器控制电脑。
+MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成。
 
 ---
 
