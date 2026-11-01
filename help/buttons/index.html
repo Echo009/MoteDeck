@@ -813,7 +813,7 @@ YouTube、Netflix、信源和静音键。按键动作按型号分别保存。</p
 </div>
 <div class="admonition tip">
 <p class="admonition-title">部分输入法必须改用驱动级映射</p>
-<p>部分输入法（微软拼音、搜狗拼音、QQ 拼音等）会拦截 <code>SendInput</code> 合成按键，导致对应的<strong>语音键</strong>按了没反应、语音输入无法激活。这类情况需要把该语音键的注入方式改成 Interception 映射。</p>
+<p>部分输入法（例如 Chatterfly）会拦截 <code>SendInput</code> 合成按键，导致对应的<strong>语音键</strong>按了没反应、语音输入无法激活。这类情况需要把该语音键的注入方式改成 Interception 映射。</p>
 <p>使用前要做两件事：</p>
 <ol>
 <li>在按键页把对应按键的注入方式切到 Interception；</li>
