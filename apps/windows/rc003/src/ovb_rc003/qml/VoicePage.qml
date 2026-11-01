@@ -528,6 +528,7 @@ Item {
         preferredWidth: 880
         title: qsTr("语音键配置")
         titleNote: qsTr("可调整顺序、单独停用；插件提供的语音键只能改名")
+        helpText: qsTr("录音增益：为当前语音键设置录音增益，仅对当前语音键生效，不同语音键需分别设置。\n\n延迟发送：延迟0.18s触发，用于屏蔽部分输入法（如chatterfly）的短按触发，以实现短按切换模式；可以直接在输入法设置中取消短按触发的输入法（豆包输入法等），无需开启此项。")
         closeButtonObjectName: "voiceKeyManagerCloseButton"
         dismissalEnabled: !root.configurationWriteBusy
 

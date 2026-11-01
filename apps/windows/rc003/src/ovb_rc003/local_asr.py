@@ -27,7 +27,10 @@ MODEL_BASE_URLS = (
     # 国内镜像，默认走这个。
     "https://hf-mirror.com/csukuangfj/"
     "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main",
-    # 镜像不通时回退到 Hugging Face 官方地址。
+    # 自己托管的 ModelScope 备份源，文件名与上面一致，镜像不通时改走这里。
+    "https://www.modelscope.cn/models/HZDavy/"
+    "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/master",
+    # 都不通时回退到 Hugging Face 官方地址。
     "https://huggingface.co/csukuangfj/"
     "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main",
 )

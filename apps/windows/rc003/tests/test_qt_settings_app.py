@@ -11345,7 +11345,12 @@ class SettingsShellSourceContractTests(unittest.TestCase):
 
     def test_tooltips_are_compact_and_follow_each_truncated_text(self):
         self.assertIn("ToolTip {", self.compact_tooltip_qml)
-        self.assertIn("delay: 450", self.compact_tooltip_qml)
+        # 普通提示延迟 450ms、5 秒后收起；persistent 的帮助提示立刻出现且不超时。
+        self.assertIn("delay: root.persistent ? 0 : 450", self.compact_tooltip_qml)
+        self.assertIn(
+            "timeout: root.persistent ? 2147483647 : 5000",
+            self.compact_tooltip_qml,
+        )
         self.assertIn("font.pixelSize: root.tokens.fontSizeSmall", self.compact_tooltip_qml)
         self.assertIn(
             "y: -implicitHeight - root.tokens.spacingSmall "

@@ -26,6 +26,18 @@ BLUETOOTH_NAMES = frozenset(
     }
 )
 
+# 小米遥控器2（RC001）：按键集合、HID usage 与 RC003 完全一致，只有蓝牙广播名
+# 不同。"MI RC" 两款都会广播，配对扫描里 RC003 先判定，所以它归到 Pro 名下。
+RC001_DISPLAY_NAME = "小米遥控器2"
+RC001_BLUETOOTH_NAMES = frozenset(
+    {
+        "mi rc",
+        "xiaomi bluetooth remote 2",
+        "小米蓝牙遥控器2",
+        "小米蓝牙语音遥控器2",
+    }
+)
+
 # Google Chromecast Voice Remote advertises this exact name.
 CHROMECAST_BLUETOOTH_NAMES = frozenset({"chromecast remote"})
 

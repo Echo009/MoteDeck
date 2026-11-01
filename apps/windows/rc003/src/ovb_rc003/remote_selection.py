@@ -25,8 +25,10 @@ SCAN_FLAG = "--list-remote-devices"
 _DIGEST = re.compile(r"[0-9a-f]{64}\Z")
 _MAX_DEVICES = 128
 RC003_PROFILE = "xiaomi-rc003"
+RC001_PROFILE = "xiaomi-rc001"
 CHROMECAST_PROFILE = "chromecast-remote"
-KNOWN_PROFILES = frozenset({RC003_PROFILE, CHROMECAST_PROFILE})
+XIAOMI_PROFILES = frozenset({RC003_PROFILE, RC001_PROFILE})
+KNOWN_PROFILES = frozenset({RC003_PROFILE, RC001_PROFILE, CHROMECAST_PROFILE})
 # 早期试装版为了让谷歌遥控器在没有真机时也能点按，写进过一个固定 digest 的
 # “模拟”条目。正式版只认真机，读到这条旧记录时直接丢弃，免得它被当成真机
 # 去配对/连 GATT。
@@ -136,6 +138,22 @@ def runtime_ready(profile: str) -> bool:
     return profile in KNOWN_PROFILES
 
 
+# GATT Device Information 的 Model Number String 取值（区分小米遥控器2 与
+# 2 Pro）。两款都可能广播同一个通用蓝牙名，连上后以型号串为准。
+_MODEL_NUMBER_PROFILES = {
+    "RC001": RC001_PROFILE,
+    "RC003": RC003_PROFILE,
+    "ARN9": RC003_PROFILE,
+}
+
+
+def profile_for_model_number(value: object) -> str:
+    """Map a GATT 0x2A24 model number string to a profile id ('' when unknown)."""
+
+    text = "".join(str(value or "").split()).upper()
+    return _MODEL_NUMBER_PROFILES.get(text, "") if text else ""
+
+
 def label(key: str, profile: str = RC003_PROFILE, peers=()) -> str:
     from . import device_catalog
     if not key:
@@ -196,9 +214,9 @@ def select_paired_device(selection: dict, key: str, paired: list[dict]) -> tuple
     if saved_profile and saved_profile != row["profile"]:
         raise SelectionError("设备型号信息与已保存记录不一致，请重新检查。")
     known_xiaomi = {item["key"] for item in result["devices"] + paired
-                    if item.get("profile") == RC003_PROFILE}
+                    if item.get("profile") in XIAOMI_PROFILES}
     result = select_device(add_device(result, row), key)
-    return result, row["profile"] == RC003_PROFILE and known_xiaomi == {key}
+    return result, row["profile"] in XIAOMI_PROFILES and known_xiaomi == {key}
 
 
 def candidate_key(info: object) -> str:
@@ -310,6 +328,8 @@ async def _scan_paired() -> list[dict]:
         name = getattr(info, "name", "") or ""
         if identity.matches_rc003_name(name):
             profile = RC003_PROFILE
+        elif identity.matches_rc001_name(name):
+            profile = RC001_PROFILE
         elif identity.matches_chromecast_name(name):
             profile = CHROMECAST_PROFILE
         else:

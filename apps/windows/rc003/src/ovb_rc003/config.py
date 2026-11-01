@@ -282,10 +282,10 @@ def default_config() -> Dict[str, Any]:
         "voice_input_source": VOICE_INPUT_SOURCE_REMOTE,
         # 模式2 使用本机哪个录音设备；空值表示尚未选择，模式2 保持静默。
         "voice_local_input_device": "",
-        # 短按切换模式（可选，默认关闭）。打开后话筒键的短按在已配置的语音键
+        # 短按切换模式（默认打开）。打开后话筒键的短按在已配置的语音键
         # 之间循环切换；每条语音键还可以单独打开“短按延迟发送”，把这一次
         # 快捷键推迟下发，避开输入法的短按/长按竞争。
-        "voice_cycle_short_press": False,
+        "voice_cycle_short_press": True,
         # 使用其他按键切换模式（可选，默认关闭）。打开后按键设置页的单击、
         # 双击、长按动作里会多出“语音模式切换”，任意按键（语音键除外）都能
         # 用来切模式；话筒键同时跟随切换后的语音键。
@@ -735,7 +735,7 @@ def _normalize_voice_key_configs(config: Dict[str, Any]) -> None:
 
     # 两个短按开关彼此独立，可以同时打开：短按切换模式负责换槽位，每条语音
     # 键的“短按延迟发送”把那一次按键推迟下发。运行时按具体槽位判断。
-    cycle = bool(config.get("voice_cycle_short_press", False))
+    cycle = bool(config.get("voice_cycle_short_press", True))
     config["voice_cycle_short_press"] = cycle
     config["voice_other_key_switch"] = bool(
         config.get("voice_other_key_switch", False)
@@ -936,7 +936,7 @@ def voice_key_short_press_resend(config_data: Dict[str, Any], slot: int) -> bool
 def voice_cycle_short_press(config_data: Dict[str, Any]) -> bool:
     """Return whether a short press cycles through the configured voice keys."""
 
-    return bool(config_data.get("voice_cycle_short_press", False))
+    return bool(config_data.get("voice_cycle_short_press", True))
 
 
 def voice_other_key_switch(config_data: Dict[str, Any]) -> bool:

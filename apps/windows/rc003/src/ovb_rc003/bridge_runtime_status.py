@@ -57,6 +57,7 @@ FAILED_HID_TAP_STATES = frozenset(
 READY_RAW_INPUT_STATES = frozenset({"ready"})
 READY_HID_TAP_STATES = frozenset({"attached_waiting_for_hid_io", "ready"})
 RC003_PROFILE = "xiaomi-rc003"
+RC001_PROFILE = "xiaomi-rc001"
 VOICE_RUNTIME_NOT_TESTED = "not_tested"
 VOICE_RUNTIME_ACTIVE = "active"
 VOICE_RUNTIME_MIC_CONFIRMED = "mic_confirmed"
@@ -105,6 +106,7 @@ class BridgeRuntimeStatus:
     voice_runtime_provider: str = ""
     voice_runtime_updated_at: Optional[float] = None
     battery_level: Optional[int] = None
+    remote_model: str = ""
 
 
 def current_runtime_identity(
@@ -239,7 +241,7 @@ def button_receiver_usable(
     validation in ``app.py``; it is not a setup action.
     """
 
-    if profile != RC003_PROFILE:
+    if profile not in (RC003_PROFILE, RC001_PROFILE):
         return False
     return (
         raw_input_state == "ready"
@@ -264,6 +266,7 @@ def publish_status(
     voice_runtime_provider: str = "",
     voice_runtime_updated_at: Optional[float] = None,
     battery_level: Optional[int] = None,
+    remote_model: str = "",
     session_id: Optional[int] = None,
     now: Callable[[], float] = time.time,
 ) -> BridgeRuntimeStatus:
@@ -301,6 +304,7 @@ def publish_status(
         voice_runtime_provider=str(voice_runtime_provider),
         voice_runtime_updated_at=voice_runtime_updated_at,
         battery_level=battery_level,
+        remote_model=str(remote_model),
     )
     path = status_path(config_root, session_id=session_id)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -329,6 +333,7 @@ def publish_status(
                     "voice_runtime_provider": status.voice_runtime_provider,
                     "voice_runtime_updated_at": status.voice_runtime_updated_at,
                     "battery_level": status.battery_level,
+                    "remote_model": status.remote_model,
                 },
                 ensure_ascii=True,
                 sort_keys=True,
@@ -392,6 +397,7 @@ def _read_status_file(path: Path) -> Optional[BridgeRuntimeStatus]:
             "last_button_source",
             "voice_runtime_state",
             "voice_runtime_provider",
+            "remote_model",
         )
     }
     if "voice_runtime_state" not in payload:
@@ -450,6 +456,7 @@ def _read_status_file(path: Path) -> Optional[BridgeRuntimeStatus]:
             else float(voice_runtime_updated_at)
         ),
         battery_level=battery_level,
+        remote_model=string_fields["remote_model"],
     )
 
 

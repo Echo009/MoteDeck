@@ -103,6 +103,25 @@ BUTTON_HOTSPOTS_BY_ID: Dict[str, ButtonHotspot] = {
 BUTTON_ORDER: Tuple[str, ...] = tuple(hotspot.button_id for hotspot in BUTTON_HOTSPOTS)
 
 
+# 小米遥控器2（RC001）：按键个数、名称、HID usage 与 RC003 完全一致，只是机身
+# 更短更宽，所以按键位置单独一张表。坐标同样从 720×1080 的
+# RC001-remote-photo.png 上实测得到，尺寸沿用 RC003 同款比例。
+RC001_HOTSPOTS: Tuple[ButtonHotspot, ...] = (
+    ButtonHotspot("power", x=0.3838, y=0.1142, width=0.150, height=0.072),
+    ButtonHotspot("mic", x=0.6068, y=0.1143, width=0.150, height=0.072, is_voice=True),
+    ButtonHotspot("up", x=0.4964, y=0.1801, width=0.170, height=0.058),
+    ButtonHotspot("left", x=0.3674, y=0.2661, width=0.075, height=0.110),
+    ButtonHotspot("ok", x=0.4964, y=0.2661, width=0.160, height=0.110),
+    ButtonHotspot("right", x=0.6254, y=0.2661, width=0.075, height=0.110),
+    ButtonHotspot("down", x=0.4964, y=0.3521, width=0.170, height=0.058),
+    ButtonHotspot("back", x=0.3963, y=0.4233, width=0.170, height=0.080),
+    ButtonHotspot("volume_up", x=0.5962, y=0.4235, width=0.160, height=0.080),
+    ButtonHotspot("home", x=0.3966, y=0.5101, width=0.170, height=0.080),
+    ButtonHotspot("volume_down", x=0.5962, y=0.5100, width=0.160, height=0.080),
+    ButtonHotspot("menu", x=0.3964, y=0.5971, width=0.170, height=0.080),
+    ButtonHotspot("tv", x=0.5968, y=0.5969, width=0.170, height=0.080),
+)
+
 # 2026-10: every key below is measured from the bundled 453×1443 photo (ring
 # centroids), not guessed. Like the RC003 table, the markers sit on the outer
 # edge of each printed key instead of its centre so they never cover the icon,
@@ -179,6 +198,11 @@ def hotspot_for(button_id: str, profile: str = "xiaomi-rc003") -> Optional[Butto
     if profile == "chromecast-remote":
         return next(
             (item for item in CHROMECAST_HOTSPOTS if item.button_id == button_id),
+            None,
+        )
+    if profile == "xiaomi-rc001":
+        return next(
+            (item for item in RC001_HOTSPOTS if item.button_id == button_id),
             None,
         )
     return BUTTON_HOTSPOTS_BY_ID.get(button_id)

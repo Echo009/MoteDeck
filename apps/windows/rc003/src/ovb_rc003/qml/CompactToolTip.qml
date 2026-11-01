@@ -6,11 +6,13 @@ ToolTip {
 
     property var tokens
     property bool active: false
+    // 帮助类提示：立刻出现，且只要指针还在上面就一直显示，不会超时消失。
+    property bool persistent: false
     property real maximumTextWidth: 260
 
     visible: active && text.length > 0
-    delay: 450
-    timeout: 5000
+    delay: root.persistent ? 0 : 450
+    timeout: root.persistent ? 2147483647 : 5000
     x: 0
     y: -implicitHeight - root.tokens.spacingSmall - tooltipBackground.border.width
     leftInset: 0

@@ -1910,8 +1910,16 @@ def check_selected_remote(key: str, *, cancel_event=None) -> CheckResult:
         return CheckResult("ble_candidate", _BLE_CANDIDATE_TITLE, CheckGroup.VOICE_BRIDGE,
                            CheckStatus.MANUAL, "请先选择要使用的设备。", "no_selection")
     rows = remote_selection.scan_paired(cancel_event=cancel_event)
-    found = any(row["key"] == key and row["profile"] == "xiaomi-rc003" for row in rows)
-    return CheckResult("ble_candidate", _BLE_CANDIDATE_TITLE, CheckGroup.VOICE_BRIDGE,
+    row = next((item for item in rows if item["key"] == key), None)
+    found = row is not None and row["profile"] in remote_selection.XIAOMI_PROFILES
+    if found:
+        try:
+            title = f"{device_catalog.profile_for(row['profile']).display_name} 蓝牙配对"
+        except device_catalog.DeviceCatalogLoadError:
+            title = _BLE_CANDIDATE_TITLE
+    else:
+        title = _BLE_CANDIDATE_TITLE
+    return CheckResult("ble_candidate", title, CheckGroup.VOICE_BRIDGE,
                        CheckStatus.PASS if found else CheckStatus.MANUAL,
                        "所选设备仍在 Windows 配对列表中；按键和语音需分别验证。" if found
                        else "未找到所选设备，请检查蓝牙配对。",

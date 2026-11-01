@@ -13,7 +13,12 @@ class DeviceCatalogTests(unittest.TestCase):
         self.assertIsNone(device_catalog.CATALOG_ERROR)
         self.assertEqual(
             [profile.device_id for profile in device_catalog.DEVICE_PROFILES],
-            ["chromecast-remote", device_catalog.DJI_MIC_2_ID, device_catalog.RC003_ID],
+            [
+                "chromecast-remote",
+                device_catalog.DJI_MIC_2_ID,
+                device_catalog.RC001_ID,
+                device_catalog.RC003_ID,
+            ],
         )
         rc003 = device_catalog.profile_for(device_catalog.RC003_ID)
         dji = device_catalog.profile_for(device_catalog.DJI_MIC_2_ID)
@@ -126,7 +131,12 @@ class DeviceCatalogTests(unittest.TestCase):
                 catalog = device_catalog.load_device_catalog()
                 self.assertEqual(
                     [profile.device_id for profile in catalog.profiles],
-                    ["chromecast-remote", device_catalog.DJI_MIC_2_ID, device_catalog.RC003_ID],
+                    [
+                        "chromecast-remote",
+                        device_catalog.DJI_MIC_2_ID,
+                        device_catalog.RC001_ID,
+                        device_catalog.RC003_ID,
+                    ],
                 )
 
     def test_frozen_locator_does_not_fall_back_to_source_when_bundle_data_is_missing(self):

@@ -7,6 +7,8 @@ Dialog {
     property var tokens
     property real preferredWidth: 480
     property string titleNote: ""
+    // 标题栏右侧的问号帮助：非空时显示图标，指针停在上面就展开这段说明。
+    property string helpText: ""
     property string closeButtonObjectName: ""
     property bool dismissalEnabled: true
 
@@ -65,6 +67,43 @@ Dialog {
                     tokens: root.tokens
                     active: noteHover.hovered && note.truncated
                     text: root.titleNote
+                }
+            }
+            Item {
+                id: helpItem
+                objectName: "settingsDialogHelpIcon"
+                visible: root.helpText.length > 0
+                implicitWidth: 16
+                implicitHeight: 16
+                Layout.alignment: Qt.AlignVCenter
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: width / 2
+                    color: "transparent"
+                    border.width: root.tokens.hairlineWidth
+                    border.color: helpHover.hovered
+                        ? root.tokens.textPrimary : root.tokens.border
+                }
+                Text {
+                    anchors.centerIn: parent
+                    text: "?"
+                    color: helpHover.hovered
+                        ? root.tokens.textPrimary : root.tokens.textSecondary
+                    font.family: root.tokens.fontFamily
+                    font.pixelSize: root.tokens.fontSizeSmall
+                    font.weight: Font.Medium
+                }
+                HoverHandler { id: helpHover }
+                CompactToolTip {
+                    tokens: root.tokens
+                    persistent: true
+                    maximumTextWidth: 320
+                    // 贴着问号向下展开，右边缘与问号对齐。
+                    x: helpItem.width - width
+                    y: helpItem.height + root.tokens.spacingSmall
+                    active: helpHover.hovered
+                    text: root.helpText
                 }
             }
             DialogCloseButton {

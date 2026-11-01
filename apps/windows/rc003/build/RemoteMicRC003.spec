@@ -35,6 +35,7 @@ if not SRC_ROOT.is_dir():
     raise SystemExit(f"required build source directory is missing: {SRC_ROOT}")
 REPO_ROOT = RC003_ROOT.parents[2]
 REMOTE_PHOTO = REPO_ROOT / "Resources" / "RC003-remote-photo.png"
+RC001_PHOTO = REPO_ROOT / "Resources" / "RC001-remote-photo.png"
 CHROMECAST_PHOTO = REPO_ROOT / "Resources" / "Chromecast-remote-photo.png"
 QML_SOURCE_DIR = SRC_ROOT / "ovb_rc003" / "qml"
 APP_ICON_DIR = SRC_ROOT / "ovb_rc003" / "assets" / "icons"
@@ -190,6 +191,12 @@ if not REMOTE_PHOTO.is_file():
         f"{REMOTE_PHOTO}"
     )
 
+if not RC001_PHOTO.is_file():
+    raise SystemExit(
+        "required 小米遥控器2 photo is missing: "
+        f"{RC001_PHOTO}"
+    )
+
 datas = []
 datas.append((str(VERSION_FILE), "ovb_rc003"))
 # This places the photo under Resources/ inside the one-dir COLLECT output,
@@ -197,6 +204,7 @@ datas.append((str(VERSION_FILE), "ovb_rc003"))
 # checkout may still degrade if a user deletes the file after startup, but a
 # frozen candidate is incomplete without the real button-layout reference.
 datas.append((str(REMOTE_PHOTO), "Resources"))
+datas.append((str(RC001_PHOTO), "Resources"))
 datas.append((str(CHROMECAST_PHOTO), "Resources"))
 if QML_SOURCE_DIR.is_dir():
     # XRBM-030: the settings window's entire QML source tree is made of real

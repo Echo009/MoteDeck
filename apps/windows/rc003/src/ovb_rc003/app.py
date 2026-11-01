@@ -359,6 +359,8 @@ class RC003App:
         self._runtime_voice_provider = ""
         self._runtime_voice_updated_at: Optional[float] = None
         self._runtime_battery_level: Optional[int] = None
+        # 连上后读到的 GATT 型号串（0x2A24），只用于界面区分 2 / 2 Pro。
+        self._runtime_remote_model = ""
         self._runtime_last_button_publish_monotonic = 0.0
         self._logger.info(
             "startup: app identity: version=%s runtime=%s package=%s",
@@ -677,6 +679,7 @@ class RC003App:
                 is not bridge_runtime_status.BridgeConnectionState.CONNECTED
             ):
                 self._runtime_battery_level = None
+                self._runtime_remote_model = ""
             try:
                 bridge_runtime_status.publish_status(
                     self._config_root,
@@ -694,6 +697,7 @@ class RC003App:
                     voice_runtime_provider=self._runtime_voice_provider,
                     voice_runtime_updated_at=self._runtime_voice_updated_at,
                     battery_level=self._runtime_battery_level,
+                    remote_model=self._runtime_remote_model,
                 )
             except (OSError, ValueError):
                 self._logger.exception(
@@ -896,6 +900,25 @@ class RC003App:
                     "optional RC003 battery monitor start failed: error_type=%s",
                     type(exc).__name__,
                 )
+
+        # 蓝牙名可能只是通用名（如“小米蓝牙语音遥控器”），连上后读一次
+        # GATT 型号串（0x180A/0x2A24）来区分小米遥控器2 与 2 Pro。这是
+        # 可选探测：失败只留空，不影响已建立的语音链路。
+        read_model_number = getattr(self._ble_session, "read_model_number", None)
+        if callable(read_model_number):
+            try:
+                model_number = await read_model_number()
+            except Exception as exc:  # noqa: BLE001 - optional probe
+                model_number = None
+                self._logger.info(
+                    "optional RC003 model probe failed: error_type=%s",
+                    type(exc).__name__,
+                )
+            if model_number:
+                with self._runtime_status_lock:
+                    self._runtime_remote_model = str(model_number)[:64]
+                self._publish_runtime_status()
+                self._logger.info("RC003 model number detected: %s", model_number)
 
     def _create_chromecast_runtime(self):
         from . import chromecast_runtime

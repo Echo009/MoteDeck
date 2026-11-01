@@ -1100,12 +1100,24 @@ Item {
                     descriptionText: qsTr("记录按键与语音排查信息，本地保存")
 
                     CompactButton {
+                        id: deviceHelpCenterButton
+                        objectName: "deviceHelpCenterButton"
+                        tokens: root.tokens
+                        flat: true
+                        trailingIcon: "external"
+                        text: qsTr("查看帮助")
+                        Accessible.name: qsTr("打开帮助页面")
+                        KeyNavigation.backtab: launchBridgeOnAppStartSwitch
+                        KeyNavigation.tab: deviceLogLocationLink
+                        onClicked: SettingsController.openHelpCenter()
+                    }
+                    CompactButton {
                         id: deviceLogLocationLink
                         objectName: "deviceLogLocationLink"
                         tokens: root.tokens
                         flat: true
                         text: qsTr("打开日志位置")
-                        KeyNavigation.backtab: launchBridgeOnAppStartSwitch
+                        KeyNavigation.backtab: deviceHelpCenterButton
                         KeyNavigation.tab: deviceOpenLogButton
                         onClicked: SettingsController.openLogLocation()
                     }

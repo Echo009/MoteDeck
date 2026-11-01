@@ -111,6 +111,11 @@ _CONTROL_QUEUE_MAXSIZE = 32
 _WORKER_POLL_SECONDS = 0.2
 _CANDIDATE_PROBE_TIMEOUT_SECONDS = 8.0
 _BATTERY_SETUP_TIMEOUT_SECONDS = 3.0
+# 小米遥控器2 与 2 Pro 可能广播同一个通用蓝牙名，上游项目在连上后读
+# Device Information 服务的 Model Number String（0x180A/0x2A24）来区分两代。
+_MODEL_NUMBER_SERVICE_UUID = "0000180a-0000-1000-8000-00805f9b34fb"
+_MODEL_NUMBER_UUID = "00002a24-0000-1000-8000-00805f9b34fb"
+_MODEL_NUMBER_TIMEOUT_SECONDS = 5.0
 _logger = logging.getLogger(__name__)
 
 
@@ -566,6 +571,65 @@ class RC003BleSession:
 
         self._start_worker(my_generation)
         await self._write_tx(self._get_capabilities_command)
+
+    async def read_model_number(self) -> Optional[str]:
+        """尽力读取 GATT 0x180A/0x2A24 的型号串，区分小米遥控器2 与 2 Pro。
+
+        ATVV 会话建立之后才调用；只用缓存读，超时或任何失败都返回 None，
+        绝不把这次可选查询的错误带进语音链路或重连流程。
+        """
+
+        if self._device is None or self._closing:
+            return None
+        winrt = self._winrt or _import_winrt()
+        try:
+            return await asyncio.wait_for(
+                self._read_model_number(winrt), _MODEL_NUMBER_TIMEOUT_SECONDS
+            )
+        except Exception as exc:  # noqa: BLE001 - optional telemetry never fails the session
+            _logger.info(
+                "RC003 model number read skipped: error_type=%s",
+                type(exc).__name__,
+            )
+            return None
+
+    async def _read_model_number(self, winrt: WinRTModules) -> Optional[str]:
+        result = await self._device.get_gatt_services_for_uuid_with_cache_mode_async(
+            uuid.UUID(_MODEL_NUMBER_SERVICE_UUID), winrt.bluetooth_cache_mode.CACHED
+        )
+        if (
+            result.status != winrt.gatt_communication_status.SUCCESS
+            or not result.services
+        ):
+            return None
+        characteristics = await result.services[0].get_characteristics_with_cache_mode_async(
+            winrt.bluetooth_cache_mode.CACHED
+        )
+        if characteristics.status != winrt.gatt_communication_status.SUCCESS:
+            return None
+        characteristic = next(
+            (
+                item
+                for item in characteristics.characteristics
+                if str(item.uuid).casefold() == _MODEL_NUMBER_UUID
+            ),
+            None,
+        )
+        if characteristic is None:
+            return None
+        value = await characteristic.read_value_with_cache_mode_async(
+            winrt.bluetooth_cache_mode.CACHED
+        )
+        if value.status != winrt.gatt_communication_status.SUCCESS:
+            return None
+        try:
+            data = bytes(value.value)
+        except (TypeError, ValueError):
+            return None
+        if not 0 < len(data) <= 64:
+            return None
+        text = data.decode("utf-8", errors="ignore").strip()
+        return text or None
 
     def start_battery_monitor(self) -> None:
         """Start telemetry on a separate owner so GATT cannot hold teardown."""

@@ -163,8 +163,10 @@ VOKIE_PLUGIN_URL = (
 )
 OPENMEXIA_WEBSITE_URL = "https://hzdavy.github.io/OpenMexia/"
 OPENMEXIA_DOWNLOAD_URL = "https://github.com/HZDavy/OpenMexia/releases"
-# 语音页「语音键设置教程」入口。教程页面之后建在官网上，这里用固定锚点占位。
-VOICE_KEY_TUTORIAL_URL = f"{application_update.WEBSITE_URL}#voice-keys"
+# 语音页「语音键设置教程」入口，指向帮助站点的语音输入页。
+VOICE_KEY_TUTORIAL_URL = f"{application_update.WEBSITE_URL}help/voice/"
+# 设备页「软件协助」里的帮助入口，指向帮助站点首页。
+HELP_CENTER_URL = f"{application_update.WEBSITE_URL}help/"
 
 
 # Only the physical microphone button can own RC003 audio. Other buttons use
@@ -1692,6 +1694,9 @@ def _load_qt_classes() -> dict:
                 selected_device_id = device_catalog.RC003_ID
             self._selected_device_fallback_id = selected_device_id
             self._selected_device_index = self._DEVICE_ORDER.index(selected_device_id)
+            # 桥接连上后从 GATT 型号串（0x180A/0x2A24）读到的型号，只影响
+            # 界面显示，不写入配置；为空时按蓝牙名判定的型号显示。
+            self._detected_remote_profile = ""
             self._key_detection_listener = None
             self._key_detection_tap = None
             self._key_detection_bridge_request = None
@@ -2132,6 +2137,14 @@ def _load_qt_classes() -> dict:
             from . import remote_selection
             active = remote_selection.active_profile(self._config)
             if active:
+                if (
+                    active in remote_selection.XIAOMI_PROFILES
+                    and self._detected_remote_profile
+                    in remote_selection.XIAOMI_PROFILES
+                ):
+                    # 连上后读到的型号串优先于蓝牙名：通用名可能把小米遥控器2
+                    # 当成 2 Pro，型号串不会。
+                    return self._detected_remote_profile
                 return active
             if 0 <= self._selected_device_index < len(self._DEVICE_ORDER):
                 return self._DEVICE_ORDER[self._selected_device_index]
@@ -2496,6 +2509,15 @@ def _load_qt_classes() -> dict:
             if battery_level != self._remote_battery_level:
                 self._remote_battery_level = battery_level
                 self.remoteBatteryChanged.emit()
+
+            from . import remote_selection
+            detected_profile = remote_selection.profile_for_model_number(
+                getattr(status, "remote_model", "") if status is not None else ""
+            )
+            if detected_profile != self._detected_remote_profile:
+                self._detected_remote_profile = detected_profile
+                self.selectedDeviceChanged.emit()
+                self.remoteSelectionChanged.emit()
 
             voice_runtime_state = (
                 getattr(
@@ -5548,7 +5570,7 @@ def _load_qt_classes() -> dict:
             self._set_error_message("")
             if announce:
                 self._set_status_message(
-                    f"已连接 OpenMexia，读取到 {len(self._openmexia_devices)} 台设备；"
+                    f"已连接 OpenMexia，读取到 {self._openmexia_device_count()} 台设备；"
                     "按键动作里已可以选择它们。",
                     self._VOICE_PAGE_INDEX,
                 )
@@ -5687,8 +5709,16 @@ def _load_qt_classes() -> dict:
             bool, _get_openmexia_connected, notify=openMexiaStateChanged
         )
 
+        def _openmexia_device_count(self) -> int:
+            # 房间是 OpenMexia 额外挂出来的虚拟条目，不占真实设备数
+            return sum(
+                1
+                for device in self._openmexia_devices
+                if device.type != "room"
+            )
+
         def _get_openmexia_device_count(self) -> int:
-            return len(self._openmexia_devices)
+            return self._openmexia_device_count()
 
         openMexiaDeviceCount = Property(
             int, _get_openmexia_device_count, notify=openMexiaStateChanged
@@ -5740,6 +5770,12 @@ def _load_qt_classes() -> dict:
         def openVoiceKeyTutorial(self) -> bool:
             result = shell_targets.open_external_target(VOICE_KEY_TUTORIAL_URL)
             self._report_external_target(result, self._VOICE_PAGE_INDEX)
+            return result.outcome is shell_targets.ExternalTargetOutcome.OPENED
+
+        @Slot(result=bool)
+        def openHelpCenter(self) -> bool:
+            result = shell_targets.open_external_target(HELP_CENTER_URL)
+            self._report_external_target(result, self._DEVICE_PAGE_INDEX)
             return result.outcome is shell_targets.ExternalTargetOutcome.OPENED
 
         voiceHotkeySource = Property(
@@ -6299,7 +6335,10 @@ def _load_qt_classes() -> dict:
         )
 
         def _get_is_rc003_device(self) -> bool:
-            return self._selected_device_id() == device_catalog.RC003_ID
+            # QML 里这个属性实际是“小米竖版 13 键遥控器”的布局开关，
+            # 小米遥控器2（RC001）按键集合完全一致，共用同一套布局。
+            return self._selected_device_id() in (
+                device_catalog.RC003_ID, device_catalog.RC001_ID)
 
         isRc003Device = Property(bool, _get_is_rc003_device, notify=selectedDeviceChanged)
 
