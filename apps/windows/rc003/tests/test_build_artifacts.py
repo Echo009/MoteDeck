@@ -519,7 +519,7 @@ class InnoSetupScriptTests(unittest.TestCase):
     def test_privileges_required_is_lowest(self):
         self.assertIn("PrivilegesRequired=lowest", self.text)
 
-    def test_install_and_uninstall_reject_an_elevated_outer_process(self):
+    def test_install_allows_elevation_only_for_the_signed_in_account(self):
         code_section = _iss_section(self.text, "Code")
         setup = code_section.split(
             "function InitializeSetup(): Boolean;", 1
@@ -527,6 +527,11 @@ class InnoSetupScriptTests(unittest.TestCase):
         uninstall = code_section.split(
             "function InitializeUninstall(): Boolean;", 1
         )[1].split("procedure DeinitializeUninstall", 1)[0]
+
+        self.assertIn("if ShellIsUserAnAdmin() then", setup)
+        self.assertIn("ReadConsoleSessionAccountName()", setup)
+        self.assertIn("SameText(ElevatedAccount, DesktopAccount)", setup)
+        self.assertIn("Result := False", setup)
 
         for branch in (setup, uninstall):
             self.assertIn("if ShellIsUserAnAdmin() then", branch)

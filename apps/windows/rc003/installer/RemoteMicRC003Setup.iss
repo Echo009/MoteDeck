@@ -1009,12 +1009,116 @@ begin
   Result := True;
 end;
 
+{ query user 的列以两个以上空格分隔，值本身（如用户名）只含单个空格。 }
+function SplitConsoleAccountColumns(const LineText: String): TArrayOfString;
+var
+  Index: Integer;
+  Column: String;
+  Character: String;
+  ColumnEnds: Boolean;
+begin
+  SetArrayLength(Result, 0);
+  Column := '';
+  Index := 1;
+  while Index <= Length(LineText) do
+  begin
+    Character := Copy(LineText, Index, 1);
+    ColumnEnds :=
+      (Character = ' ') and
+      (Column <> '') and
+      ((Index = Length(LineText)) or (Copy(LineText, Index + 1, 1) = ' '));
+    if ColumnEnds then
+    begin
+      SetArrayLength(Result, GetArrayLength(Result) + 1);
+      Result[GetArrayLength(Result) - 1] := Trim(Column);
+      Column := '';
+      while (Index <= Length(LineText)) and (Copy(LineText, Index, 1) = ' ') do
+        Index := Index + 1;
+    end
+    else
+    begin
+      Column := Column + Character;
+      Index := Index + 1;
+    end;
+  end;
+  if Trim(Column) <> '' then
+  begin
+    SetArrayLength(Result, GetArrayLength(Result) + 1);
+    Result[GetArrayLength(Result) - 1] := Trim(Column);
+  end;
+end;
+
+{ 返回登录 console 会话（也就是当前桌面）的账号名；取不到时返回空串。 }
+function ReadConsoleSessionAccountName(): String;
+var
+  OutputPath: String;
+  Lines: TArrayOfString;
+  Columns: TArrayOfString;
+  Index: Integer;
+  ResultCode: Integer;
+  Account: String;
+  Separator: Integer;
+begin
+  Result := '';
+  if GetEnv('TEMP') = '' then
+    exit;
+  OutputPath := AddBackslash(GetEnv('TEMP')) + 'motedeck-console-account.txt';
+  DeleteFile(OutputPath);
+  if not Exec(
+    ExpandConstant('{cmd}'),
+    '/c query user > "' + OutputPath + '"',
+    '',
+    SW_HIDE,
+    ewWaitUntilTerminated,
+    ResultCode
+  ) then
+    exit;
+  if not FileExists(OutputPath) then
+    exit;
+  if not LoadStringsFromFile(OutputPath, Lines) then
+  begin
+    DeleteFile(OutputPath);
+    exit;
+  end;
+  for Index := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    Columns := SplitConsoleAccountColumns(Lines[Index]);
+    if GetArrayLength(Columns) >= 2 then
+    begin
+      if SameText(Columns[1], 'console') then
+      begin
+        Account := Trim(Columns[0]);
+        { 当前会话那一行的账号前带 '>' 标记，要去掉才能和提权账号比对。 }
+        while (Account <> '') and (Copy(Account, 1, 1) = '>') do
+          Account := Trim(Copy(Account, 2, Length(Account)));
+        Separator := Pos('\', Account);
+        if Separator > 0 then
+          Account := Copy(Account, Separator + 1, Length(Account));
+        Result := Trim(Account);
+        break;
+      end;
+    end;
+  end;
+  DeleteFile(OutputPath);
+end;
+
 function InitializeSetup(): Boolean;
+var
+  ElevatedAccount: String;
+  DesktopAccount: String;
 begin
   if ShellIsUserAnAdmin() then
   begin
+    { 同一个账号提权安装，安装目录与普通安装一致，直接放行。 }
+    ElevatedAccount := GetUserNameString();
+    DesktopAccount := ReadConsoleSessionAccountName();
+    if (DesktopAccount <> '') and SameText(ElevatedAccount, DesktopAccount) then
+    begin
+      Result := True;
+      exit;
+    end;
     MsgBox(
-      '请关闭安装程序，然后普通双击安装包。MoteDeck不需要以管理员身份安装或长期运行。',
+      '当前安装程序以管理员身份运行，且使用的账号与登录桌面的账号不一致。MoteDeck按当前 Windows 账号安装，请关闭安装程序，用登录桌面的账号普通双击安装包。',
       mbError,
       MB_OK
     );
