@@ -848,6 +848,12 @@ def main() -> None:
         if args[0] != hid_source_injector.FLAG:
             raise SystemExit(2)
         raise SystemExit(hid_source_injector.main(args[1:]))
+    if "--chromecast-worker" in args:
+        from . import chromecast_worker
+        from .chromecast_pipe_windows import WORKER_FLAG
+        if args[0] != WORKER_FLAG:
+            raise SystemExit(2)
+        raise SystemExit(chromecast_worker.main(args[1:]))
     if dev_session.is_isolated() and any(flag in args for flag in (
         "--request-exit", "--install-hid-helper", "--uninstall-hid-helper",
         "--element-navigation", "--background", "--bridge",
