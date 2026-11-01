@@ -10,7 +10,7 @@
   <a href="LICENSE.md"><img src="https://img.shields.io/github/license/HZDavy/MoteDeck?style=flat-square&label=license&color=111111&labelColor=55534F" alt="许可"></a>
 </p>
 
-欢迎通过 [Issues](https://github.com/HZDavy/MoteDeck/issues) 提交功能建议与 Bug 反馈，也欢迎直接提交 [Pull Request](https://github.com/HZDavy/MoteDeck/pulls)；使用说明见[使用帮助](https://hzdavy.github.io/MoteDeck/help/)，交流群：1134307509。
+欢迎通过 [Issues](https://github.com/HZDavy/MoteDeck/issues) 提交功能建议与 Bug 反馈，也欢迎直接提交 [Pull Request](https://github.com/HZDavy/MoteDeck/pulls)；使用说明见[使用帮助](https://hzdavy.github.io/MoteDeck/help/)。
 
 > [!NOTE]
 > 本项目自身代码几乎全部由 AI 协助开发，可能存在疏漏，由此给您带来的不便敬请谅解。
