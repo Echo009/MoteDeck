@@ -1455,16 +1455,6 @@ var
   StopScript: String;
 begin
   Result := True;
-  if ShellIsUserAnAdmin() then
-  begin
-    MsgBox(
-      '请关闭卸载程序，然后普通方式重新打开。MoteDeck按当前 Windows 账号卸载，不能以管理员身份运行卸载程序。',
-      mbError,
-      MB_OK
-    );
-    Result := False;
-    exit;
-  end;
   if not AcquireInstallerMaintenanceMutex() then
   begin
     Result := False;

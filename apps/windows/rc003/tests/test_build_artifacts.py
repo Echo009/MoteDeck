@@ -533,10 +533,10 @@ class InnoSetupScriptTests(unittest.TestCase):
         self.assertIn("SameText(ElevatedAccount, DesktopAccount)", setup)
         self.assertIn("Result := False", setup)
 
-        for branch in (setup, uninstall):
-            self.assertIn("if ShellIsUserAnAdmin() then", branch)
-            self.assertIn("Result := False", branch)
-        self.assertIn("不能以管理员身份运行卸载程序", uninstall)
+        # 卸载一律放行：关闭 UAC 或内置 Administrator 登录时进程天然是提权
+        # 上下文，再拦就会让用户装得上却卸不掉。
+        self.assertNotIn("ShellIsUserAnAdmin()", uninstall)
+        self.assertNotIn("不能以管理员身份运行卸载程序", uninstall)
 
     def test_installer_maintenance_mutex_is_visible_across_sessions(self):
         code_section = _iss_section(self.text, "Code")
