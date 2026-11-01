@@ -12,7 +12,8 @@
 
 欢迎通过 [Issues](https://github.com/HZDavy/MoteDeck/issues) 提交功能建议与 Bug 反馈，也欢迎直接提交 [Pull Request](https://github.com/HZDavy/MoteDeck/pulls)；交流群：1134307509。
 
-本项目自身代码几乎全部由 AI 协助开发，可能存在疏漏，由此给您带来的不便敬请谅解。
+> [!NOTE]
+> 本项目自身代码几乎全部由 AI 协助开发，可能存在疏漏，由此给您带来的不便敬请谅解。
 
 MoteDeck 是一个开源的 Windows 小工具，把电视语音遥控器的按键和话筒接进电脑：支持**小米蓝牙语音遥控器 2 Pro**（RC003）、**小米遥控器2**（RC001），以及 Google TV 款的**谷歌遥控器**（Chromecast；谷歌 TV 遥控器均为第三方生产，存在多个版本，不能保证所有版本都可以使用），通过按键映射与语音输入，实现隔着房间控制应用、按住说话把文字送进当前输入框。
 
