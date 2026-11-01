@@ -212,10 +212,13 @@ Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](h
 
 小米遥控器2（RC001）的实现，以及小米遥控器 2 / 2 Pro 的型号判断（先按蓝牙名匹配，再读 GATT `0x2A24`），参考了 [`GetSayAll/remote-mic-app-windows`](https://github.com/GetSayAll/remote-mic-app-windows)（SayAll Windows 版），由 [Echo](https://github.com/HD838A) 提交（PR #7）。感谢他的公开实现。
 
+驱动级注入用的内核驱动是第三方项目 [Interception](https://github.com/oblitum/Interception)（作者 [oblitum / Francisco Lopes](https://github.com/oblitum)）：用的是官方原版安装包，未做修改，按 LGPL-3.0 用于非商业用途，许可与校验信息见 [第三方说明](THIRD_PARTY_NOTICES.md)。
+
 <table>
   <tr>
     <td align="center"><a href="https://github.com/nijez"><img src="https://avatars.githubusercontent.com/u/46086777?v=4" width="64px;" alt="nijez"/><br /><sub><b>nijez</b></sub></a><br /><sub>open-voice-bridge</sub></td>
     <td align="center"><a href="https://github.com/ZSTDJan"><img src="https://avatars.githubusercontent.com/u/166355097?v=4" width="64px;" alt="ZSTDJan"/><br /><sub><b>ZSTDJan</b></sub></a><br /><sub>windows-remote-mic-app</sub></td>
     <td align="center"><a href="https://github.com/HD838A"><img src="https://avatars.githubusercontent.com/u/126734171?v=4" width="64px;" alt="Echo"/><br /><sub><b>Echo</b></sub></a><br /><sub>remote-mic-app-windows</sub></td>
+    <td align="center"><a href="https://github.com/oblitum"><img src="https://avatars.githubusercontent.com/u/1269815?v=4" width="64px;" alt="oblitum"/><br /><sub><b>oblitum</b></sub></a><br /><sub>Interception</sub></td>
   </tr>
 </table>
