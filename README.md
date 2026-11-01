@@ -172,6 +172,26 @@ MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成：用一�
 
 ---
 
+## 贡献者
+
+不管是提 issue 报告问题、提建议，还是改代码、写文档，都算贡献。感谢每一位帮过忙的人：
+
+<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
+<!-- prettier-ignore-start -->
+<!-- prettier-ignore-end -->
+
+<!-- ALL-CONTRIBUTORS-LIST:END -->
+
+想把谁加进名单，在该 issue 或 PR 里评论一句即可：
+
+```
+@all-contributors please add @用户名 for bug
+```
+
+贡献类型：`bug`（报告问题）、`ideas`（提建议）、`code`（代码）、`doc`（文档）、`design`（设计）、`test`（测试）、`review`（评审）等，可一次填多个。
+
+---
+
 ## 开源与许可
 
 代码按 [GPL-3.0-only](LICENSE.md) 发布；第三方组件和素材按各自的许可与授权使用，见 [第三方说明](THIRD_PARTY_LICENSES/README.md) 与 [素材授权](ASSET_LICENSES.md)。
