@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="把小米遥控器 2 Pro 与谷歌 Chromecast 遥控器变成 Windows 的按键与麦克风">
+        <meta name="description" content="把小米遥控器 2 Pro、小米遥控器 2 与谷歌遥控器变成 Windows 的按键与麦克风">
       
       
         <meta name="author" content="HZDavy">
@@ -495,10 +495,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-长按连击" class="md-nav__link">
+  <a href="#3-长按连发" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. 长按连击
+        3. 长按连发
       
     </span>
   </a>
@@ -649,10 +649,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-长按连击" class="md-nav__link">
+  <a href="#3-长按连发" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. 长按连击
+        3. 长按连发
       
     </span>
   </a>
@@ -699,57 +699,55 @@
 
 
 <h1 id="米家设备联动">米家设备联动<a class="headerlink" href="#米家设备联动" title="Permanent link">&para;</a></h1>
-<p>配合同一作者的 <a href="https://hzdavy.github.io/OpenMexia/">OpenMexia</a>（0.1.11 及以上），遥控器可以直接控制米家设备：
-在沙发上按一下，就能开关灯、调亮度和色温。</p>
+<p>配合同一作者的 <a href="https://hzdavy.github.io/OpenMexia/">OpenMexia</a>（0.1.11 及以上），遥控器可以直接控制米家设备：开关灯、调节亮度与色温等操作均可映射到按键。</p>
 <h2 id="分工">分工<a class="headerlink" href="#分工" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>MoteDeck</strong>：只负责「按键 → 指令」。</li>
 <li><strong>OpenMexia</strong>：负责米家登录、设备状态与通信。</li>
 </ul>
-<p>两者通过本机回环 HTTP 通信，只监听 <code>127.0.0.1</code>，每次启动随机 token 校验。
-MoteDeck 不会接触你的米家凭据，也不会上传任何设备数据。</p>
+<p>两者通过本机回环 HTTP 通信，仅监听 <code>127.0.0.1</code>，每次启动使用随机 token 校验。MoteDeck 不接触米家凭据，也不上传设备数据。</p>
 <h2 id="1-连接-openmexia">1. 连接 OpenMexia<a class="headerlink" href="#1-连接-openmexia" title="Permanent link">&para;</a></h2>
 <ol>
 <li>先启动 OpenMexia。</li>
-<li>回到 MoteDeck 的「语音」页，点 OpenMexia 一行的「连接软件」。</li>
+<li>打开 MoteDeck 的「语音」页，在「外部应用程序支持」面板的 OpenMexia 一行点「连接软件」。</li>
 </ol>
 <p><img alt="语音页的「外部应用程序支持」面板：Vokie 与 OpenMexia 两个外部程序入口，各有访问官网、下载和连接按钮" src="../assets/screenshots/plugin-page-openmexia-steps.png" /></p>
 <p>图中标号：<strong>①</strong> 连接软件（OpenMexia 一行）</p>
 <p>连接成功后：</p>
 <ul>
-<li>按键页的动作下拉里多出「米家设备」分组，条目形如「客厅灯 · 开灯」，选中即保存。</li>
-<li>应用条上多出 OpenMexia 条目，绑定关系跟着插件走，不能删除或重命名。</li>
-<li>连接状态会被记住，下次启动自动尝试恢复；OpenMexia 没启动时静默跳过，不影响遥控器其它功能。</li>
+<li>按键页的动作下拉中增加「米家设备」分组，条目形如「客厅灯 · 开灯」，选中即保存。</li>
+<li>应用条上增加 OpenMexia 条目，绑定关系由插件维护，不能删除或重命名。</li>
+<li>连接状态会被记住，下次启动自动尝试恢复；OpenMexia 未启动时静默跳过，不影响遥控器其它功能。</li>
+<li>已连接时按钮变为「断开连接」，点击后移除米家设备动作分组。</li>
 </ul>
 <h2 id="2-绑定按键">2. 绑定按键<a class="headerlink" href="#2-绑定按键" title="Permanent link">&para;</a></h2>
 <ol>
-<li>打开「按键」页，选中要用的按键。</li>
-<li>在单击、双击或长按的动作下拉里找到「米家设备」，选一条目标操作。</li>
+<li>打开「按键」页，选中要使用的按键。</li>
+<li>在单击、双击或长按的动作下拉中找到「米家设备」，选择一条目标操作。</li>
 <li>点「完成」保存，然后按一次实体按键确认。</li>
 </ol>
-<p>覆盖范围包括开关、亮度、色温、风速，以及 OpenMexia 里支持的自定义动作。</p>
-<h2 id="3-长按连击">3. 长按连击<a class="headerlink" href="#3-长按连击" title="Permanent link">&para;</a></h2>
-<p>绑定了「米家设备」动作的按键，只要没有另外设置长按或双击动作，按住不放就会以 <strong>0.2 秒一次</strong>的节奏
-重复执行同一个动作：按住「亮度+」，台灯会一路变亮，松手立刻停。</p>
+<p>覆盖范围包括开关、亮度、色温、风速，以及 OpenMexia 支持的自定义动作。</p>
+<h2 id="3-长按连发">3. 长按连发<a class="headerlink" href="#3-长按连发" title="Permanent link">&para;</a></h2>
+<p>绑定了「米家设备」动作的按键，只要没有另外设置长按或双击动作，按住不放就会以约 <strong>0.2 秒一次</strong>的节奏重复执行同一动作：按住「亮度+」，台灯会持续变亮，松手立即停止。</p>
 <ul>
-<li>连发节奏按人手操作设计，不是键盘那种 30ms 自动重复，不会在松手后留下积压的请求。</li>
-<li>已经另外配了长按或双击动作的按键，行为不变。</li>
+<li>连发节奏按人手操作设计，不是键盘的自动重复，松手后不会留下积压的请求。</li>
+<li>已经另外设置长按或双击动作的按键不受此影响。</li>
 </ul>
 <div class="admonition tip">
-<p class="admonition-title">OpenMexia 只要在后台挂着</p>
-<p>这些按键跟着插件走，跟 OpenMexia 窗口是否在前台无关——OpenMexia 在后台运行即可。</p>
+<p class="admonition-title">OpenMexia 只需在后台运行</p>
+<p>这些按键由插件转发，与 OpenMexia 窗口是否在前台无关。</p>
 </div>
 <h2 id="4-本机语音识别可选">4. 本机语音识别（可选）<a class="headerlink" href="#4-本机语音识别可选" title="Permanent link">&para;</a></h2>
-<p>OpenMexia 语音键可以不经输入法：</p>
+<p>OpenMexia 语音键可以不经输入法，直接使用本机离线识别：</p>
 <ol>
-<li>「语音」页点「语音识别…」，下载本机离线识别模型（SenseVoice，约 228MB，只下一次）。</li>
+<li>在「语音」页点「语音识别…」，按提示下载 SenseVoice 离线识别模型（约 228 MB，仅下载一次）。</li>
 <li>
 <p>之后按住话筒键说话，识别出的文字直接交给 OpenMexia 执行。</p>
 </li>
 <li>
-<p>模型在本机识别，不联网，也不需要账号。</p>
+<p>识别在本机完成，不联网，也不需要账号。</p>
 </li>
-<li>模型可随时在同一个入口卸载；不装也能继续走输入法那条路。</li>
+<li>模型可在同一入口随时卸载；不安装时仍可继续使用输入法那条路径。</li>
 </ol>
 <h2 id="排错">排错<a class="headerlink" href="#排错" title="Permanent link">&para;</a></h2>
 <table>
@@ -761,20 +759,20 @@ MoteDeck 不会接触你的米家凭据，也不会上传任何设备数据。</
 </thead>
 <tbody>
 <tr>
-<td>动作下拉里没有「米家设备」</td>
-<td>确认 OpenMexia 已启动且版本不低于 0.1.11，再点一次「连接 OpenMexia」</td>
+<td>动作下拉中没有「米家设备」</td>
+<td>确认 OpenMexia 已启动且版本不低于 0.1.11，再点一次「连接软件」</td>
 </tr>
 <tr>
-<td>按键没反应</td>
-<td>先确认 OpenMexia 里设备在线、能手动操作；MoteDeck 这边只负责把指令递过去</td>
+<td>按键没有反应</td>
+<td>先在 OpenMexia 中手动操作同一设备，确认设备在线；MoteDeck 只负责转发指令</td>
 </tr>
 <tr>
 <td>连接状态丢失</td>
-<td>重启后自动恢复；若 OpenMexia 换了 token，重新点一次「连接 OpenMexia」</td>
+<td>重启后自动恢复；若 OpenMexia 更换了 token，重新点一次「连接软件」</td>
 </tr>
 </tbody>
 </table>
-<p>联动的认证信息由 OpenMexia 随机生成并写在 <code>%APPDATA%\OpenMexia\mote-deck.json</code>，MoteDeck 只读不存。</p>
+<p>联动的认证信息由 OpenMexia 随机生成并写入 <code>%APPDATA%\OpenMexia\mote-deck.json</code>，MoteDeck 只读取、不存储。</p>
 
 
 

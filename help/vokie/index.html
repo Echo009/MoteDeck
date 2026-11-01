@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="把小米遥控器 2 Pro 与谷歌 Chromecast 遥控器变成 Windows 的按键与麦克风">
+        <meta name="description" content="把小米遥控器 2 Pro、小米遥控器 2 与谷歌遥控器变成 Windows 的按键与麦克风">
       
       
         <meta name="author" content="HZDavy">
@@ -489,10 +489,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#不用插件-vs-用插件" class="md-nav__link">
+  <a href="#不使用插件与使用插件的区别" class="md-nav__link">
     <span class="md-ellipsis">
       
-        不用插件 vs 用插件
+        不使用插件与使用插件的区别
       
     </span>
   </a>
@@ -511,10 +511,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#装了插件之后" class="md-nav__link">
+  <a href="#安装插件之后" class="md-nav__link">
     <span class="md-ellipsis">
       
-        装了插件之后
+        安装插件之后
       
     </span>
   </a>
@@ -616,10 +616,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#不用插件-vs-用插件" class="md-nav__link">
+  <a href="#不使用插件与使用插件的区别" class="md-nav__link">
     <span class="md-ellipsis">
       
-        不用插件 vs 用插件
+        不使用插件与使用插件的区别
       
     </span>
   </a>
@@ -638,10 +638,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#装了插件之后" class="md-nav__link">
+  <a href="#安装插件之后" class="md-nav__link">
     <span class="md-ellipsis">
       
-        装了插件之后
+        安装插件之后
       
     </span>
   </a>
@@ -699,16 +699,16 @@
 
 
 <h1 id="vokie-插件">Vokie 插件<a class="headerlink" href="#vokie-插件" title="Permanent link">&para;</a></h1>
-<p>Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适配。装上配套插件
-<a href="https://github.com/HZDavy/MoteDeck/tree/main/plugins/MoteDeck2Vokie">MoteDeck2Vokie</a> 之后，
-遥控器就是 Vokie 自己的语音设备：按住话筒键说话，音频由插件推进 Vokie 会话，松手后整理成完整文字再落进输入框。</p>
-<h2 id="不用插件-vs-用插件">不用插件 vs 用插件<a class="headerlink" href="#不用插件-vs-用插件" title="Permanent link">&para;</a></h2>
+<p>Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适配。安装配套插件
+<a href="https://github.com/HZDavy/MoteDeck/tree/main/plugins/MoteDeck2Vokie">MoteDeck2Vokie</a>（0.1.2）后，
+遥控器即为 Vokie 的外接语音设备：按住话筒键说话，音频由插件推进 Vokie 会话，松手后整理成完整文字再落进输入框。</p>
+<h2 id="不使用插件与使用插件的区别">不使用插件与使用插件的区别<a class="headerlink" href="#不使用插件与使用插件的区别" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th></th>
-<th>不用插件</th>
-<th>装上插件</th>
+<th>不使用插件</th>
+<th>安装插件后</th>
 </tr>
 </thead>
 <tbody>
@@ -718,7 +718,7 @@
 <td>本机回环 TCP 直连</td>
 </tr>
 <tr>
-<td>需要配虚拟声卡</td>
+<td>需要虚拟声卡</td>
 <td>需要</td>
 <td>不需要</td>
 </tr>
@@ -735,36 +735,32 @@
 <tr>
 <td>长按话筒键</td>
 <td>开麦，松手结束</td>
-<td>开启 Vokie 会话，松手整理成文字</td>
+<td>开启 Vokie 会话，松手后整理成文字</td>
 </tr>
 </tbody>
 </table>
 <h2 id="安装插件">安装插件<a class="headerlink" href="#安装插件" title="Permanent link">&para;</a></h2>
 <ol>
-<li>在 MoteDeck「语音」页点「外部应用程序支持」，再点「下载插件」，或直接从
+<li>在 MoteDeck「语音」页的「外部应用程序支持」面板中，Vokie 一行提供「访问官网」「下载插件」两个入口；也可以直接从
    <a href="https://github.com/HZDavy/MoteDeck/releases/latest">Releases</a> 下载 <code>MoteDeck2Vokie-0.1.2.zip</code>。</li>
-<li>把 ZIP 装进 Vokie 的插件目录。</li>
-<li>在插件界面里点「开启连接」。</li>
+<li>将 ZIP 安装到 Vokie 的插件目录。</li>
+<li>在插件界面中点「开启连接」。</li>
 </ol>
 <p><img alt="语音页的「外部应用程序支持」面板：Vokie 与 OpenMexia 两个外部程序入口，各有访问官网、下载和连接按钮" src="../assets/screenshots/plugin-page-vokie-steps.png" /></p>
 <p>图中标号：<strong>①</strong> 下载插件　<strong>②</strong> 连接插件</p>
-<p>装好后插件会与 MoteDeck 自动握手（随机端口 + 共享 token），走本机回环 <code>127.0.0.1</code>。</p>
-<h2 id="装了插件之后">装了插件之后<a class="headerlink" href="#装了插件之后" title="Permanent link">&para;</a></h2>
+<p>安装后插件会与 MoteDeck 自动握手（随机端口与共享 token），走本机回环 <code>127.0.0.1</code>。</p>
+<h2 id="安装插件之后">安装插件之后<a class="headerlink" href="#安装插件之后" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>语音模式同步</strong>：Vokie 的语音模式会同步到 MoteDeck 的语音键配置，按一下遥控器就能切换。</li>
-<li><strong>会话类型分流</strong>：闪记、翻译、语音指令各有各的通道；插件被拒时自动退回普通语音输入，
-  不会出现「按了没反应」。</li>
-<li><strong>短按 / 长按</strong>：短按只切模式并弹出模式气泡，长按（约 0.25 秒）才开启 Vokie 会话。
-  按下期间保留 0.8 秒预录缓冲，开会话后一并补发，开口第一个字不丢。</li>
-<li><strong>气泡时机</strong>：会话被插件接下（<code>session_accepted</code>）后气泡才收起；若输入框先出现，气泡也会提前收掉。</li>
-<li><strong>掉线兜底</strong>：插件语音键在插件未连接、写 socket 失败、掉线竞态时会回退到它自己的快捷键注入；
-  该键没有自己的快捷键时直接报失败，不会借用其它语音键的绑定。</li>
+<li><strong>语音模式同步</strong>：Vokie 的语音模式会同步到 MoteDeck 的语音键配置，按一下遥控器即可切换。</li>
+<li><strong>会话类型分流</strong>：闪记、翻译、语音指令各有独立通道；插件被拒时自动退回普通语音输入，不会出现「按下没有反应」。</li>
+<li><strong>短按与长按</strong>：短按只切换模式并弹出模式气泡，长按（约 0.25 秒）才开启 Vokie 会话。按下期间保留 0.8 秒预录缓冲，开始会话后一并补发，开口第一个字不丢。</li>
+<li><strong>气泡时机</strong>：会话被插件接受（<code>session_accepted</code>）后气泡才收起；若输入框先出现，气泡也会提前收掉。</li>
+<li><strong>掉线兜底</strong>：插件语音键在插件未连接、写 socket 失败或掉线竞态时，会回退到该键自身的快捷键注入；该键没有自己的快捷键时直接报失败，不会借用其它语音键的绑定。</li>
 </ul>
 <h2 id="会话记录">会话记录<a class="headerlink" href="#会话记录" title="Permanent link">&para;</a></h2>
-<p>插件用 <code>vokie-session.json</code> 记录当前会话；握手成功时会补发一次陈旧的 <code>session_stop</code>，
-清掉 Vokie 侧卡住的 <code>activeSession</code>。</p>
+<p>插件使用 <code>vokie-session.json</code> 记录当前会话；握手成功时会补发一次陈旧的 <code>session_stop</code>，清除 Vokie 侧卡住的 <code>activeSession</code>。</p>
 <h2 id="断开插件">断开插件<a class="headerlink" href="#断开插件" title="Permanent link">&para;</a></h2>
-<p>断开后，插件带来的语音键会统一清理并回落到各自的原生快捷键，虚拟声卡那条路照常可用。</p>
+<p>断开后，插件提供的语音键会统一清理并回落到各自的原生快捷键，虚拟声卡路径照常可用。</p>
 <h2 id="排错">排错<a class="headerlink" href="#排错" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -775,7 +771,7 @@
 </thead>
 <tbody>
 <tr>
-<td>装了插件但按住话筒键没反应</td>
+<td>安装插件后按住话筒键没有反应</td>
 <td>在插件界面确认连接已开启；MoteDeck「语音」页应显示插件已连接</td>
 </tr>
 <tr>
@@ -783,12 +779,12 @@
 <td>确认 Vokie 版本支持 <code>quickNoteConfig</code>；插件按该字段走闪记会话</td>
 </tr>
 <tr>
-<td>短按想直接说话却只切了模式</td>
-<td>短按本来就是切模式，说话请按住不放</td>
+<td>短按想直接说话，却只切换了模式</td>
+<td>短按本身就是切换模式，说话请按住不放</td>
 </tr>
 <tr>
-<td>文字没上屏</td>
-<td>先在 Vokie 里用实体键盘确认它的语音能正常出字，再判断是否插件侧问题</td>
+<td>文字没有上屏</td>
+<td>先在 Vokie 中用实体键盘确认其语音能正常出字，再判断是否为插件侧问题</td>
 </tr>
 </tbody>
 </table>

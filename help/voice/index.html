@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="把小米遥控器 2 Pro 与谷歌 Chromecast 遥控器变成 Windows 的按键与麦克风">
+        <meta name="description" content="把小米遥控器 2 Pro、小米遥控器 2 与谷歌遥控器变成 Windows 的按键与麦克风">
       
       
         <meta name="author" content="HZDavy">
@@ -468,10 +468,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-每条语音键的录音增益与延迟发送" class="md-nav__link">
+  <a href="#4-录音增益与延迟发送" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. 每条语音键的录音增益与延迟发送
+        4. 录音增益与延迟发送
       
     </span>
   </a>
@@ -671,10 +671,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-每条语音键的录音增益与延迟发送" class="md-nav__link">
+  <a href="#4-录音增益与延迟发送" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. 每条语音键的录音增益与延迟发送
+        4. 录音增益与延迟发送
       
     </span>
   </a>
@@ -743,22 +743,23 @@
 
 
 <h1 id="语音输入">语音输入<a class="headerlink" href="#语音输入" title="Permanent link">&para;</a></h1>
-<p>把遥控器声音送进搜狗、微信、豆包、Chatterfly 这类带语音快捷键的输入法，需要一条四段链路：
+<p>将遥控器声音送进搜狗、微信、豆包、Chatterfly 等带语音快捷键的输入法，需要一条四段链路：
 <strong>遥控器话筒 → MoteDeck → 虚拟声卡 → 输入法麦克风</strong>。</p>
 <p><img alt="语音页：虚拟音频、输出端点与语音键配置" src="../assets/screenshots/voice-routing-steps.png" /></p>
-<p>图中标号：<strong>①</strong> 虚拟音频（安装／卸载／测试）　<strong>②</strong> 输出端点　<strong>③</strong> 麦克风权限　<strong>④</strong> 语音键（短按切换模式）　<strong>⑤</strong> 语音键配置（录音增益）</p>
-<p>整条链路里只有两处需要你亲手选：MoteDeck 的「输出端点」选 <code>CABLE Input</code>，输入法的麦克风选 <code>CABLE Output</code>。</p>
+<p>图中标号：<strong>①</strong> 虚拟音频（安装／卸载／检查）　<strong>②</strong> 输出端点　<strong>③</strong> 麦克风权限　<strong>④</strong> 语音键（短按切换模式）　<strong>⑤</strong> 语音键配置（录音增益）</p>
+<p>整条链路中只有两处需要手动选择：MoteDeck 的「输出端点」选 <code>CABLE Input</code>，输入法的麦克风选 <code>CABLE Output</code>。</p>
 <h2 id="1-安装虚拟音频">1. 安装虚拟音频<a class="headerlink" href="#1-安装虚拟音频" title="Permanent link">&para;</a></h2>
 <ol>
-<li>打开「语音」页，点「安装音频」。</li>
-<li>按提示完成 VB-CABLE 安装，然后重启电脑。</li>
+<li>打开「语音」页，点虚拟音频一行的「安装」。</li>
+<li>程序会启动 VB-Audio 官方的 VB-CABLE 安装程序并请求管理员权限。</li>
+<li>安装完成后重启电脑，再回到「输出端点」选择 <code>CABLE Input</code>。</li>
 </ol>
 <h2 id="2-选对两个端点">2. 选对两个端点<a class="headerlink" href="#2-选对两个端点" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>位置</th>
-<th>应该选</th>
+<th>应该选择</th>
 </tr>
 </thead>
 <tbody>
@@ -774,65 +775,60 @@
 </table>
 <div class="admonition danger">
 <p class="admonition-title">方向不能反</p>
-<p><code>CABLE Input</code> 是 MoteDeck <strong>写入</strong>声音的一侧，<code>CABLE Output</code> 是输入法<strong>读取</strong>麦克风的一侧。
-两边选反或选成同一个端点，都会出现「有声音但没文字」。不要选择 <code>Windows WDM-KS</code>。</p>
+<p><code>CABLE Input</code> 是 MoteDeck <strong>写入</strong>声音的一侧，<code>CABLE Output</code> 是输入法<strong>读取</strong>麦克风的一侧。两边选反或选成同一个端点，都会出现「有声音但没文字」。不要选择 <code>Windows WDM-KS</code>。</p>
 </div>
+<p>虚拟音频一行还提供「检查虚拟声卡」：它会发送一小段测试音，检查期间会临时停止遥控器服务，结束后自动恢复。该检查只验证虚拟声卡通路，不测试语音识别，日常说话前不需要先运行。</p>
 <h2 id="3-对齐语音快捷键">3. 对齐语音快捷键<a class="headerlink" href="#3-对齐语音快捷键" title="Permanent link">&para;</a></h2>
 <ol>
-<li>打开语音页的「语音键配置」，为每条语音键<strong>录制快捷键</strong>：点一下快捷键框，再用电脑键盘按一次要用的组合键。</li>
-<li>先在<strong>记事本</strong>里用电脑键盘按一次这个快捷键，确认输入法能正常开麦并出字。</li>
-<li>保持光标在输入框里，再用遥控器话筒键测试。</li>
+<li>在语音页的语音键配置中，为每条语音键<strong>录制快捷键</strong>：点一下快捷键框，再用电脑键盘按一次要使用的组合键。</li>
+<li>先在<strong>记事本</strong>中用电脑键盘按一次该快捷键，确认输入法能正常开麦并出字。</li>
+<li>保持光标在输入框内，再用遥控器话筒键测试。</li>
 </ol>
-<p>快捷键完全由你自己录制，程序不区分输入法，也不会去读取输入法的配置文件：</p>
+<p>快捷键完全由用户录制，程序不区分输入法，也不会读取输入法的配置文件：</p>
 <ul>
-<li>录制的组合键要和输入法里设置的语音快捷键一致（例如 Chatterfly 设置里的「语音输入」）。</li>
-<li>换了输入法或改了快捷键，重新录一次即可——没有「刷新」按钮，也不用重启。</li>
+<li>录制的组合键需与输入法设置的语音快捷键一致（例如 Chatterfly 设置中的「语音输入」）。</li>
+<li>更换输入法或修改快捷键后，重新录制一次即可，没有「刷新」按钮，也不需要重启程序。</li>
 </ul>
-<p>请避开 Windows 和其它软件已经占用的组合键。</p>
-<h2 id="4-每条语音键的录音增益与延迟发送">4. 每条语音键的录音增益与延迟发送<a class="headerlink" href="#4-每条语音键的录音增益与延迟发送" title="Permanent link">&para;</a></h2>
-<p>每条语音键可以单独设置增益：</p>
+<p>请避开 Windows 与其它软件已占用的组合键。</p>
+<h2 id="4-录音增益与延迟发送">4. 录音增益与延迟发送<a class="headerlink" href="#4-录音增益与延迟发送" title="Permanent link">&para;</a></h2>
+<p>每条语音键可以单独设置录音增益，仅对当前语音键生效：</p>
 <ul>
-<li><strong>自动</strong>（默认）：按这一段录音的峰值归一化，滑块不生效。</li>
-<li><strong>手动</strong>：关掉「自动」后按 −3 ~ +3 共七档调整，每档 6 dB，0 为不调整。</li>
+<li><strong>自动</strong>（默认）：按该段录音的峰值自动归一化（最多放大 6 倍），滑块不生效。</li>
+<li><strong>手动</strong>：关闭「自动」后可按 −3 ~ +3 共七档调整，每档 6 dB，0 为不调整。</li>
 </ul>
-<p>增益只对当前这条语音键生效，多条语音键需要分别设置。</p>
-<p>每条语音键还有一个「延迟发送」小方块：</p>
+<p>每条语音键还有一个「短按延迟发送」选项：</p>
 <ul>
-<li>打开后短按会<strong>延后 0.18 秒</strong>才触发，用于屏蔽部分输入法（如 Chatterfly）自己抢短按的行为，
-  从而让短按只负责切换语音模式。</li>
-<li>如果输入法本身就能关掉「短按触发」（豆包输入法等，可在输入法设置里取消），
-  直接在输入法里关掉即可，不必开启这项。</li>
+<li>开启后，短按会<strong>延后 0.18 秒</strong>触发，用于屏蔽部分输入法（如 Chatterfly）自身抢占短按的行为，使短按只负责切换语音模式。</li>
+<li>输入法本身可以关闭「短按触发」时（如豆包输入法，可在输入法设置中取消），直接关闭即可，不必开启此项。</li>
 </ul>
-<p>「语音键」那一行的<strong>短按切换模式</strong>默认开启：短按话筒键只切换到下一条语音模式并弹出模式气泡，
-按住不放才真正开麦说话。</p>
+<p>「短按切换模式」默认开启：短按话筒键只切换到下一条语音模式并弹出模式气泡，按住不放才真正开麦说话。</p>
 <h2 id="按住型录音的行为">按住型录音的行为<a class="headerlink" href="#按住型录音的行为" title="Permanent link">&para;</a></h2>
-<p>这两类遥控器都是按住型：按住话筒键说话，松开结束。</p>
+<p>小米与谷歌遥控器均为按住型：按住话筒键说话，松开结束。</p>
 <ul>
-<li>使用快捷键的按住型录音期间，语音快捷键会一直保持按下，松开话筒键才释放。
-  这期间不要同时操作其它按键或鼠标，避免按键冲突。</li>
-<li>语音键可以放到遥控器任意按键上，但只有<strong>实体话筒键</strong>被按住时遥控器才送出音频，
-  其它按键只会发出开始控制的信号。</li>
+<li>使用快捷键的按住型录音期间，语音快捷键会保持按下，松开话筒键才释放。此期间不要同时操作其它按键或鼠标，避免按键冲突。</li>
+<li>语音键可以绑定到任意按键，但只有<strong>实体话筒键</strong>被按住时遥控器才送出音频，其它按键只会发出开始控制的信号。</li>
 <li>遥控器没有「松开」通知，程序按音频停止事件判断松手。</li>
 </ul>
 <h2 id="语音键列表">语音键列表<a class="headerlink" href="#语音键列表" title="Permanent link">&para;</a></h2>
-<p>语音页里的语音键是可增删的列表：</p>
+<p>语音页中的语音键是可增删的列表：</p>
 <ul>
-<li>支持重命名（最多 32 字）、上下移动、逐条启停和删除。</li>
-<li>前两条会同步到旧的 <code>voice_slot_hotkeys</code> 字段，保持兼容。</li>
-<li>停用的键会保留在列表和配置档案里，不会丢失快捷键设置。</li>
-<li>新建语音键一律接在当前最大编号之后，不会复用空出来的编号。</li>
+<li>支持重命名（最多 32 字）、上移／下移、逐条启用或停用、删除，最多 99 条。</li>
+<li>第三条及之后的语音键通过「+」新增；前两条会同步到旧的 <code>voice_slot_hotkeys</code> 字段以保持兼容。</li>
+<li>停用的语音键会保留在列表与配置档案中，不会丢失快捷键设置。</li>
+<li>新建语音键一律接在当前最大编号之后，不复用空出的编号。</li>
 </ul>
+<p>语音页还支持为语音配置建立档案：可以新建、重命名、复制、删除、导出与导入，也可以一次导出全部档案。</p>
 <p>由插件带来的语音键带插件标记，快捷键映射锁定、不能删除；断开插件时统一清理这些键。</p>
 <h2 id="插件语音键的短按与长按">插件语音键的短按与长按<a class="headerlink" href="#插件语音键的短按与长按" title="Permanent link">&para;</a></h2>
-<p>装好 Vokie 插件后，插件语音键的判定规则：</p>
+<p>安装 Vokie 插件后，插件语音键的判定规则：</p>
 <ul>
-<li><strong>长按</strong>（约 0.25 秒）才开启插件会话，按下期间保留 0.8 秒环形预录缓冲，开会话后一并补发，开口第一个字不丢。</li>
-<li><strong>短按</strong>只切换到下一条语音模式，并弹出模式气泡，不唤起 Vokie。</li>
+<li><strong>长按</strong>（约 0.25 秒）才开启插件会话，按下期间保留 0.8 秒环形预录缓冲，开始会话后一并补发，开口第一个字不丢。</li>
+<li><strong>短按</strong>只切换到下一条语音模式并弹出模式气泡，不唤起 Vokie。</li>
 </ul>
 <h2 id="常见问题">常见问题<a class="headerlink" href="#常见问题" title="Permanent link">&para;</a></h2>
 <ul>
-<li>输入法有气泡没声音 → 检查两个端点是否选对。</li>
-<li>遥控器按语音键没反应 → 先用实体键盘测试同一个快捷键，再回来看 MoteDeck 保存的快捷键是否一致。</li>
+<li>输入法有气泡但没有声音 → 检查两个端点是否选对（见上文「方向不能反」）。</li>
+<li>遥控器按语音键没有反应 → 先用实体键盘测试同一快捷键，再核对 MoteDeck 保存的快捷键是否一致；使用 Chatterfly 等拦截 <code>SendInput</code> 的输入法时，需要把语音键改为驱动级映射，见<a href="../buttons/#注入方式">按键映射</a>。</li>
 </ul>
 <p>更多见<a href="../faq/">常见问题</a>。</p>
 

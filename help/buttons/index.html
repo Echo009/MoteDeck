@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="把小米遥控器 2 Pro 与谷歌 Chromecast 遥控器变成 Windows 的按键与麦克风">
+        <meta name="description" content="把小米遥控器 2 Pro、小米遥控器 2 与谷歌遥控器变成 Windows 的按键与麦克风">
       
       
         <meta name="author" content="HZDavy">
@@ -453,10 +453,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#管理档案" class="md-nav__link">
+  <a href="#管理布局" class="md-nav__link">
     <span class="md-ellipsis">
       
-        管理档案
+        管理布局
       
     </span>
   </a>
@@ -469,10 +469,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#配置存在哪里" class="md-nav__link">
+  <a href="#配置存放位置" class="md-nav__link">
     <span class="md-ellipsis">
       
-        配置存在哪里
+        配置存放位置
       
     </span>
   </a>
@@ -480,10 +480,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#语音键也能放到按键上" class="md-nav__link">
+  <a href="#语音键绑定到普通按键" class="md-nav__link">
     <span class="md-ellipsis">
       
-        语音键也能放到按键上
+        语音键绑定到普通按键
       
     </span>
   </a>
@@ -678,10 +678,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#管理档案" class="md-nav__link">
+  <a href="#管理布局" class="md-nav__link">
     <span class="md-ellipsis">
       
-        管理档案
+        管理布局
       
     </span>
   </a>
@@ -694,10 +694,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#配置存在哪里" class="md-nav__link">
+  <a href="#配置存放位置" class="md-nav__link">
     <span class="md-ellipsis">
       
-        配置存在哪里
+        配置存放位置
       
     </span>
   </a>
@@ -705,10 +705,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#语音键也能放到按键上" class="md-nav__link">
+  <a href="#语音键绑定到普通按键" class="md-nav__link">
     <span class="md-ellipsis">
       
-        语音键也能放到按键上
+        语音键绑定到普通按键
       
     </span>
   </a>
@@ -733,9 +733,8 @@
 
 
 <h1 id="按键映射">按键映射<a class="headerlink" href="#按键映射" title="Permanent link">&para;</a></h1>
-<p>打开「按键」页，直接在遥控器实物图上点选按键，再给它的单击、双击、长按各设一个动作，点「完成」即自动保存。</p>
-<p>实物图和按键会随选中的型号切换：小米遥控器 2 Pro 有菜单键与 TV 键，谷歌 Chromecast 遥控器则是
-YouTube、Netflix、信源和静音键。按键动作按型号分别保存。</p>
+<p>打开「按键」页，直接在遥控器实物图上点选按键，为它的单击、双击、长按分别设置动作。修改会自动保存，点「完成」返回。</p>
+<p>实物图与键位随所选型号切换：小米遥控器 2 Pro 有菜单键与 TV 键，谷歌遥控器则是 YouTube、Netflix、信源与静音键。按键动作按型号分别保存，互不影响。</p>
 <p><img alt="按键页：遥控器实物图与按键动作" src="../assets/screenshots/buttons-mapping-steps.png" /></p>
 <p>图中标号：<strong>①</strong> 应用条（按应用配置）　<strong>②</strong> 按键卡（单击／双击／长按）　<strong>③</strong> 检测按键　<strong>④</strong> 恢复默认　<strong>⑤</strong> 导入／导出　<strong>⑥</strong> 驱动状态</p>
 <h2 id="三种手势">三种手势<a class="headerlink" href="#三种手势" title="Permanent link">&para;</a></h2>
@@ -765,26 +764,26 @@ YouTube、Netflix、信源和静音键。按键动作按型号分别保存。</p
 </tr>
 </tbody>
 </table>
-<p>同一个按键的三种手势可以各配一个动作，也可以只配其中一两种。</p>
+<p>同一按键的三种手势可分别设置，也可以只设置其中一两种。</p>
 <div class="admonition note">
-<p class="admonition-title">长按与连击</p>
+<p class="admonition-title">长按与连发</p>
 <ul>
-<li>普通动作里，方向、退格、音量这类允许连续执行的按键在持续按住时会重复（<code>SendInput</code> 注入会重放完整的按下 + 抬起，驱动级注入只保持按下）。</li>
-<li>绑定了「米家设备」动作的按键，如果没有另设长按或双击动作，按住不放会以 0.2 秒一次的节奏重复执行同一个动作（例如按住「亮度+」台灯会一路变亮），松手立刻停。</li>
-<li>已经另外配了长按或双击动作的按键，行为不变。</li>
+<li>普通动作中，方向、退格、音量这类允许连续执行的按键在持续按住时会重复：<code>SendInput</code> 注入会重放完整的按下与抬起，驱动级注入只保持按下。</li>
+<li>绑定了「米家设备」动作的按键，如果没有另设长按或双击动作，按住不放会以约 0.2 秒一次的节奏重复执行该动作（例如按住「亮度+」时台灯持续变亮），松手立即停止。</li>
+<li>已经另外设置长按或双击动作的按键不受此影响。</li>
 </ul>
 </div>
 <h2 id="可设置的动作">可设置的动作<a class="headerlink" href="#可设置的动作" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>方向键 / 功能键</strong>：上、下、左、右、确认、返回、ESC 等。</li>
 <li><strong>快捷键</strong>：任意组合键，例如 <code>Ctrl+C</code>、<code>Alt+Tab</code>。</li>
-<li><strong>鼠标操作</strong>：移动、单击、右键、滚轮，以及鼠标左键／右键／X1／X2 的「长按」。</li>
-<li><strong>打开应用</strong>：直接启动某个程序或打开某个文件。</li>
+<li><strong>鼠标操作</strong>：移动、单击、右键、滚轮；滚轮支持点按一格与按住连续滚动并提速。</li>
+<li><strong>打开应用</strong>：启动指定程序或打开指定文件（需已安装）。</li>
 <li><strong>Quicker 动作</strong>：通过 Quicker 的动作链接执行。</li>
-<li><strong>米家设备</strong>：连接 <a href="../openmexia/">OpenMexia</a> 之后才会出现，条目形如「客厅灯 · 开灯」。</li>
+<li><strong>语音一／二／三</strong>：执行对应语音键录制的快捷键并请求开麦，详见<a href="../voice/">语音输入</a>。</li>
+<li><strong>米家设备</strong>：连接 <a href="../openmexia/">OpenMexia</a> 后出现，条目形如「客厅灯 · 开灯」。</li>
 </ul>
-<p>鼠标长按只出现在「长按」栏：按住约 0.55 秒后保持鼠标按下，遥控器松手即释放，适合拖动。
-断线、停服务、切换设备或退出时，程序会统一清理未释放的按键。</p>
+<p>鼠标长按只出现在「长按」选项：按住约 0.55 秒后保持鼠标按下，遥控器松手即释放，适合拖动。断线、停止服务、切换设备或退出程序时，程序会统一清理未释放的按键。</p>
 <h2 id="注入方式">注入方式<a class="headerlink" href="#注入方式" title="Permanent link">&para;</a></h2>
 <p>每个按键可以单独选择注入后端：</p>
 <table>
@@ -797,56 +796,57 @@ YouTube、Netflix、信源和静音键。按键动作按型号分别保存。</p
 <tbody>
 <tr>
 <td><code>SendInput</code>（默认）</td>
-<td>兼容性最好，系统原生接口；长按需要程序自己补发重复</td>
+<td>系统原生接口，兼容性最好；长按由程序补发重复</td>
 </tr>
 <tr>
 <td>Interception（驱动级）</td>
-<td>走键盘驱动层，长按与组合键更接近真实键盘手感；需要安装驱动</td>
+<td>走键盘驱动层，长按与组合键更接近真实键盘手感；需要安装驱动，未安装时不可选</td>
 </tr>
 </tbody>
 </table>
-<p>驱动级注入第一次启用时会走 <code>build/fetch-interception.ps1</code> 之外的常规安装流程。</p>
+<p>元素导航、打开应用等非普通按键动作只支持 <code>SendInput</code>；这类动作即使选择了 Interception，保存时也会静默退回 <code>SendInput</code>。</p>
+<p>驱动由按键页右侧的「安装驱动」按钮启动安装：程序只运行随包的官方安装程序，全程需要管理员权限并重启电脑，不会静默安装。安装完成后按钮变为「卸载驱动」，可随时卸载，卸载不会被拦截。</p>
 <div class="admonition warning">
 <p class="admonition-title">内存完整性会被拒绝</p>
-<p>Windows 11 的「内存完整性（HVCI）」开启时，Interception 驱动无法正常加载，程序会直接拒绝安装并提示。
-需要时先关闭内存完整性再安装；卸载驱动永远不会被拦，可作为回退手段。</p>
+<p>Windows 11 开启「内存完整性（HVCI）」时，Interception 驱动无法正常加载，程序会在安装前直接拒绝并提示。需要时先关闭内存完整性再安装。</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">部分输入法必须改用驱动级映射</p>
-<p>部分输入法（例如 Chatterfly）会拦截 <code>SendInput</code> 合成按键，导致对应的<strong>语音键</strong>按了没反应、语音输入无法激活。这类情况需要把该语音键的注入方式改成 Interception 映射。</p>
-<p>使用前要做两件事：</p>
+<p>部分输入法（例如 Chatterfly）会拦截 <code>SendInput</code> 合成按键，导致对应的<strong>语音键</strong>按下后没有反应、语音输入无法激活。此类情况需要把该语音键的注入方式改为 Interception。</p>
+<p>使用前需要完成两步：</p>
 <ol>
-<li>在按键页把对应按键的注入方式切到 Interception；</li>
+<li>在按键页把对应按键的注入方式切换为 Interception；</li>
 <li>按提示安装驱动，安装完成后<strong>重启电脑</strong>才会生效。</li>
 </ol>
-<p>⚠️ 驱动是键盘驱动层的常驻组件，可能触发部分在线游戏的反作弊检测。如果需要在装了反作弊的游戏里正常运行，先卸载驱动再玩；卸载不会被拦截，随时可以重新装回。</p>
+<p>⚠️ 驱动是键盘驱动层的常驻组件，可能触发部分在线游戏的反作弊检测。需要在安装反作弊的游戏内正常运行时，先卸载驱动；卸载随时可以重新执行。</p>
 <p>没有上述现象的输入法保持默认 <code>SendInput</code> 即可，兼容性更好。</p>
 </div>
 <h2 id="按应用配置">按应用配置<a class="headerlink" href="#按应用配置" title="Permanent link">&para;</a></h2>
-<p>按键页顶部有一条应用条（第一项固定是「全局」，末尾的「+」用于新增应用）：</p>
+<p>按键页顶部是一条应用条，第一项固定为「全局」，末尾的「+」用于新增应用：</p>
 <ul>
-<li>点击某一项，下方按键列表立即切到该档案，没有额外的「应用配置」步骤。</li>
-<li>在某一档案里的编辑会<strong>自动保存</strong>，保存后下一轮检测即生效，不必切走再切回。</li>
-<li>应用条上的条目可以按住左右拖动排序，松手即保存新位置。</li>
-<li>档案只保存被覆盖的按键，未覆盖的按键回落到「全局」映射。</li>
-<li>运行时按前台进程名（不区分大小写、精确匹配）自动切换；也可以给档案设一个切换快捷键。</li>
-<li>当前生效的档案在应用条上带勾显示。</li>
+<li>点击某一项，下方按键列表立即切换到该布局，没有额外的切换步骤。</li>
+<li>在该布局中的编辑会自动保存，下一轮检测即生效，无需切走再切回。</li>
+<li>应用条条目可以按住左右拖动排序，松手即保存新位置（「全局」不参与排序）。</li>
+<li>应用布局只保存被覆盖的按键，未覆盖的按键回落到「全局」布局。</li>
+<li>运行时按前台进程名（不区分大小写、精确匹配）自动切换；也可以为布局设置切换快捷键。</li>
+<li>当前生效的布局在应用条上带勾显示。</li>
 </ul>
-<p>连接 OpenMexia 后会多出一个带黑色图标的条目，它跟着插件走，不能删除或重命名。</p>
-<h3 id="管理档案">管理档案<a class="headerlink" href="#管理档案" title="Permanent link">&para;</a></h3>
+<p>连接 OpenMexia 后会多出一个带黑色图标的条目，它由插件提供，不能删除或重命名。</p>
+<h3 id="管理布局">管理布局<a class="headerlink" href="#管理布局" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>复制 / 重命名</strong>：遇到同名会提示换名。</li>
-<li><strong>删除</strong>：需要确认，只删该档案，全局按键与其它档案不受影响；当前生效的档案被删后，生效标记回到「全局」。</li>
-<li><strong>导出 / 导入</strong>：点「恢复内置默认」旁的「整体配置」，可以把全局按键和全部应用档案打包成一个文件，便于整机迁移。</li>
-<li>导入会替换全局按键与全部应用档案并立即更新按键设置；遇到重名自动加序号，不覆盖已有档案。</li>
+<li><strong>检测按键</strong>：开启后按实体按键，界面会高亮对应按键，再次点击变为「停止检测」。</li>
+<li><strong>恢复默认</strong>：只重置当前选中的布局，全局布局与其它应用布局不受影响，重置后立即自动保存。</li>
+<li><strong>复制／重命名</strong>：遇到同名会提示换名。</li>
+<li><strong>删除</strong>：需要确认，只删除该布局；当前生效的布局被删除后，生效标记回到「全局」。</li>
+<li><strong>导入／导出（当前布局）</strong>：工具栏的「导入/导出」只处理当前编辑的这一份布局，导入会覆盖它的按键映射，其它布局不受影响。</li>
+<li><strong>导入／导出（整体备份）</strong>：同一入口可以打包「全局」与全部应用布局，便于整机迁移；导入会替换全局布局与全部应用布局，遇到重名自动加序号，不覆盖已有布局。</li>
 </ul>
-<p>档案只包含当前型号的按键动作和备注，不含设备身份、配对信息、语音与音频设置，因此同型号设备之间可以共用。</p>
+<p>布局只包含当前型号的按键动作与备注，不含设备身份、配对信息、语音与音频设置，因此同型号设备之间可以共用。</p>
 <div class="admonition tip">
 <p class="admonition-title">旧动作需要调整时</p>
-<p>当前映射里含需要调整的旧动作时，仍可查看应用条、管理已有档案、导入有效配置；
-但复制和导出前需要先在按键页完成调整并保存。</p>
+<p>当前映射中含需要调整的旧动作时，仍可查看应用条、管理已有布局、导入有效配置；但复制与导出前需要先在按键页完成调整并保存。</p>
 </div>
-<h2 id="配置存在哪里">配置存在哪里<a class="headerlink" href="#配置存在哪里" title="Permanent link">&para;</a></h2>
+<h2 id="配置存放位置">配置存放位置<a class="headerlink" href="#配置存放位置" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -865,12 +865,9 @@ YouTube、Netflix、信源和静音键。按键动作按型号分别保存。</p
 </tr>
 </tbody>
 </table>
-<p>默认都在 <code>%LOCALAPPDATA%\RemoteMic\RC003</code>。旧的 <code>mapping_presets.json</code>（版本 1–3）在首次读取时自动迁移，
-原文件保留作备份。未知版本或损坏文件会明确报错并保留原文件，不会覆盖。</p>
-<h2 id="语音键也能放到按键上">语音键也能放到按键上<a class="headerlink" href="#语音键也能放到按键上" title="Permanent link">&para;</a></h2>
-<p>「语音1／语音2」可以绑到任意按键，按下时会执行该槽录制的快捷键并请求开麦。
-但遥控器只在<strong>实体话筒键被按住期间</strong>送出声音，所以真正能传声的用法仍然是按住话筒键说话，
-详见<a href="../voice/">语音输入</a>。</p>
+<p>默认都位于 <code>%LOCALAPPDATA%\RemoteMic\RC003</code>。旧的 <code>mapping_presets.json</code>（版本 1–3）在首次读取时自动迁移，原文件保留作备份。未知版本或损坏文件会明确报错并保留原文件，不会覆盖。</p>
+<h2 id="语音键绑定到普通按键">语音键绑定到普通按键<a class="headerlink" href="#语音键绑定到普通按键" title="Permanent link">&para;</a></h2>
+<p>「语音一／二／三」可以绑定到任意按键，按下时会执行该槽录制的快捷键并请求开麦。遥控器只在<strong>实体话筒键被按住期间</strong>送出音频，因此真正能传声的用法仍然是按住话筒键，详见<a href="../voice/">语音输入</a>。</p>
 
 
 

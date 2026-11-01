@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="把小米遥控器 2 Pro 与谷歌 Chromecast 遥控器变成 Windows 的按键与麦克风">
+        <meta name="description" content="把小米遥控器 2 Pro、小米遥控器 2 与谷歌遥控器变成 Windows 的按键与麦克风">
       
       
         <meta name="author" content="HZDavy">
@@ -701,7 +701,7 @@
 <h1 id="安装与更新">安装与更新<a class="headerlink" href="#安装与更新" title="Permanent link">&para;</a></h1>
 <h2 id="下载">下载<a class="headerlink" href="#下载" title="Permanent link">&para;</a></h2>
 <p>到 <a href="https://github.com/HZDavy/MoteDeck/releases/latest">Releases</a> 下载最新的
-<code>MoteDeckSetup-&lt;版本号&gt;-unsigned.exe</code>。当前正式版为 <strong>0.1.6</strong>。</p>
+<code>MoteDeckSetup-&lt;版本号&gt;-unsigned.exe</code>。当前正式版为 <strong>0.1.9</strong>。</p>
 <p>同一发布页还提供：</p>
 <ul>
 <li><code>SHA256SUMS.txt</code>：安装包与插件包的校验值。</li>
@@ -714,35 +714,34 @@
 <h2 id="安装">安装<a class="headerlink" href="#安装" title="Permanent link">&para;</a></h2>
 <ol>
 <li>如果旧版正在运行，先在通知区域图标上右键选择「完全退出」。</li>
-<li>双击安装包，按提示完成安装。默认装到 <code>%LOCALAPPDATA%\MoteDeck</code>，并创建开始菜单与桌面快捷方式。</li>
+<li>双击安装包，按提示完成安装。默认安装到 <code>%LOCALAPPDATA%\MoteDeck</code>，并创建开始菜单与桌面快捷方式。</li>
 <li>首次启动可能弹出 Windows SmartScreen 提示，选择「更多信息」→「仍要运行」。</li>
 </ol>
 <p>安装到当前用户目录，不需要管理员权限；系统要求为 64 位 Windows 10 1809 或更高版本。</p>
 <h2 id="核对校验值">核对校验值<a class="headerlink" href="#核对校验值" title="Permanent link">&para;</a></h2>
 <p>下载后可以用 PowerShell 核对安装包是否完整：</p>
-<div class="highlight"><pre><span></span><code><span class="nb">Get-FileHash</span> <span class="n">-Algorithm</span> <span class="n">SHA256</span> <span class="p">.\</span><span class="n">MoteDeckSetup</span><span class="p">-</span><span class="n">0</span><span class="p">.</span><span class="n">1</span><span class="p">.</span><span class="n">6-unsigned</span><span class="p">.</span><span class="n">exe</span>
+<div class="highlight"><pre><span></span><code><span class="nb">Get-FileHash</span> <span class="n">-Algorithm</span> <span class="n">SHA256</span> <span class="p">.\</span><span class="n">MoteDeckSetup</span><span class="p">-</span><span class="n">0</span><span class="p">.</span><span class="n">1</span><span class="p">.</span><span class="n">9-unsigned</span><span class="p">.</span><span class="n">exe</span>
 </code></pre></div>
 <p>输出的哈希应与同一次发布中的 <code>SHA256SUMS.txt</code> 完全一致。</p>
 <h2 id="检查更新与升级">检查更新与升级<a class="headerlink" href="#检查更新与升级" title="Permanent link">&para;</a></h2>
 <p>「设备」页的「检查更新」只查询本仓库的 GitHub Releases，启动后每天最多自动检查一次。</p>
 <ul>
-<li>下载由你手动触发，<strong>不会自动运行下载文件，也不会覆盖当前安装</strong>。</li>
+<li>下载由用户手动触发，<strong>不会自动运行下载文件，也不会覆盖当前安装</strong>。</li>
 <li>升级时先完全退出旧版，再运行新下载的安装包；安装包只覆盖程序文件，个人配置与日志保留。</li>
 </ul>
 <h2 id="卸载">卸载<a class="headerlink" href="#卸载" title="Permanent link">&para;</a></h2>
-<p>Windows 设置 → 应用 → MoteDeck → 卸载（或开始菜单里的卸载入口）。</p>
-<p>卸载不会删除配置、日志和录音，它们仍在：</p>
+<p>Windows 设置 → 应用 → MoteDeck → 卸载（或开始菜单中的卸载入口）。</p>
+<p>卸载不会删除配置、日志与录音，它们仍保存在：</p>
 <div class="highlight"><pre><span></span><code>%LOCALAPPDATA%\RemoteMic\RC003
 </code></pre></div>
-<p>需要彻底清理时，先完全退出 MoteDeck，再手动删除该目录。若开启过「随 Windows 启动」，
-请在删除程序前先在设备页关闭该选项。</p>
+<p>需要彻底清理时，先完全退出 MoteDeck，再手动删除该目录。若开启过「随 Windows 启动」，请先关闭该选项再卸载。</p>
 <h2 id="开机与自启">开机与自启<a class="headerlink" href="#开机与自启" title="Permanent link">&para;</a></h2>
-<p>「随 Windows 启动」和「启动程序时自动运行服务」是两个独立选项，可以分别设置：</p>
+<p>「随 Windows 启动」与「启动程序时自动运行服务」是两个独立选项：</p>
 <ul>
 <li>前者决定登录 Windows 后是否自动启动 MoteDeck；</li>
-<li>后者决定 MoteDeck 启动后是否立即连接遥控器、开始转发按键。</li>
+<li>后者决定 MoteDeck 启动后是否立即连接遥控器并开始转发按键。</li>
 </ul>
-<p>只想要「打开程序就可用」时，两项都打开即可。</p>
+<p>需要「打开程序即可使用」时，两项均开启。</p>
 
 
 
