@@ -468,10 +468,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-每条语音键的录音增益" class="md-nav__link">
+  <a href="#4-每条语音键的录音增益与延迟发送" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. 每条语音键的录音增益
+        4. 每条语音键的录音增益与延迟发送
       
     </span>
   </a>
@@ -671,10 +671,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-每条语音键的录音增益" class="md-nav__link">
+  <a href="#4-每条语音键的录音增益与延迟发送" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. 每条语音键的录音增益
+        4. 每条语音键的录音增益与延迟发送
       
     </span>
   </a>
@@ -793,12 +793,22 @@
 <li><strong>微信</strong>：仍需要你主动点「刷新」，程序不会自动打开微信设置窗口。</li>
 </ul>
 <p>请避开 Windows 和其它软件已经占用的组合键。</p>
-<h2 id="4-每条语音键的录音增益">4. 每条语音键的录音增益<a class="headerlink" href="#4-每条语音键的录音增益" title="Permanent link">&para;</a></h2>
+<h2 id="4-每条语音键的录音增益与延迟发送">4. 每条语音键的录音增益与延迟发送<a class="headerlink" href="#4-每条语音键的录音增益与延迟发送" title="Permanent link">&para;</a></h2>
 <p>每条语音键可以单独设置增益：</p>
 <ul>
 <li><strong>自动</strong>（默认）：按这一段录音的峰值归一化，滑块不生效。</li>
 <li><strong>手动</strong>：关掉「自动」后按 −3 ~ +3 共七档调整，每档 6 dB，0 为不调整。</li>
 </ul>
+<p>增益只对当前这条语音键生效，多条语音键需要分别设置。</p>
+<p>每条语音键还有一个「延迟发送」小方块：</p>
+<ul>
+<li>打开后短按会<strong>延后 0.18 秒</strong>才触发，用于屏蔽部分输入法（如 Chatterfly）自己抢短按的行为，
+  从而让短按只负责切换语音模式。</li>
+<li>如果输入法本身就能关掉「短按触发」（豆包输入法等，可在输入法设置里取消），
+  直接在输入法里关掉即可，不必开启这项。</li>
+</ul>
+<p>「语音键」那一行的<strong>短按切换模式</strong>默认开启：短按话筒键只切换到下一条语音模式并弹出模式气泡，
+按住不放才真正开麦说话。</p>
 <h2 id="按住型录音的行为">按住型录音的行为<a class="headerlink" href="#按住型录音的行为" title="Permanent link">&para;</a></h2>
 <p>小米遥控器是按住型：按住说话，松开结束。</p>
 <ul>
