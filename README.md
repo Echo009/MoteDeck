@@ -210,9 +210,12 @@ MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成：用一�
 
 Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](https://github.com/nijez/open-voice-bridge) 改造，Windows 实现的历史仓库为 [`ZSTDJan/windows-remote-mic-app`](https://github.com/ZSTDJan/windows-remote-mic-app)。感谢原作者的贡献，完整归属说明见 [ATTRIBUTION.md](apps/windows/rc003/ATTRIBUTION.md)。
 
+小米遥控器2（RC001）的实现，以及小米遥控器 2 / 2 Pro 的型号判断（先按蓝牙名匹配，再读 GATT `0x2A24`），参考了 [`GetSayAll/remote-mic-app-windows`](https://github.com/GetSayAll/remote-mic-app-windows)（SayAll Windows 版），由 [Echo](https://github.com/HD838A) 提交（PR #7）。感谢他的公开实现。
+
 <table>
   <tr>
     <td align="center"><a href="https://github.com/nijez"><img src="https://avatars.githubusercontent.com/u/46086777?v=4" width="64px;" alt="nijez"/><br /><sub><b>nijez</b></sub></a><br /><sub>open-voice-bridge</sub></td>
     <td align="center"><a href="https://github.com/ZSTDJan"><img src="https://avatars.githubusercontent.com/u/166355097?v=4" width="64px;" alt="ZSTDJan"/><br /><sub><b>ZSTDJan</b></sub></a><br /><sub>windows-remote-mic-app</sub></td>
+    <td align="center"><a href="https://github.com/HD838A"><img src="https://avatars.githubusercontent.com/u/126734171?v=4" width="64px;" alt="Echo"/><br /><sub><b>Echo</b></sub></a><br /><sub>remote-mic-app-windows</sub></td>
   </tr>
 </table>
