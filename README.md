@@ -14,11 +14,13 @@
 
 本项目自身代码几乎全部由 AI 协助开发，可能存在疏漏，由此给您带来的不便敬请谅解。
 
-MoteDeck 是一个开源的 Windows 小工具：把电视语音遥控器的按键和话筒接进电脑，隔着房间控制应用、按住说话把文字送进当前输入框。目前支持**小米蓝牙语音遥控器 2 Pro**（RC003）、**小米遥控器2**（RC001），以及 Google TV 款的**谷歌遥控器**（Chromecast；谷歌 TV 遥控器均为第三方生产，存在多个版本，不能保证所有版本都可以使用）。
+MoteDeck 是一个开源的 Windows 小工具，把电视语音遥控器的按键和话筒接进电脑：支持**小米蓝牙语音遥控器 2 Pro**（RC003）、**小米遥控器2**（RC001），以及 Google TV 款的**谷歌遥控器**（Chromecast；谷歌 TV 遥控器均为第三方生产，存在多个版本，不能保证所有版本都可以使用），通过按键映射与语音输入，实现隔着房间控制应用、按住说话把文字送进当前输入框。
 
-按键可以映射成键盘快捷键（可选驱动级注入），语音键能触发输入法的语音快捷键，也能用本地 SenseVoice 模型离线识别成文字；连接 OpenMexia 后还能用一句语音开关整屋设备。
+按键可以映射成键盘快捷键（可选驱动级注入）、鼠标操作或打开应用，同一按键的单击、双击、长按可以各设一个动作；语音键能触发输入法的语音快捷键，也能用本地 SenseVoice 模型离线识别成文字；连接 OpenMexia 后还能用一句语音开关整屋设备。
 
-程序常驻通知区域，全部在本机运行，不上传遥控器地址、按键记录、录音或个人数据。
+提供 Windows 10 / 11 x64 的桌面版本，单窗口三页设置界面（设备 / 按键 / 语音），常驻通知区域并支持开机自启；安装包从 [Releases](https://github.com/HZDavy/MoteDeck/releases) 下载，未签名，首次运行按页面提示处理未就绪项即可。
+
+程序全部在本机运行，不上传遥控器地址、按键记录、录音或个人数据。
 
 本项目是基于 GPL-3.0 的 [`nijez/open-voice-bridge`](https://github.com/nijez/open-voice-bridge) Windows 实现的改造版本（Windows 实现的历史仓库为 [`ZSTDJan/windows-remote-mic-app`](https://github.com/ZSTDJan/windows-remote-mic-app)）；上游归属、改动范围与 GPL-3.0 §5(a) 修改声明见 [ATTRIBUTION.md](apps/windows/rc003/ATTRIBUTION.md)；其余第三方组件与上游项目的说明详见[致谢](#上游致谢)。
 
