@@ -10,6 +10,8 @@
   <a href="LICENSE.md"><img src="https://img.shields.io/github/license/HZDavy/MoteDeck?style=flat-square&label=license&color=111111&labelColor=55534F" alt="许可"></a>
 </p>
 
+**有问题欢迎反馈🐧群：1134307509**
+
 MoteDeck 是一个开源的 Windows 小工具：把**小米蓝牙语音遥控器 2 Pro**（RC003）的按键和话筒接进电脑，隔着房间控制应用、按住说话把文字送进当前输入框。
 
 程序常驻通知区域，全部在本机运行，不上传遥控器地址、按键记录、录音或个人数据。
@@ -166,7 +168,6 @@ MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成：用一�
 ## 交流与反馈
 
 - 问题与建议：[GitHub Issues](https://github.com/HZDavy/MoteDeck/issues)
-- 有问题欢迎反馈🐧群：1134307509
 - 官网：[hzdavy.github.io/MoteDeck](https://hzdavy.github.io/MoteDeck/)
 
 ---
