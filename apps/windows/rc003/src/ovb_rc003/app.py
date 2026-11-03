@@ -963,8 +963,19 @@ class RC003App:
                 disable_forwarding=lambda: setattr(
                     self, "_voice_pcm_forwarding_enabled", False
                 ),
+                voice_inject_mode=self._chromecast_voice_inject_mode,
             )
         )
+
+    def _chromecast_voice_inject_mode(self) -> Optional[str]:
+        """Chromecast 语音键的注入后端。
+
+        谷歌遥控器的语音键常常配成普通组合键（key_combo）而不是 VOICE_HOLD，
+        语音槽因此没有归属按钮；按语音一解析，取不到时由
+        ``_voice_slot_inject_mode`` 退回话筒键自己配置的注入方式。
+        """
+
+        return self._voice_slot_inject_mode(1)
 
     def _cancel_chromecast_mappings(self) -> None:
         with self._input_arbitration_lock:
@@ -3243,6 +3254,15 @@ class RC003App:
         # 一个话筒键轮换多个语音槽时（短按切换），只有语音一真正绑在话筒键
         # 上，语音二/三没有自己的按钮。此时必须沿用触发按钮的注入方式，
         # 否则会退回 SendInput，右 Alt 这类需要驱动级注入的宿主就收不到。
+        if fallback is None:
+            # 谷歌 TV 等遥控器的语音键常配成普通组合键（key_combo）而不是
+            # VOICE_HOLD，此时没有任何按钮归属该语音槽；沿用话筒键(mic)的注入
+            # 方式，否则这里返回 None 会静默回退 SendInput，同样收不到按键。
+            mic_action = self._primary_button_action("mic")
+            if mic_action is not None:
+                fallback = injection_backend.normalize_inject_mode(
+                    mic_action.inject_mode
+                )
         return fallback
 
     def _voice_slot_uses_interception(self, slot: Optional[int]) -> bool:

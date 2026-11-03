@@ -166,6 +166,17 @@ def interception_unavailable_hint() -> str:
     return _DEFAULT_UNAVAILABLE_HINT
 
 
+def interception_driver_installed() -> bool:
+    """Whether the driver is registered on this machine, usable or not.
+
+    Installing and loading are two different moments: a freshly installed
+    driver is registered but only takes effect after a reboot.  Settings uses
+    this to tell "已安装/待重启" apart from "已启用".
+    """
+
+    return interception_runtime_windows.driver_installed()
+
+
 def mode_available(mode: object) -> bool:
     """Whether ``mode`` can currently deliver input on this machine."""
 

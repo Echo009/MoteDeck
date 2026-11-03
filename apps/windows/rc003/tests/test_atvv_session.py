@@ -20,10 +20,11 @@ def _caps_payload(codec_bit=0x02, frame_size=4):
 
 
 class ATVVSessionCapsTests(unittest.TestCase):
-    def test_caps_rejects_non_16k_sample_rate(self):
+    def test_caps_accepts_8k_and_upsamples_to_16k(self):
         session = atvv_session.ATVVSession()
-        with self.assertRaises(atvv_session.UnsupportedSampleRateError):
-            session.handle_control(_caps_payload(codec_bit=0x01))
+        event = session.handle_control(_caps_payload(codec_bit=0x01))
+        self.assertIsInstance(event, atvv_session.CapsReceived)
+        self.assertEqual(session.capabilities.sample_rate, 8000.0)
 
     def test_caps_accepts_16k_and_stores_frame_size(self):
         session = atvv_session.ATVVSession()

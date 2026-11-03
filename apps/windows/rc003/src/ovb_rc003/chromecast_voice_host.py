@@ -38,6 +38,9 @@ class VoiceHostServices:
     set_active: Callable
     set_result: Callable
     disable_forwarding: Callable
+    # 谷歌遥控器的语音键常配成普通组合键，没有语音槽归属；这里回传话筒键
+    # 自己选中的注入后端，避免 Chromecast 路径静默回退到 SendInput。
+    voice_inject_mode: Callable = lambda: None
 
 
 class VoiceHost:
@@ -145,7 +148,8 @@ class VoiceHost:
             services.begin_diagnostic(effective_hotkey_tokens=tokens)
             self.diagnostic_started = True
             action = services.shortcut.controller.on_mic_button_pressed()
-            if not services.shortcut.apply(action):
+            inject_mode = services.voice_inject_mode()
+            if not services.shortcut.apply(action, inject_mode=inject_mode):
                 services.shortcut.controller.cancel_pending()
                 self._fail_voice("语音快捷键未能送达")
                 return

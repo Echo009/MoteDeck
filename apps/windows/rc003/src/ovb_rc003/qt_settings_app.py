@@ -4727,6 +4727,25 @@ def _load_qt_classes() -> dict:
 
             return injection_backend.interception_available()
 
+        @Property(bool, notify=injectModesChanged)
+        def interceptionInstalled(self) -> bool:
+            """驱动是否已注册（安装完成，但可能还没重启生效）。"""
+
+            from . import injection_backend
+
+            return injection_backend.interception_driver_installed()
+
+        @Property(bool, notify=injectModesChanged)
+        def interceptionPendingReboot(self) -> bool:
+            """已安装但尚未生效：驱动已注册、当前却不可用。"""
+
+            from . import injection_backend
+
+            return (
+                not injection_backend.interception_available()
+                and injection_backend.interception_driver_installed()
+            )
+
         @Property(str, notify=injectModesChanged)
         def interceptionUnavailableReason(self) -> str:
             from . import injection_backend
