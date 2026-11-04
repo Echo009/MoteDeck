@@ -247,7 +247,7 @@ class _FakeHidListenerForFailedStart:
     def is_running(self):
         return self._is_running_after_failed_start
 
-    def start(self, device_path):
+    def start(self, device_path, *, family_matcher=None):
         self.start_calls += 1
         raise app_module.raw_input_windows.RawInputUnavailableError("simulated failed start")
 
@@ -296,7 +296,7 @@ class _FakeRecoveringRawListener:
     def set_physical_bindings(self, bindings):
         self.physical_bindings = dict(bindings)
 
-    def start(self, _device_path):
+    def start(self, _device_path, *, family_matcher=None):
         self.start_calls += 1
         if self.start_error is not None:
             self.is_running = self.running_after_error
@@ -5845,7 +5845,7 @@ class InputLifecycleTests(_AppWiringTestCase):
 
         self.assertEqual(calls, ["physicalizer", "raw_input", "hid_tap"])
 
-    def test_chromecast_starts_voice_hook_and_raw_input_without_private_tap(self):
+    def test_chromecast_uses_child_receiver_only(self):
         calls = []
         self.app._remote_profile = remote_selection.CHROMECAST_PROFILE
         with mock.patch.object(
@@ -5863,7 +5863,7 @@ class InputLifecycleTests(_AppWiringTestCase):
         ):
             self.app._start_input_channels()
 
-        self.assertEqual(calls, ["physicalizer", "raw_input"])
+        self.assertEqual(calls, [])
 
     def test_unavailable_voice_physicalizer_degrades_without_losing_owner_state(self):
         timers = []
@@ -6447,7 +6447,7 @@ class InputLifecycleTests(_AppWiringTestCase):
         reconnects = []
 
         class RemovedDuringStartListener(_FakeRecoveringRawListener):
-            def start(self, _device_path):
+            def start(self, _device_path, *, family_matcher=None):
                 self.start_calls += 1
                 self.is_running = True
                 self.removed_callback()
