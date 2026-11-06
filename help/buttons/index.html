@@ -802,24 +802,36 @@
 <td>WinUHid（虚拟键盘，推荐）</td>
 <td>通过虚拟键盘驱动发送，长按与组合键更接近真实键盘手感；需要安装驱动，未安装时不可选</td>
 </tr>
+<tr>
+<td>Interception（驱动级）</td>
+<td>走键盘驱动层，可覆盖仅识别物理键盘的旧版程序；需要安装驱动并重启，未安装时不可选</td>
+</tr>
 </tbody>
 </table>
-<p>元素导航、打开应用等非普通按键动作只支持 <code>SendInput</code>；这类动作即使选择了 WinUHid，保存时也会静默退回 <code>SendInput</code>。</p>
-<p>驱动在按键页右侧的「驱动管理」中安装：程序只运行随包的官方安装程序，全程需要管理员权限，通常无需重启（系统提示时重启一次即可），不会静默安装。安装完成后按钮变为「卸载」，可随时卸载，卸载不会被拦截。</p>
+<p>元素导航、打开应用等非普通按键动作只支持 <code>SendInput</code>；这类动作即使选择了驱动级注入，保存时也会静默退回 <code>SendInput</code>。</p>
+<p>驱动在按键页右侧的「驱动管理」中安装：程序只运行随包的官方安装程序，全程需要管理员权限，不会静默安装。两种驱动只能安装其一，安装其中一个前需要先卸载另一个。安装完成后按钮变为「卸载」，可随时卸载，卸载不会被拦截。</p>
+<ul>
+<li><strong>WinUHid</strong>：推荐方案，通常无需重启（系统提示时重启一次即可）。</li>
+<li><strong>Interception</strong>：安装完成后须重启电脑才会生效。</li>
+</ul>
 <div class="admonition note">
 <p class="admonition-title">WinUHid 的特点</p>
 <ul>
 <li>不接管物理键盘，外接键盘可以正常使用；安装后相当于系统新增一个真实键盘设备。</li>
-<li>对安全软件更友好；极少数只识别物理键盘的旧版程序可能收不到按键。</li>
+<li>对安全软件更友好；极少数只识别物理键盘的旧版程序可能收不到按键，这类情况可以改用 Interception。</li>
 </ul>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Interception 与内存完整性</p>
+<p>Windows 11 开启「内存完整性（HVCI）」时，Interception 驱动无法正常加载，程序会在安装前直接拒绝并提示。需要时先关闭内存完整性再安装。</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">部分输入法必须改用驱动级映射</p>
-<p>部分输入法（例如 Chatterfly）会拦截 <code>SendInput</code> 合成按键，导致对应的<strong>语音键</strong>按下后没有反应、语音输入无法激活。此类情况需要把该语音键的注入方式改为 WinUHid。</p>
+<p>部分输入法（例如 Chatterfly）会拦截 <code>SendInput</code> 合成按键，导致对应的<strong>语音键</strong>按下后没有反应、语音输入无法激活。此类情况需要把该语音键的注入方式改为驱动级（优先 WinUHid，需要覆盖旧版程序时再用 Interception）。</p>
 <p>使用前需要完成两步：</p>
 <ol>
-<li>在按键页把对应按键的注入方式切换为 WinUHid；</li>
-<li>在「驱动管理」中安装驱动，系统提示需要重启时再重启电脑。</li>
+<li>在按键页把对应按键的注入方式切换为 WinUHid 或 Interception；</li>
+<li>在「驱动管理」中安装驱动；Interception 安装后需重启电脑，WinUHid 通常无需重启。</li>
 </ol>
 <p>没有上述现象的输入法保持默认 <code>SendInput</code> 即可，兼容性更好。</p>
 </div>
