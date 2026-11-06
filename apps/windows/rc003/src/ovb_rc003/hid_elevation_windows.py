@@ -66,11 +66,14 @@ _ELEVATED_PROCESS_TERMINATION_WAIT_MS = 10_000
 
 MANIFEST_SCHEMA_VERSION = 1
 HELPER_PROTOCOL_VERSION = 1
-# Generation 14 installs the native first-report ownership fix. Generation 10
+# Generation 15 replaces helpers that 0.1.x installs kept reusing: those older
+# binaries could not resolve the RC003 host, so the registered helper exited 35
+# (host unavailable) only in the installed build. Generation 14 installs the
+# native first-report ownership fix. Generation 10
 # added protected script reload and the exclusive-device legacy migration.
 # Protocol 4, the administrator-only helper and LocalService runtime ACLs are
 # unchanged.
-HELPER_GENERATION = 14
+HELPER_GENERATION = 15
 TASK_CONTRACT_VERSION = 5
 MANIFEST_FILENAME = "helper-manifest.json"
 INJECTION_RESULT_FILENAME = "hid-injection-result.json"
