@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://hzdavy.github.io/MoteDeck/"><img src="https://img.shields.io/badge/%E5%AE%98%E7%BD%91-hzdavy.github.io%2FMoteDeck-111111?style=flat-square&logo=githubpages&logoColor=FFFFFF" alt="官网"></a>
   <a href="https://github.com/HZDavy/MoteDeck/releases/latest"><img src="https://img.shields.io/github/v/release/HZDavy/MoteDeck?style=flat-square&label=release&color=111111&labelColor=55534F" alt="最新版本"></a>
-  <a href="https://github.com/HZDavy/MoteDeck/releases"><img src="https://img.shields.io/github/downloads/HZDavy/MoteDeck/latest/total?style=flat-square&label=%E4%B8%8B%E8%BD%BD&color=111111&labelColor=55534F" alt="下载量"></a>
+  <a href="https://github.com/HZDavy/MoteDeck/releases"><img src="https://img.shields.io/github/downloads/HZDavy/MoteDeck/total?style=flat-square&label=%E4%B8%8B%E8%BD%BD&color=111111&labelColor=55534F" alt="下载量"></a>
   <img src="https://img.shields.io/badge/Windows%2010%2F11-x64-111111?style=flat-square&labelColor=55534F" alt="平台">
   <a href="LICENSE.md"><img src="https://img.shields.io/github/license/HZDavy/MoteDeck?style=flat-square&label=license&color=111111&labelColor=55534F" alt="许可"></a>
 </p>
