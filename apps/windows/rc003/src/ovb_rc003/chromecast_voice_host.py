@@ -43,6 +43,10 @@ class VoiceHostServices:
     press_delay_seconds: Callable[[], float] | None = None
     on_short_tap: Callable[[], None] | None = None
     inject_mode: Callable[[], str | None] | None = None
+    needs_shortcut: Callable[[], bool] | None = None
+    begin_asr_capture: Callable[[], bool] | None = None
+    forward_asr_pcm: Callable | None = None
+    end_asr_capture: Callable[[], bool] | None = None
 
 
 class VoiceHost:
@@ -67,6 +71,7 @@ class VoiceHost:
         self._press_token = None
         self._press_delivered = False
         self._detection_press = False
+        self._asr_capture = False
 
     # -- receiver-facing API -------------------------------------------------
 
@@ -143,9 +148,28 @@ class VoiceHost:
                 return
             if services.prepare_shortcut is not None:
                 services.prepare_shortcut()
+            if self._begin_asr_capture():
+                # OpenMexia 槽：遥控器按下时会自己开麦，这里只把解出来的
+                # PCM 交给本机识别，不打开音频输出，也一个键都不发。
+                self.decoder = ATVVSession(
+                    gain_db=float(services.settings().get("gain_db", 10.0))
+                )
+                self._asr_capture = True
+                self._press_delivered = False
+                self.engaged = False
+                self.state = "recording"
+                self.reply("ready")
+                return
             tokens = services.shortcut.recorded_tokens()
             if not tokens:
-                self._fail_voice("尚未设置语音快捷键，无法开始语音输入")
+                if self._shortcut_required():
+                    self._fail_voice("尚未设置语音快捷键，无法开始语音输入")
+                    return
+                # 插件槽和本机麦克风槽没有可重放的快捷键：这次按下只用来
+                # 判定短按，松手后由 _stop_host 切模式，一个键都不发。
+                self._press_delivered = False
+                self.engaged = False
+                self.reply("ready")
                 return
             if services.shortcut.pending_tokens and not services.shortcut.release_pending():
                 self._fail_voice("上一次语音快捷键的清理尚未确认")
@@ -187,6 +211,20 @@ class VoiceHost:
             services.set_result(status.VOICE_RUNTIME_ACTIVE)
             self.reply("ready")
 
+    def _shortcut_required(self) -> bool:
+        """Whether the active voice slot has to replay a recorded shortcut."""
+
+        callback = self.services.needs_shortcut
+        if callback is None:
+            return True
+        try:
+            return bool(callback())
+        except Exception:  # noqa: BLE001 - fall back to the strict behaviour
+            self.services.logger.exception(
+                "Chromecast voice shortcut requirement unavailable"
+            )
+            return True
+
     def _press_delay_seconds(self) -> float:
         callback = self.services.press_delay_seconds
         if callback is None:
@@ -210,6 +248,45 @@ class VoiceHost:
                 "Chromecast voice inject mode unavailable"
             )
             return None
+
+    def _begin_asr_capture(self) -> bool:
+        """本机识别是否接管这次按下（OpenMexia 语音槽）。"""
+
+        callback = self.services.begin_asr_capture
+        if callback is None:
+            return False
+        try:
+            return bool(callback())
+        except Exception:  # noqa: BLE001 - 识别失败不能卡住语音键
+            self.services.logger.exception(
+                "Chromecast OpenMexia capture start failed"
+            )
+            return False
+
+    def _forward_asr_pcm(self, samples) -> None:
+        callback = self.services.forward_asr_pcm
+        if callback is None:
+            return
+        try:
+            callback(samples)
+        except Exception:  # noqa: BLE001 - 识别失败不能卡住语音键
+            self.services.logger.exception(
+                "Chromecast OpenMexia capture failed"
+            )
+
+    def _end_asr_capture(self) -> bool:
+        """松手：返回这次按下是否按满阈值、已经当作识别处理。"""
+
+        callback = self.services.end_asr_capture
+        if callback is None:
+            return False
+        try:
+            return bool(callback())
+        except Exception:  # noqa: BLE001 - 识别失败不能卡住语音键
+            self.services.logger.exception(
+                "Chromecast OpenMexia capture end failed"
+            )
+            return False
 
     def _arm_press_delay(self, action, delay, inject_mode):
         token = object()
@@ -274,6 +351,15 @@ class VoiceHost:
         if kind == "host_start":
             self._start_host(attempt)
             return
+        if kind == "tap":
+            # 上一轮会话还在收尾时遥控器的快速短按：worker 已在本地判完时长，
+            # 这里直接切模式，不必等 attempt 落到 idle。
+            if self._asr_capture:
+                self._asr_capture = False
+                if self._end_asr_capture():
+                    return
+            self._notify_short_tap()
+            return
         if attempt != self.attempt:
             return
         if kind == "host_stop":
@@ -299,12 +385,12 @@ class VoiceHost:
                 self._output(samples)
 
     def _output(self, samples):
-        if (
-            self.stopping.is_set()
-            or not self.engaged
-            or self.state != "recording"
-            or self.failure_result is not None
-        ):
+        if self.stopping.is_set() or self.failure_result is not None:
+            return
+        if self._asr_capture:
+            self._forward_asr_pcm(samples)
+            return
+        if not self.engaged or self.state != "recording":
             return
         self._output_pcm.extend(samples)
         while len(self._output_pcm) >= _OUTPUT_BLOCK_SAMPLES:
@@ -378,6 +464,12 @@ class VoiceHost:
         self.state = "stopping"
         released = False
         tapped = False
+        asr_committed = False
+        if self._asr_capture:
+            # 识别路径自己攒了 PCM：先松手交给识别，再按是否按满阈值决定
+            # 这次算长按（不切模式）还是短按（照旧切模式）。
+            asr_committed = self._end_asr_capture()
+            self._asr_capture = False
         with services.shortcut.lock:
             services.disable_forwarding()
             delivered = self._press_delivered
@@ -388,6 +480,7 @@ class VoiceHost:
                 from_remote_release
                 and not delivered
                 and not detection
+                and not asr_committed
                 and self.failure_result is None
             ):
                 # Released inside the tap window: no key was injected, so this

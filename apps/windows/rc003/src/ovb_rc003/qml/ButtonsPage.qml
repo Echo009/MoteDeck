@@ -14,6 +14,14 @@ Item {
     id: root
     property var tokens
     MappingAppPickerDialog { id: mappingAppPickerDialog; tokens: root.tokens }
+    // 「启动应用」单选用这个窗口，和多应用配置那个互不影响。
+    LaunchAppPickerDialog {
+        id: launchAppPickerDialog
+        tokens: root.tokens
+        onApplicationSelected: function(process) {
+            root.applyPickedApplication(process)
+        }
+    }
     // The application bar mirrors Logi Options+: the first chip is always the
     // global layout, the rest are the saved applications, then a "+" chip.
     readonly property var mappingChips: {
@@ -48,7 +56,7 @@ Item {
     readonly property real messageBubbleHeight: 26
     property var backTabTarget: null
     property var tabTarget: null
-    property string interceptionDriverMessage: ""
+    property string winuhidDriverMessage: ""
     property string mappingMessage: ""
     // 导入 / 导出弹窗的结果提示（成功或失败原因）。
     property string mappingBundleMessage: ""
@@ -62,9 +70,11 @@ Item {
     // 快捷键录入弹窗的上下文：哪一行、哪个手势、是否回填到编辑器控件。
     property int shortcutRecorderRowIndex: -1
     property string shortcutRecorderTrigger: "single_click"
+    // 「启动应用」选择应用的上下文：只回填用户点的那一行。
+    property int appPickerRowIndex: -1
+    property string appPickerTrigger: "single_click"
     readonly property var firstFocusItem: mappingAppsBar
-    readonly property var lastFocusItem: SettingsController.interceptionAvailable
-        ? uninstallInterceptionDriverButton : installInterceptionDriverButton
+    readonly property var lastFocusItem: driverManagerButton
     readonly property bool hasPendingEditorDraft:
         actionEditor.visible && actionEditor.draftDirty
 
@@ -292,6 +302,21 @@ Item {
         actionEditor.applyCapturedShortcut(
             shortcutRecorderRowIndex, shortcutRecorderTrigger,
             SettingsController.formatActionText(chord))
+    }
+
+    function openApplicationPicker(rowIndex, trigger, currentText) {
+        appPickerRowIndex = rowIndex
+        appPickerTrigger = trigger || "single_click"
+        // 这一行存的就是全部记忆：改成别的动作后文本变了，勾选自然也消失。
+        launchAppPickerDialog.selectedProcess =
+            SettingsController.applicationLaunchTarget(currentText)
+        launchAppPickerDialog.open()
+    }
+
+    function applyPickedApplication(process) {
+        actionEditor.applyPickedApplication(
+            appPickerRowIndex, appPickerTrigger, process)
+        launchAppPickerDialog.close()
     }
 
     Timer {
@@ -555,6 +580,29 @@ Item {
     }
 
     SettingsDialog {
+        id: winuhidInstallConfirmDialog
+        tokens: root.tokens
+        preferredWidth: 340 + tokens.dialogPadding * 2
+        objectName: "winuhidInstallConfirmDialog"
+        title: qsTr("安装驱动？")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: {
+            const result = SettingsController.installWinUHidDriver()
+            root.winuhidDriverMessage = result.message
+        }
+
+        UiLabel {
+            tokens: root.tokens
+            kind: bodyKind
+            width: 340
+            wrapMode: Text.WordWrap
+            text: qsTr("安装需要管理员权限，软件只会启动随包附带的安装脚本，绝不会静默安装。确定现在安装吗？")
+        }
+    }
+
+    SettingsDialog {
         id: interceptionInstallConfirmDialog
         tokens: root.tokens
         preferredWidth: 340 + tokens.dialogPadding * 2
@@ -565,7 +613,7 @@ Item {
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: {
             const result = SettingsController.installInterceptionDriver()
-            root.interceptionDriverMessage = result.message
+            root.winuhidDriverMessage = result.message
         }
 
         UiLabel {
@@ -573,7 +621,232 @@ Item {
             kind: bodyKind
             width: 340
             wrapMode: Text.WordWrap
-            text: qsTr("安装需要管理员权限，装完必须重启电脑才生效。软件只会启动随包附带的官方安装程序，绝不会静默安装。确定现在安装吗？")
+            text: qsTr("安装需要管理员权限，软件只会启动随包附带的安装程序，绝不会静默安装。确定现在安装吗？")
+        }
+    }
+
+    // 驱动管理：两种驱动都列在这里，装哪种、装几种、什么时候卸都交给用户决定。
+    SettingsDialog {
+        id: driverManagerDialog
+        tokens: root.tokens
+        preferredWidth: 440 + tokens.dialogPadding * 2
+        objectName: "driverManagerDialog"
+        title: qsTr("输入驱动管理")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok
+
+        contentItem: ColumnLayout {
+            spacing: root.tokens.spacingLarge
+
+            UiLabel {
+                tokens: root.tokens
+                kind: bodyKind
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: qsTr("两种驱动只能安装其一，不能同时安装；都不安装时，沿用系统原生按键发送方式。安装后可随时在此卸载。")
+            }
+
+            UiLabel {
+                objectName: "driverManagerMessage"
+                tokens: root.tokens
+                kind: noteKind
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                visible: root.winuhidDriverMessage.length > 0
+                text: root.winuhidDriverMessage
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: root.tokens.hairlineWidth
+                color: root.tokens.line
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: root.tokens.spacingSmall
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: root.tokens.spacingSmall
+
+                    UiLabel {
+                        tokens: root.tokens
+                        kind: bodyKind
+                        Layout.alignment: Qt.AlignTop
+                        text: qsTr("WinUHid 虚拟键盘")
+                        font.weight: Font.DemiBold
+                    }
+                    Rectangle {
+                        id: recommendedBadge
+                        objectName: "driverManagerWinUHidRecommended"
+                        // 和左侧标题一样按行顶对齐；高度只取文字墨迹加 2px 内边距，
+                        // 文字再上移到墨迹顶边，避免下方留出空白。
+                        Layout.alignment: Qt.AlignTop
+                        Layout.preferredHeight: implicitHeight
+                        readonly property int glyphPadding: 2
+                        readonly property rect glyphRect:
+                            recommendedBadgeMetrics.tightBoundingRect(recommendedLabel.text)
+                        radius: 4
+                        color: root.tokens.accentSoft
+                        border.width: root.tokens.hairlineWidth
+                        border.color: root.tokens.line
+                        implicitWidth: recommendedLabel.implicitWidth + root.tokens.spacingSmall * 2
+                        implicitHeight: Math.ceil(glyphRect.height + glyphPadding * 2)
+
+                        FontMetrics {
+                            id: recommendedBadgeMetrics
+                            font: recommendedLabel.font
+                        }
+
+                        UiLabel {
+                            id: recommendedLabel
+                            tokens: root.tokens
+                            kind: noteKind
+                            x: Math.round((recommendedBadge.width - width) / 2)
+                            y: Math.round(recommendedBadge.glyphPadding
+                                - (recommendedBadgeMetrics.ascent + recommendedBadge.glyphRect.y))
+                            color: root.tokens.textPrimary
+                            text: qsTr("推荐")
+                        }
+                    }
+                    UiLabel {
+                        objectName: "driverManagerWinUHidState"
+                        tokens: root.tokens
+                        kind: noteKind
+                        Layout.alignment: Qt.AlignTop
+                        text: SettingsController.winuhidDriverInstalled
+                            ? qsTr("已安装") : qsTr("未安装")
+                    }
+                    Item { Layout.fillWidth: true }
+                    CompactButton {
+                        objectName: "driverManagerWinUHidButton"
+                        tokens: root.tokens
+                        compactMinimumWidth: root.tokens.buttonWidth4Chars
+                        enabled: SettingsController.winuhidInstallerAvailable
+                            && (SettingsController.winuhidDriverInstalled
+                                || !SettingsController.interceptionDriverInstalled)
+                        text: SettingsController.winuhidDriverInstalled
+                            ? qsTr("卸载") : qsTr("安装")
+                        onClicked: {
+                            if (SettingsController.winuhidDriverInstalled) {
+                                const result = SettingsController.uninstallWinUHidDriver()
+                                root.winuhidDriverMessage = result.message
+                            } else {
+                                winuhidInstallConfirmDialog.open()
+                            }
+                        }
+                    }
+                }
+                UiLabel {
+                    tokens: root.tokens
+                    kind: noteKind
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("适用：聊天、浏览器、办公等绝大多数常规应用。")
+                }
+                UiLabel {
+                    tokens: root.tokens
+                    kind: noteKind
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("优势：不接管物理键盘，外接键盘可正常使用；对安全软件更友好；安装后相当于系统新增一个真实键盘设备。")
+                }
+                UiLabel {
+                    tokens: root.tokens
+                    kind: noteKind
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("局限：需管理员权限安装，通常无需重启（系统提示时重启一次即可）；极少数仅识别物理键盘的旧版程序可能收不到按键。")
+                }
+                UiLabel {
+                    tokens: root.tokens
+                    kind: noteKind
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    visible: !SettingsController.winuhidInstallerAvailable
+                    text: SettingsController.winuhidInstallerUnavailableReason
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: root.tokens.hairlineWidth
+                color: root.tokens.line
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: root.tokens.spacingSmall
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: root.tokens.spacingSmall
+
+                    UiLabel {
+                        tokens: root.tokens
+                        kind: bodyKind
+                        text: qsTr("Interception 键盘过滤驱动")
+                        font.weight: Font.DemiBold
+                    }
+                    UiLabel {
+                        objectName: "driverManagerInterceptionState"
+                        tokens: root.tokens
+                        kind: noteKind
+                        text: SettingsController.interceptionDriverInstalled
+                            ? qsTr("已安装") : qsTr("未安装")
+                    }
+                    Item { Layout.fillWidth: true }
+                    CompactButton {
+                        objectName: "driverManagerInterceptionButton"
+                        tokens: root.tokens
+                        compactMinimumWidth: root.tokens.buttonWidth4Chars
+                        enabled: SettingsController.interceptionInstallerAvailable
+                            && (SettingsController.interceptionDriverInstalled
+                                || !SettingsController.winuhidDriverInstalled)
+                        text: SettingsController.interceptionDriverInstalled
+                            ? qsTr("卸载") : qsTr("安装")
+                        onClicked: {
+                            if (SettingsController.interceptionDriverInstalled) {
+                                const result = SettingsController.uninstallInterceptionDriver()
+                                root.winuhidDriverMessage = result.message
+                            } else {
+                                interceptionInstallConfirmDialog.open()
+                            }
+                        }
+                    }
+                }
+                UiLabel {
+                    tokens: root.tokens
+                    kind: noteKind
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("适用：需要按键在所有程序中生效的场景，包括仅识别物理键盘的旧版程序。")
+                }
+                UiLabel {
+                    tokens: root.tokens
+                    kind: noteKind
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("优势：兼容范围最广，可覆盖仅识别物理键盘的旧版程序。")
+                }
+                UiLabel {
+                    tokens: root.tokens
+                    kind: noteKind
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("局限：属于键盘过滤驱动，需管理员权限安装，安装完成后须重启电脑才会生效；部分安全软件或游戏反作弊可能拦截或告警；少数外设厂商软件可能与其冲突。")
+                }
+                UiLabel {
+                    tokens: root.tokens
+                    kind: noteKind
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    visible: !SettingsController.interceptionInstallerAvailable
+                    text: SettingsController.interceptionInstallerUnavailableReason
+                }
+            }
         }
     }
 
@@ -812,8 +1085,7 @@ Item {
             id: injectOptionDelegate
             readonly property var option: modelData
             readonly property bool unavailable: option && (option.available === false
-                || (String(option.value) === "interception"
-                    && actionEditor.interceptionBlocked))
+                || actionEditor.isModeBlocked(String(option.value)))
             objectName: injectCombo.objectName + "_option_" + index
             width: ListView.view ? ListView.view.width : injectCombo.width
             height: tokens.controlHeight
@@ -953,6 +1225,13 @@ Item {
         readonly property bool longHotkeyLocked:
             primaryIsVoice
             || SettingsController.isVoiceModeCycleText(normalizedLongText)
+        // 「启动应用」的三行各自独立：哪一行是这个动作，哪一行才显示「选择应用」。
+        readonly property bool primaryIsLaunchApplication:
+            SettingsController.isLaunchApplicationText(normalizedPrimaryText)
+        readonly property bool doubleIsLaunchApplication:
+            SettingsController.isLaunchApplicationText(normalizedDoubleText)
+        readonly property bool longIsLaunchApplication:
+            SettingsController.isLaunchApplicationText(normalizedLongText)
         readonly property string primaryValidationError: rowIndex >= 0
             ? SettingsController.buttonActionValidationMessage(
                 buttonId, "single_click", primaryText, injectMode
@@ -966,7 +1245,7 @@ Item {
                 buttonId, "long_press", longText, injectMode
             ) : ""
 
-        function interceptionBlockReason() {
+        function blockReasonFor(mode) {
             if (rowIndex < 0)
                 return ""
             const texts = [
@@ -976,25 +1255,39 @@ Item {
             ]
             for (let i = 0; i < texts.length; ++i) {
                 const message = SettingsController.buttonActionValidationMessage(
-                    buttonId, texts[i][0], texts[i][1], "interception"
+                    buttonId, texts[i][0], texts[i][1], mode
                 )
                 if (message.length > 0)
                     return message
             }
             return ""
         }
-        // 当前动作（元素导航、打开应用、OpenMexia 设备等）用不了 Interception 时，
+        // 当前动作（元素导航、打开应用、OpenMexia 设备等）用不了某种驱动时，
         // 直接退回 SendInput，不弹任何提示。
+        readonly property bool winuhidBlocked: rowIndex >= 0
+            && blockReasonFor("winuhid").length > 0
         readonly property bool interceptionBlocked: rowIndex >= 0
-            && interceptionBlockReason().length > 0
+            && blockReasonFor("interception").length > 0
+        function isModeBlocked(mode) {
+            if (mode === "winuhid")
+                return winuhidBlocked
+            if (mode === "interception")
+                return interceptionBlocked
+            return false
+        }
         function syncInjectModeToActions() {
-            if (injectMode === "interception" && interceptionBlocked) {
+            if (isModeBlocked(injectMode)) {
                 injectMode = "sendinput"
                 injectModeCombo.syncFromMode("sendinput")
             }
         }
-        readonly property string injectModeHintText: SettingsController.interceptionAvailable
-            ? "" : SettingsController.interceptionUnavailableHint
+        readonly property string injectModeHintText: {
+            if (injectMode === "winuhid" && !SettingsController.winuhidAvailable)
+                return SettingsController.winuhidUnavailableHint
+            if (injectMode === "interception" && !SettingsController.interceptionAvailable)
+                return SettingsController.interceptionUnavailableHint
+            return ""
+        }
         readonly property string validationError:
             primaryValidationError.length > 0 ? primaryValidationError
             : doubleValidationError.length > 0 ? doubleValidationError
@@ -1060,11 +1353,30 @@ Item {
             syncing = false
         }
 
+        // 「启动应用」选中程序后只回填对应的那一行。
+        function applyPickedApplication(targetRow, trigger, process) {
+            if (!visible || targetRow !== rowIndex)
+                return
+            const text = SettingsController.applicationLaunchText(process)
+            syncing = true
+            if (trigger === "single_click") {
+                primaryText = text
+                primaryCombo.setEditorValue(text)
+            } else if (trigger === "double_click") {
+                doubleText = text
+                doubleCombo.setEditorValue(text)
+            } else if (trigger === "long_press") {
+                longText = text
+                longCombo.setEditorValue(text)
+            }
+            syncing = false
+        }
+
         function saveDraft() {
             validationRequested = true
             // 兜底：动作用不了驱动级时，保存这一步直接按 SendInput 存，
             // 不把「请改用 SendInput」当成错误拦下来。
-            if (injectMode === "interception" && interceptionBlocked) {
+            if (isModeBlocked(injectMode)) {
                 injectMode = "sendinput"
                 injectModeCombo.syncFromMode("sendinput")
             }
@@ -1181,12 +1493,21 @@ Item {
                     objectName: "actionEditorPrimaryRecordButton"
                         tokens: root.tokens
                         compactMinimumWidth: tokens.buttonWidth2Chars
-                    enabled: !actionEditor.primaryHotkeyLocked
-                    text: qsTr("录入")
-                    onClicked: root.openShortcutRecorder(
-                        actionEditor.buttonId, actionEditor.rowIndex,
-                        "single_click"
-                    )
+                    enabled: actionEditor.primaryIsLaunchApplication
+                        ? true : !actionEditor.primaryHotkeyLocked
+                    text: actionEditor.primaryIsLaunchApplication
+                        ? qsTr("选择") : qsTr("录入")
+                    onClicked: {
+                        if (actionEditor.primaryIsLaunchApplication) {
+                            root.openApplicationPicker(
+                                actionEditor.rowIndex, "single_click",
+                                actionEditor.primaryText)
+                        } else {
+                            root.openShortcutRecorder(
+                                actionEditor.buttonId, actionEditor.rowIndex,
+                                "single_click")
+                        }
+                    }
                     Accessible.name: qsTr("录制单击快捷键")
                 }
                 }
@@ -1258,12 +1579,21 @@ Item {
                     objectName: "actionEditorDoubleRecordButton"
                         tokens: root.tokens
                         compactMinimumWidth: tokens.buttonWidth2Chars
-                    enabled: !actionEditor.doubleHotkeyLocked
-                    text: qsTr("录入")
-                    onClicked: root.openShortcutRecorder(
-                        actionEditor.buttonId, actionEditor.rowIndex,
-                        "double_click"
-                    )
+                    enabled: actionEditor.doubleIsLaunchApplication
+                        ? true : !actionEditor.doubleHotkeyLocked
+                    text: actionEditor.doubleIsLaunchApplication
+                        ? qsTr("选择") : qsTr("录入")
+                    onClicked: {
+                        if (actionEditor.doubleIsLaunchApplication) {
+                            root.openApplicationPicker(
+                                actionEditor.rowIndex, "double_click",
+                                actionEditor.doubleText)
+                        } else {
+                            root.openShortcutRecorder(
+                                actionEditor.buttonId, actionEditor.rowIndex,
+                                "double_click")
+                        }
+                    }
                     Accessible.name: qsTr("录制双击快捷键")
                 }
                 }
@@ -1334,12 +1664,21 @@ Item {
                     objectName: "actionEditorLongRecordButton"
                         tokens: root.tokens
                         compactMinimumWidth: tokens.buttonWidth2Chars
-                    enabled: !actionEditor.longHotkeyLocked
-                    text: qsTr("录入")
-                    onClicked: root.openShortcutRecorder(
-                        actionEditor.buttonId, actionEditor.rowIndex,
-                        "long_press"
-                    )
+                    enabled: actionEditor.longIsLaunchApplication
+                        ? true : !actionEditor.longHotkeyLocked
+                    text: actionEditor.longIsLaunchApplication
+                        ? qsTr("选择") : qsTr("录入")
+                    onClicked: {
+                        if (actionEditor.longIsLaunchApplication) {
+                            root.openApplicationPicker(
+                                actionEditor.rowIndex, "long_press",
+                                actionEditor.longText)
+                        } else {
+                            root.openShortcutRecorder(
+                                actionEditor.buttonId, actionEditor.rowIndex,
+                                "long_press")
+                        }
+                    }
                     Accessible.name: qsTr("录制长按快捷键")
                 }
                 }
@@ -1373,7 +1712,7 @@ Item {
                     CompactToolTip {
                         tokens: root.tokens
                         active: injectModeTitleHover.hovered
-                        text: qsTr("该按键所有动作使用的注入后端；Interception 需要安装驱动，未安装时不可用。元素导航、打开应用等非普通按键动作只支持 SendInput")
+                        text: qsTr("该按键所有动作使用的注入后端；WinUHid 需要安装虚拟键盘驱动，未安装时不可用。元素导航、打开应用等非普通按键动作只支持 SendInput")
                     }
                 }
                 RowLayout {
@@ -1393,8 +1732,7 @@ Item {
                             // 驱动级用不了的动作：这一项直接不可选，选了也停回原来的值，
                             // 不再弹任何解释。
                             if (!option || option.available === false
-                                    || (value === "interception"
-                                        && actionEditor.interceptionBlocked)) {
+                                    || actionEditor.isModeBlocked(value)) {
                                 injectModeCombo.syncFromMode(actionEditor.injectMode)
                                 return
                             }
@@ -1981,11 +2319,12 @@ Item {
                     onClicked: mappingBundleDialog.open()
                     Accessible.name: qsTr("导入或导出按键配置")
                 }
-                // 稿子 .sp：弹性留白，把驱动状态与安装按钮推到右侧。
+                // 稿子 .sp：弹性留白，把驱动入口推到右侧。
                 Item { Layout.fillWidth: true }
                 // 稿子 .drv：6px 空心圆 + 「驱动」+ 粗体状态，margin-right 4。
+                // 任意一种驱动装上都算已安装。
                 RowLayout {
-                    objectName: "interceptionDriverStatus"
+                    objectName: "inputDriverStatus"
                     Layout.preferredHeight: 24
                     Layout.rightMargin: 4
                     spacing: 6
@@ -2000,26 +2339,27 @@ Item {
                         border.color: tokens.textTertiary
                     }
                     UiLabel {
-                        id: interceptionDriverTitle
-                        objectName: "actionEditorInterceptionDriverTitle"
+                        id: inputDriverTitle
+                        objectName: "actionEditorInputDriverTitle"
                         tokens: root.tokens
                         kind: noteKind
                         text: qsTr("驱动")
                         font.pixelSize: tokens.fontSizeControl
                         color: tokens.textTertiary
                         verticalAlignment: Text.AlignVCenter
-                        HoverHandler { id: interceptionDriverTitleHover }
+                        HoverHandler { id: inputDriverTitleHover }
                         CompactToolTip {
                             tokens: root.tokens
-                            active: interceptionDriverTitleHover.hovered
-                            text: qsTr("Interception 需要一次性安装内核驱动（管理员权限，安装后需重启电脑）；此处的按钮只启动随包的官方安装程序，绝不会静默安装")
+                            active: inputDriverTitleHover.hovered
+                            text: qsTr("WinUHid 与 Interception 都是可选驱动，安装需要管理员权限；此处的按钮只启动随包的官方安装程序，绝不会静默安装")
                         }
                     }
                     UiLabel {
-                        objectName: "interceptionDriverState"
+                        objectName: "inputDriverState"
                         tokens: root.tokens
                         kind: noteKind
-                        text: SettingsController.interceptionAvailable
+                        text: SettingsController.winuhidDriverInstalled
+                            || SettingsController.interceptionDriverInstalled
                             ? qsTr("已安装") : qsTr("未安装")
                         font.pixelSize: tokens.fontSizeControl
                         font.weight: Font.DemiBold
@@ -2027,54 +2367,16 @@ Item {
                         verticalAlignment: Text.AlignVCenter
                     }
                 }
-                UiLabel {
-                    objectName: "actionEditorInterceptionDriverMessage"
-                    tokens: root.tokens
-                    kind: noteKind
-                    Layout.maximumWidth: 200
-                    // 稿子工具栏不放说明文字；仅在安装/卸载后反馈结果。
-                    visible: root.interceptionDriverMessage.length > 0
-                    text: SettingsController.interceptionInstallerAvailable
-                        ? root.interceptionDriverMessage
-                        : SettingsController.interceptionInstallerUnavailableReason
-                    elide: Text.ElideRight
-                    HoverHandler { id: interceptionDriverMessageHover }
-                    CompactToolTip {
-                        tokens: root.tokens
-                        active: interceptionDriverMessageHover.hovered && text.length > 0
-                        text: SettingsController.interceptionInstallerAvailable
-                            ? root.interceptionDriverMessage
-                            : SettingsController.interceptionInstallerUnavailableReason
-                    }
-                }
+                // 两种驱动统一收进二级弹窗里管理：装哪种、装几种、卸哪种都由用户决定。
                 CompactButton {
-                    id: installInterceptionDriverButton
-                    objectName: "actionEditorInterceptionInstallButton"
+                    id: driverManagerButton
+                    objectName: "driverManagerButton"
                     tokens: root.tokens
                     compactMinimumWidth: tokens.buttonWidth4Chars
                     flat: true
-                    // 未安装时显示「安装驱动」，已安装时换成「卸载驱动」。
-                    visible: !SettingsController.interceptionAvailable
-                    enabled: SettingsController.interceptionInstallerAvailable
-                    text: qsTr("安装驱动")
-                    Accessible.name: qsTr("安装 Interception 驱动")
-                    onClicked: interceptionInstallConfirmDialog.open()
-                    KeyNavigation.tab: root.tabTarget
-                }
-                CompactButton {
-                    id: uninstallInterceptionDriverButton
-                    objectName: "actionEditorInterceptionUninstallButton"
-                    tokens: root.tokens
-                    compactMinimumWidth: tokens.buttonWidth4Chars
-                    flat: true
-                    visible: SettingsController.interceptionAvailable
-                    enabled: SettingsController.interceptionInstallerAvailable
-                    text: qsTr("卸载驱动")
-                    Accessible.name: qsTr("卸载 Interception 驱动")
-                    onClicked: {
-                        const result = SettingsController.uninstallInterceptionDriver()
-                        root.interceptionDriverMessage = result.message
-                    }
+                    text: qsTr("驱动管理")
+                    Accessible.name: qsTr("管理输入驱动")
+                    onClicked: driverManagerDialog.open()
                     KeyNavigation.tab: root.tabTarget
                 }
             }

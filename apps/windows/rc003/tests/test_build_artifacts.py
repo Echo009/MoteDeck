@@ -181,7 +181,7 @@ class CythonCoreBuildContractTests(unittest.TestCase):
     def test_build_tool_versions_are_pinned(self):
         requirements = _REQUIREMENTS_DEV_PATH.read_text(encoding="utf-8")
         self.assertIn("cython==3.2.8", requirements)
-        self.assertIn("setuptools==80.9.0", requirements)
+        self.assertIn("setuptools==84.1.0", requirements)
 
 
 
@@ -2147,13 +2147,20 @@ class BuildProvenanceScriptTests(unittest.TestCase):
                 rc003_root / "build" / "check_native.py": "fixture\n",
                 rc003_root / "build" / "fetch-frida-gadget.ps1": "fixture\n",
                 rc003_root / "build" / "fetch-interception.ps1": "fixture\n",
+                rc003_root / "build" / "fetch-winuhid.ps1": "fixture\n",
                 rc003_root / "build" / "fetch-vb-cable.ps1": "fixture\n",
                 rc003_root / "build" / "stop-dev.ps1": "fixture\n",
                 rc003_root / "build" / "RemoteMicRC003.spec": "fixture\n",
                 rc003_root / "build" / "generate-app-icon.py": "fixture\n",
                 rc003_root / "build" / "third_party" / "VBCABLE_Driver_Pack45.zip": b"zip",
                 rc003_root / "build" / "third_party" / "interception" / "interception.dll": b"dll",
-                rc003_root / "build" / "third_party" / "interception" / "install-interception.exe": b"exe",
+                rc003_root
+                / "build"
+                / "third_party"
+                / "interception"
+                / "install-interception.exe": b"exe",
+                rc003_root / "build" / "third_party" / "winuhid" / "WinUHid.dll": b"dll",
+                rc003_root / "src" / "ovb_rc003" / "scripts" / "install-winuhid.ps1": "fixture\n",
                 rc003_root / "requirements.txt": "fixture\n",
                 rc003_root / "requirements-dev.txt": "fixture\n",
                 rc003_root / "pyproject.toml": "fixture\n",

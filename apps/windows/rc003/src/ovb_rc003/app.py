@@ -92,6 +92,7 @@ from . import (
     preset_switch_windows,
     raw_input_windows,
     remote_selection,
+    tsf_input_windows,
     voice_key_physicalizer_windows,
     voice_controller,
     voice_gesture,
@@ -103,6 +104,7 @@ from . import (
     win32_keys,
 )
 from .atvv_session import AudioStarted, AudioStopped, CapsReceived, MicButtonPressed, PcmStats
+from .chromecast_voice import TAP_MAX_SECONDS
 
 
 from .voice_shortcut_session import _VOICE_HOTKEY_BACKEND_MARKED
@@ -150,8 +152,9 @@ _BUTTON_NAVIGATION_SINGLE_KEYS = {
 # Direction, backspace and volume keys keep the original "连击" behaviour under
 # SendInput: a hold replays the whole click (down+up) at the machine's keyboard
 # repeat rate, because SendInput cannot emulate the sustained key press a real
-# Windows hold produces.  The Interception driver does emulate that hold, so the
-# same buttons stay sustained there (see ``_begin_button_key_hold``).
+# Windows hold produces.  The driver-level backends (WinUHid and Interception)
+# do emulate that hold, so the same buttons stay sustained there (see
+# ``_begin_button_key_hold``).
 _SENDINPUT_CLICK_REPEAT_KINDS = frozenset(
     {
         key_mapping.ActionKind.ARROW_UP,
@@ -211,7 +214,7 @@ _VOICE_SHORTCUT_PRESS_DELAY_SECONDS = _VOICE_TAP_MAX_SECONDS
 # 长一截：实测正常轻点就有 0.18~0.25 秒，沿用 0.18 的窗口会把一半短按判成
 # 长按（于是短按变成一次没反应的语音触发）。这里单独放宽到 0.35 秒，长按
 # 实测在 1.2 秒以上，仍然分得干净。
-_CHROMECAST_VOICE_TAP_MAX_SECONDS = 0.35
+_CHROMECAST_VOICE_TAP_MAX_SECONDS = TAP_MAX_SECONDS
 # 插件语音只按"按住多久"分岔，不看音量：按下就开遥控器话筒并把 PCM 缓进
 # 一个约 0.8s 的环形缓冲，按满 ``_PLUGIN_VOICE_HOLD_SECONDS`` 才开插件会话
 # 并把缓冲一起补发（插件在 session_accepted 之前会自己暂存），所以开口的
@@ -980,6 +983,10 @@ class RC003App:
                 press_delay_seconds=self._chromecast_voice_press_delay,
                 on_short_tap=self._chromecast_voice_short_tap,
                 inject_mode=self._chromecast_voice_inject_mode,
+                needs_shortcut=self._chromecast_voice_needs_shortcut,
+                begin_asr_capture=self._begin_chromecast_openmexia_voice,
+                forward_asr_pcm=self._feed_chromecast_openmexia_pcm,
+                end_asr_capture=self._end_chromecast_openmexia_voice,
             )
         )
 
@@ -1052,8 +1059,29 @@ class RC003App:
 
         return self._voice_slot_inject_mode(self._active_voice_slot())
 
+    def _chromecast_voice_needs_shortcut(self) -> bool:
+        """Whether the active voice slot must replay a recorded shortcut.
+
+        插件槽和本机麦克风槽不靠重放快捷键工作，没有快捷键是正常的，不能
+        因此让谷歌语音键每次按下都报错。
+        """
+
+        slot = self._active_voice_slot()
+        return not (
+            self._voice_slot_is_plugin(slot)
+            or self._voice_slot_uses_local_microphone(slot)
+        )
+
     def _chromecast_voice_short_tap(self) -> None:
+        slot = self._active_voice_slot()
         with self._voice_shortcut.lock:
+            if (
+                self._chromecast_voice_press_delay() <= 0
+                and not self._voice_slot_is_plugin(slot)
+                and not self._voice_slot_uses_local_microphone(slot)
+            ):
+                # "延迟发送"关闭时，普通热键槽的短按是重发快捷键，不是切模式。
+                return
             self._handle_voice_short_tap_locked("chromecast short press")
 
     def _cancel_chromecast_mappings(self) -> None:
@@ -1089,15 +1117,19 @@ class RC003App:
 
         with self._voice_shortcut.lock:
             self._accept_input_events = True
+        with self._raw_input_lifecycle_lock:
+            self._raw_input_stopping = False
         if self._remote_profile == remote_selection.CHROMECAST_PROFILE:
-            # The Raw Input / HID tap / voice-key physicalizer owners below match
-            # the RC003 HID identity. A real Chromecast remote brings its own
-            # receiver process (see chromecast_runtime) and never uses these three.
+            # A real Chromecast remote brings its own receiver process (see
+            # chromecast_runtime) and never uses the HID report tap or the
+            # voice-key physicalizer. The Raw Input listener still starts, in
+            # keyboard-safety-only mode: no RC003 device is required, it only
+            # tracks ordinary keyboard ownership so held keys (e.g. Enter) can
+            # be injected and released safely.
+            self._start_hid_listener()
             return
         with self._voice_key_physicalizer_lifecycle_lock:
             self._voice_key_physicalizer_stopping = False
-        with self._raw_input_lifecycle_lock:
-            self._raw_input_stopping = False
         self._start_voice_key_physicalizer()
         self._start_hid_listener()
         self._start_hid_report_tap()
@@ -1554,6 +1586,17 @@ class RC003App:
                     self._raw_input_retry_timer = None
                     if self._raw_input_stopping or not self._accept_input_events:
                         return
+                    if self._remote_profile == remote_selection.CHROMECAST_PROFILE:
+                        host = getattr(self._chromecast_runtime, "voice_host", None)
+                        if host is not None and not host.closed:
+                            # Preserve physical ownership until the voice owner
+                            # has released its keys: a tracker restart clears
+                            # every snapshot.
+                            self._schedule_raw_input_recovery_locked()
+                            return
+                        if not self._release_pending_button_keys():
+                            self._schedule_raw_input_recovery_locked()
+                            return
                     listener = self._hid_listener
                     if listener is not None:
                         # Invalidate every callback before stop() can emit
@@ -1596,6 +1639,12 @@ class RC003App:
             self._start_hid_listener_owned(recovering=recovering)
 
     def _set_raw_listener_state(self, state: str) -> None:
+        if self._remote_profile == remote_selection.CHROMECAST_PROFILE:
+            # The Chromecast receiver owns the device state (see
+            # chromecast_runtime's "chromecast_ready"); the keyboard-only
+            # tracker must not overwrite it with its own lifecycle labels.
+            self._logger.info("chromecast keyboard tracking state: %s", state)
+            return
         self._set_runtime_input_state(raw_input_state=state)
 
     def _record_raw_input_lookup(self, generation, outcome, enumeration, selection) -> None:
@@ -1663,14 +1712,19 @@ class RC003App:
                 self._raw_input_lost_generation = -1
 
         self._set_raw_listener_state("recovering" if recovering else "starting")
+        # Chromecast has no RC003 HID collection to select: the listener runs in
+        # keyboard-safety-only mode, which registers the keyboard page alone and
+        # tracks physical ownership without decoding any remote button.
+        keyboard_only = self._remote_profile == remote_selection.CHROMECAST_PROFILE
         enumeration, selection = {}, {}
         lookup_outcome = "lookup_interrupted"
         try:
             device_path = None
-            paths = raw_input_windows.enumerate_matching_device_paths(diagnostic=enumeration)
-            device_path = remote_selection.selected_raw_path(
-                paths, self._selected_remote_key, diagnostic=selection)
-            lookup_outcome = "path_selected"
+            if not keyboard_only:
+                paths = raw_input_windows.enumerate_matching_device_paths(diagnostic=enumeration)
+                device_path = remote_selection.selected_raw_path(
+                    paths, self._selected_remote_key, diagnostic=selection)
+                lookup_outcome = "path_selected"
         except raw_input_windows.RawInputUnavailableError as exc:
             lookup_outcome = "unavailable"
             self._set_runtime_input_state(raw_input_state="unavailable")
@@ -1698,7 +1752,8 @@ class RC003App:
                     self._schedule_raw_input_recovery_locked()
             return
         finally:
-            self._record_raw_input_lookup(generation, lookup_outcome, enumeration, selection)
+            if not keyboard_only:
+                self._record_raw_input_lookup(generation, lookup_outcome, enumeration, selection)
 
         listener = raw_input_windows.RawInputButtonListener(
             self._on_raw_button_event
@@ -1711,13 +1766,14 @@ class RC003App:
             ):
                 return
             self._hid_listener = listener
-        self._sync_physical_bindings_to_listener()
+        if not keyboard_only:
+            self._sync_physical_bindings_to_listener()
         set_sourced_button_event_callback = getattr(
             listener,
             "set_sourced_button_event_callback",
             None,
         )
-        if callable(set_sourced_button_event_callback):
+        if not keyboard_only and callable(set_sourced_button_event_callback):
             set_sourced_button_event_callback(
                 lambda button_id, is_pressed, source, windows_button_id: (
                     self._on_raw_button_event(
@@ -1735,7 +1791,7 @@ class RC003App:
             "set_raw_event_callback",
             None,
         )
-        if callable(set_raw_event_callback):
+        if not keyboard_only and callable(set_raw_event_callback):
             set_raw_event_callback(
                 lambda event: self._on_raw_physical_event(
                     event,
@@ -1754,7 +1810,7 @@ class RC003App:
             "set_device_removed_callback",
             None,
         )
-        if callable(set_device_removed_callback):
+        if not keyboard_only and callable(set_device_removed_callback):
             set_device_removed_callback(
                 lambda: self._on_raw_input_device_removed(
                     _listener=listener,
@@ -1766,7 +1822,7 @@ class RC003App:
             "set_input_corruption_callback",
             None,
         )
-        if callable(set_input_corruption_callback):
+        if not keyboard_only and callable(set_input_corruption_callback):
             set_input_corruption_callback(
                 lambda reason: self._on_raw_input_corruption(
                     reason,
@@ -1856,35 +1912,6 @@ class RC003App:
                     type(exc).__name__,
                 )
 
-    def _hid_tap_saved_state(self) -> Optional[str]:
-        """Return the state to report instead of starting the tap, if saved."""
-
-        record = config.read_hid_tap_degraded(self._config_root)
-        if record is None:
-            return None
-        if record["state"] == config.HID_TAP_STATE_DISABLED:
-            return frida_compat.HID_TAP_DISABLED_STATUS
-        return record["reason"] or frida_compat.HidTapState.FAILED.value
-
-    def _save_hid_tap_degraded(self, reason: str) -> None:
-        """Remember the first unrecoverable tap failure so later starts skip it."""
-
-        existing = config.read_hid_tap_degraded(self._config_root)
-        if existing is not None:
-            if existing["state"] == config.HID_TAP_STATE_DISABLED:
-                # 用户手动关掉时，自动降级不能把记录改回 degraded。
-                return
-            if existing["reason"] == reason:
-                return
-        if config.save_hid_tap_degraded(
-            self._config_root,
-            state=config.HID_TAP_STATE_DEGRADED,
-            reason=reason,
-        ):
-            self._logger.warning(
-                "RC003 HID report tap degraded; next start skips it: %s", reason
-            )
-
     def _start_hid_report_tap(self) -> None:
         """Start the upstream-derived tap for usages Windows drops.
 
@@ -1892,20 +1919,11 @@ class RC003App:
         unverified Gadget is a button-only degradation and must not prevent
         BLE voice from starting.
 
-        A saved ``hid-tap-degraded.json`` record (written after an
-        unrecoverable failure, or when the user turned the key channel off)
-        skips the tap entirely, so Windows is never asked to authorize again
-        on every launch.  Only an explicit restart clears that record.
+        Every launch tries the tap again: a previous failure is reported for
+        that session only and is never remembered, so the key channel behaves
+        like the Chromecast path instead of silently staying off.
         """
 
-        skip_state = self._hid_tap_saved_state()
-        if skip_state is not None:
-            self._set_runtime_input_state(hid_tap_state=skip_state)
-            self._logger.info(
-                "startup: RC003 HID report tap skipped by saved record; state=%s",
-                skip_state,
-            )
-            return
         self._set_runtime_input_state(hid_tap_state="starting")
         tap = frida_compat.RC003HidReportTap(
             self._on_direct_hid_report,
@@ -2599,7 +2617,11 @@ class RC003App:
                     self._voice_shortcut.controller.active
                     or self._voice_shortcut.pending_tokens is not None
                 )
-                if active_hold and not win32_input.can_begin_tracked_hold(tokens):
+                if (
+                    self._remote_profile != remote_selection.CHROMECAST_PROFILE
+                    and active_hold
+                    and not win32_input.can_begin_tracked_hold(tokens)
+                ):
                     self._force_voice_hold_release_locked(
                         "physical keyboard tracking lost"
                     )
@@ -2728,8 +2750,6 @@ class RC003App:
             status=str(status),
             detail=str(detail or ""),
         )
-        if status in frida_compat.HID_TAP_DEGRADED_STATUSES:
-            self._save_hid_tap_degraded(str(status))
         self._set_runtime_input_state(hid_tap_state=status)
         interception_ready = status == frida_compat.HidTapState.READY.value
         interception_armed = status in {
@@ -3379,6 +3399,15 @@ class RC003App:
         # 否则会退回 SendInput，右 Alt 这类需要驱动级注入的宿主就收不到。
         return fallback
 
+    def _voice_slot_uses_winuhid(self, slot: Optional[int]) -> bool:
+        """Whether ``slot`` is delivered by an available WinUHid backend."""
+
+        return (
+            self._voice_slot_inject_mode(slot)
+            == injection_backend.INJECT_MODE_WINUHID
+            and injection_backend.winuhid_available()
+        )
+
     def _voice_slot_uses_interception(self, slot: Optional[int]) -> bool:
         """Whether ``slot`` is delivered by an available Interception driver."""
 
@@ -3386,6 +3415,17 @@ class RC003App:
             self._voice_slot_inject_mode(slot)
             == injection_backend.INJECT_MODE_INTERCEPTION
             and injection_backend.interception_available()
+        )
+
+    def _voice_slot_uses_driver_backend(self, slot: Optional[int]) -> bool:
+        """Whether ``slot`` is injected by a usable driver-level backend.
+
+        两个驱动后端都绕过低层钩子的注入标记，语音快捷键的物理化检查对它们
+        同样不适用。
+        """
+
+        return self._voice_slot_uses_winuhid(slot) or (
+            self._voice_slot_uses_interception(slot)
         )
 
     def _voice_hotkey_text_for_slot(self, slot: int) -> str:
@@ -3730,7 +3770,11 @@ class RC003App:
 
         if not self._accepts_ble_callback(generation):
             return
-        frame = array.array("h", samples)
+        self._store_asr_frame_locked(array.array("h", samples))
+
+    def _store_asr_frame_locked(self, frame: "array.array") -> None:
+        """缓存一帧已经确认来源的 PCM。"""
+
         if not frame:
             return
         self._asr_frames.append(frame)
@@ -3813,6 +3857,11 @@ class RC003App:
                 bridge_runtime_status.VOICE_RUNTIME_HOST_START_FAILED
             )
             return False
+        return self._arm_asr_hold_timer_locked(slot)
+
+    def _arm_asr_hold_timer_locked(self, slot: int) -> bool:
+        """Start the hold-threshold timer shared by both remote links."""
+
         self._asr_capture_armed = True
         token = object()
         self._asr_hold_token = token
@@ -3997,6 +4046,42 @@ class RC003App:
                 "openmexia asr submit failed: error_type=%s",
                 type(exc).__name__,
             )
+
+    def _begin_chromecast_openmexia_voice(self) -> bool:
+        """Chromecast 按下麦克风：OpenMexia 槽由本机识别接管这次录音。
+
+        谷歌遥控器按下时会自己开麦，链路不需要 MIC_OPEN，也没有快捷键可重放；
+        这里先把 PCM 攒起来，按满长按阈值才算识别，短按仍然只切模式。
+        调用方（语音宿主）此时已持有语音快捷键锁。
+        """
+
+        slot = self._active_voice_slot()
+        if not self._openmexia_asr_ready(slot):
+            return False
+        self._cancel_openmexia_asr_hold_locked()
+        self._reset_asr_capture_locked()
+        self._asr_slot = int(slot)
+        return self._arm_asr_hold_timer_locked(int(slot))
+
+    def _feed_chromecast_openmexia_pcm(self, samples) -> None:
+        """把 Chromecast 链路解出来的 PCM 交给等待中的 OpenMexia 识别。"""
+
+        with self._voice_shortcut.lock:
+            if not (self._asr_active or self._asr_capture_armed):
+                return
+            self._store_asr_frame_locked(array.array("h", samples))
+
+    def _end_chromecast_openmexia_voice(self) -> bool:
+        """Chromecast 松开麦克风：返回这次按下是否已经算作识别。"""
+
+        with self._voice_shortcut.lock:
+            if not (self._asr_active or self._asr_capture_armed):
+                return False
+            committed = self._asr_active
+            self._end_openmexia_asr_locked(
+                "chromecast release", close_mic=False
+            )
+            return committed
 
     def _on_asr_result(self, text: str, error: Optional[str]) -> None:
         """识别线程回调：成功就把文字交给 OpenMexia 去执行。"""
@@ -4235,6 +4320,32 @@ class RC003App:
         entry = config.voice_key_config(self._config, slot)
         return bool(entry and str(entry.get("plugin") or "").strip())
 
+    # 切完输入法后留一点时间让目标窗口真正拿到新的 TSF，再注入快捷键。
+    _VOICE_TSF_SWITCH_SETTLE_SECONDS = 0.06
+
+    def _switch_voice_tsf_locked(self, voice_slot: Optional[int]) -> None:
+        """切到这条语音键配置的输入法。
+
+        部分输入法只有成为当前 TSF 才会响应语音快捷键，所以注入之前先把
+        系统输入法切过去。没有配置时（含插件语音键）什么也不做；切换失败
+        只记日志，不影响语音按键本身。
+        """
+
+        profile = config.voice_key_tsf_profile(self._config, voice_slot)
+        if not profile:
+            return
+        try:
+            switched = tsf_input_windows.activate(profile)
+        except BaseException as exc:  # noqa: BLE001 - never break the hotkey
+            self._logger.warning(
+                "tsf switch failed: slot=%s error_type=%s",
+                voice_slot,
+                type(exc).__name__,
+            )
+            return
+        if switched:
+            time.sleep(self._VOICE_TSF_SWITCH_SETTLE_SECONDS)
+
     def _plugin_voice_session_active(self) -> bool:
         """True while a press belongs to a plugin-owned voice key."""
 
@@ -4430,9 +4541,9 @@ class RC003App:
         if (
             win32_keys.VK_CODES["ralt"] in resolved_vk_codes
             and not self._voice_key_physicalizer_ready
-            and not self._voice_slot_uses_interception(slot)
+            and not self._voice_slot_uses_driver_backend(slot)
         ):
-            # The Interception driver injects below the low-level hook, so the
+            # The driver-level backends inject below the low-level hook, so the
             # stroke carries no LLKHF_INJECTED flag and never needs the
             # physicalizer marker; requiring one would block the slot outright.
             self._logger.warning(
@@ -4470,6 +4581,8 @@ class RC003App:
         # 没人松开的按键。
         self._drop_voice_delayed_press_locked()
         action = self._voice_shortcut.controller.on_mic_button_pressed()
+        # 先切输入法再取可见窗口基线，避免输入法面板的翻起被算成基线变化。
+        self._switch_voice_tsf_locked(voice_slot)
         # 输入法常在"按下"这一瞬间就把面板翻成可见，而气泡要到松手才显示，
         # 所以可见窗口的基线必须在注入之前取，否则面板会被算进基线里。
         self._voice_mode_toast_watch.arm()
@@ -4575,6 +4688,7 @@ class RC003App:
             self._voice_delayed_press_slot = None
             if action is None:
                 return
+            self._switch_voice_tsf_locked(voice_slot)
             if not self._voice_shortcut.apply(
                 action,
                 voice_slot=voice_slot,
@@ -6471,14 +6585,14 @@ class RC003App:
     def _begin_button_key_hold(self, owner: object, button_id: str) -> None:
         """Start the whole-hold behaviour for the button's single-click action.
 
-        Under Interception the single-click key is held down for the whole
-        physical hold and the matching key-up is delivered by
-        ``_end_button_key_hold``, so the target sees one sustained key press.
-        Under SendInput the driver cannot emulate that hold, so direction,
-        backspace and volume buttons keep the original click-repeat behaviour:
-        the first press and every repeat deliver a full tap (down+up).  Element
-        navigation keeps its tap behaviour because it consumes mapped
-        navigation keys itself.
+        Under a driver-level backend (WinUHid or Interception) the single-click
+        key is held down for the whole physical hold and the matching key-up is
+        delivered by ``_end_button_key_hold``, so the target sees one sustained
+        key press.  Under SendInput the driver cannot emulate that hold, so
+        direction, backspace and volume buttons keep the original click-repeat
+        behaviour: the first press and every repeat deliver a full tap
+        (down+up).  Element navigation keeps its tap behaviour because it
+        consumes mapped navigation keys itself.
         """
 
         action = key_mapping.button_action_for(
@@ -6518,7 +6632,11 @@ class RC003App:
                 self._button_tap_hold_actions[owner] = action
                 return
             if (
-                action.inject_mode != key_mapping.INJECT_MODE_INTERCEPTION
+                action.inject_mode
+                not in (
+                    key_mapping.INJECT_MODE_WINUHID,
+                    key_mapping.INJECT_MODE_INTERCEPTION,
+                )
                 and action.kind in _SENDINPUT_CLICK_REPEAT_KINDS
             ):
                 # SendInput cannot emulate a Windows key hold, so direction,
@@ -6531,9 +6649,9 @@ class RC003App:
             backend = injection_backend.backend_for(action.inject_mode)
             try:
                 backend.key_down(tokens)
-            except injection_backend.InterceptionUnavailableError as exc:
+            except injection_backend.DriverUnavailableError as exc:
                 self._logger.warning(
-                    "button hold skipped: interception backend unavailable: %s", exc
+                    "button hold skipped: driver backend unavailable: %s", exc
                 )
                 return
             except win32_input.Win32InputUnavailableError as exc:
@@ -6636,12 +6754,12 @@ class RC003App:
         """Replay a held button at the machine's keyboard rate.
 
         Injected keys never auto-repeat, so a physical hold is simulated by the
-        app.  Interception-held buttons re-send only the key-down until release
-        (the matching key-up is delivered once by ``_end_button_key_hold``),
-        which makes them feel like a physical keyboard hold.  SendInput-held
-        direction, backspace and volume buttons re-run the whole click instead,
-        as does element navigation, which consumes mapped navigation keys
-        itself.
+        app.  Driver-held buttons (WinUHid or Interception) re-send only the
+        key-down until release (the matching key-up is delivered once by
+        ``_end_button_key_hold``), which makes them feel like a physical
+        keyboard hold.  SendInput-held direction, backspace and volume buttons
+        re-run the whole click instead, as does element navigation, which
+        consumes mapped navigation keys itself.
         """
 
         with self._button_action_lock:
@@ -6650,9 +6768,9 @@ class RC003App:
                 tokens, backend = entry
                 try:
                     backend.key_down(tokens)
-                except injection_backend.InterceptionUnavailableError as exc:
+                except injection_backend.DriverUnavailableError as exc:
                     self._logger.warning(
-                        "button hold repeat skipped: interception backend "
+                        "button hold repeat skipped: driver backend "
                         "unavailable: %s",
                         exc,
                     )
@@ -6804,6 +6922,17 @@ class RC003App:
                 # must fall through to its own handler instead of being silently
                 # swallowed as "interception_unsupported_action".
                 action_error, action_error_type = self._apply_button_action_interception(
+                    action
+                )
+            elif action.inject_mode == key_mapping.INJECT_MODE_WINUHID and (
+                injection_backend.key_tokens_for_action(action) is not None
+                or injection_backend.mouse_button_for_action(action) is not None
+            ):
+                # Only key/mouse actions are WinUHid-deliverable. Anything
+                # else (element-navigation toggle, Quicker URI, open-app, voice)
+                # must fall through to its own handler instead of being silently
+                # swallowed as "winuhid_unsupported_action".
+                action_error, action_error_type = self._apply_button_action_winuhid(
                     action
                 )
             elif action.kind == key_mapping.ActionKind.KEY_COMBO:
@@ -6965,6 +7094,46 @@ class RC003App:
             "interception action unsupported: action=%s", action.kind.value
         )
         return "interception_unsupported_action", ""
+
+    def _apply_button_action_winuhid(
+        self, action: key_mapping.ButtonAction
+    ) -> Tuple[str, str]:
+        """Deliver one action through the WinUHid virtual keyboard/mouse.
+
+        Returns ``(error, error_type)``; an empty ``error`` means success.
+
+        There is deliberately no fallback to SendInput: the user picked this
+        backend for a target window that ignores synthetic input, so silently
+        downgrading would look like "the button does nothing" all over again.
+        """
+
+        backend = injection_backend.backend_for(
+            key_mapping.INJECT_MODE_WINUHID
+        )
+        try:
+            tokens = injection_backend.key_tokens_for_action(action)
+            if tokens is not None:
+                backend.key_tap(tokens)
+                return "", ""
+            mouse_button = injection_backend.mouse_button_for_action(action)
+            if mouse_button is not None:
+                backend.mouse_click(mouse_button)
+                return "", ""
+        except injection_backend.WinUHidUnavailableError as exc:
+            self._logger.warning(
+                "winuhid action skipped: backend unavailable: %s", exc
+            )
+            return "winuhid_unavailable", type(exc).__name__
+        except OSError as exc:
+            self._logger.exception(
+                "winuhid action failed to deliver: error_type=%s",
+                type(exc).__name__,
+            )
+            return "delivery_failed", type(exc).__name__
+        self._logger.warning(
+            "winuhid action unsupported: action=%s", action.kind.value
+        )
+        return "winuhid_unsupported_action", ""
 
     def _cancel_button_input_release_retry_locked(
         self,
@@ -7929,6 +8098,7 @@ class RC003App:
             )
         action_delivered = True
         if not press_delayed:
+            self._switch_voice_tsf_locked(voice_slot)
             action_delivered = self._voice_shortcut.apply(
                 action,
                 voice_slot=voice_slot,

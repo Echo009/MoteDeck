@@ -107,7 +107,6 @@ from typing import Callable, Dict, List, Optional
 
 from . import (
     __version__,
-    action_executor,
     remote_selection,
     app_icons,
     application_update,
@@ -122,7 +121,6 @@ from . import (
     element_navigation_runtime,
     frida_compat,
     hid_elevation_windows,
-    hid_helper_consumers,
     hotkey,
     hotkey_capture_windows,
     key_detection_bridge,
@@ -143,6 +141,7 @@ from . import (
     shell_targets,
     single_instance,
     startup_windows,
+    tsf_input_windows,
     vb_cable_bundle,
     vokie_bridge,
     win32_keys,
@@ -1282,8 +1281,6 @@ def _load_qt_classes() -> dict:
         voiceHotkeySourceChanged = Signal()
         voiceMappingReadyChanged = Signal()
         endpointPreflightBusyChanged = Signal()
-        hidHelperStateChanged = Signal()
-        hidHelperRepairBusyChanged = Signal()
         keyDetectionActiveChanged = Signal()
         keyDetectionTextChanged = Signal()
         hotkeyCaptureActiveChanged = Signal()
@@ -1304,8 +1301,6 @@ def _load_qt_classes() -> dict:
         _hotkeyCaptureFailed = Signal(object)
         _endpointOptionsRefreshReady = Signal(object)
         _endpointPreflightReady = Signal(object)
-        _hidHelperRepairReady = Signal(object)
-        _hidHelperRemovalReady = Signal(object)
         _inputOperationReady = Signal(object)
         _applicationExitStopReady = Signal(object)
         _bridgeRestartStopReady = Signal(object)
@@ -1341,7 +1336,6 @@ def _load_qt_classes() -> dict:
         ) -> None:
             super().__init__(parent)
             self._model = model
-            self._available_mapping_app_labels: Optional[set[str]] = None
             self._background_task_runner = background_task_runner
             self._background_shutdown_event = threading.Event()
             self._background_threads: set[threading.Thread] = set()
@@ -1364,50 +1358,13 @@ def _load_qt_classes() -> dict:
             self._asr_model_busy = False
             self._input_worker_result_lock = threading.Lock()
             self._input_worker_result = None
-            self._hid_helper_repair_busy = False
             self._config_root = config.config_root()
             application_update.cleanup_obsolete_update_downloads(
                 self._config_root / "updates",
                 __version__,
             )
-            self._hid_helper_frozen_distribution = bool(
-                getattr(sys, "frozen", False)
-            )
-            self._hid_helper_offer_id = (
-                hid_elevation_windows.bundled_helper_offer_id()
-            )
-            self._hid_helper_state = (
-                hid_elevation_windows.inspect_installed_helper()
-            )
-            if (
-                self._hid_helper_frozen_distribution
-                and self._hid_helper_state.available
-                and not hid_helper_consumers.current_consumer_is_registered(
-                    self._config_root
-                )
-            ):
-                self._hid_helper_state = hid_elevation_windows.HidHelperState(
-                    False, "helper_consumer_unregistered"
-                )
-            self._hid_helper_process_elevated = (
-                hid_elevation_windows.is_process_elevated()
-            )
-            self._hid_helper_can_self_elevate = (
-                not self._hid_helper_frozen_distribution
-                or hid_elevation_windows.can_current_user_self_elevate()
-            )
             self._hid_helper_installed_distribution = (
                 hid_elevation_windows.is_installed_distribution()
-            )
-            self._hid_helper_portable_distribution = (
-                self._hid_helper_frozen_distribution
-                and not self._hid_helper_installed_distribution
-            )
-            self._hidHelperRepairReady.connect(
-                self._on_hid_helper_repair_ready
-            )
-            self._hidHelperRemovalReady.connect(
-                self._on_hid_helper_removal_ready
             )
             self._config, self._bindings, self._configuration_issues = (
                 config.load_window_settings(self._config_root)
@@ -1444,10 +1401,6 @@ def _load_qt_classes() -> dict:
             self._remoteDevicesReady.connect(self._on_remote_devices_ready)
             self._remoteSwitchReady.connect(self._on_remote_switch_ready)
             self.remoteSelectionChanged.connect(self.trayStateChanged.emit)
-            self._hid_helper_setup_prompted_offer_id = str(
-                self._config.get("hid_helper_setup_prompted_offer_id", "")
-            )
-            self._hid_helper_setup_attempted_this_session = False
             self._start_hidden = bool(start_hidden) and not self.configurationReadOnly
             self._start_bridge_requested = bool(start_bridge)
             self._launch_bridge_on_app_start = bool(
@@ -1730,6 +1683,9 @@ def _load_qt_classes() -> dict:
             self._endpoint_values: List[audio_output.AudioEndpoint] = []
             self._recommended_endpoint_index = -1
             self._selected_endpoint_index = -1
+            # 刚切换到的遥控器还没有保存过输出端点时置为 True，等端点列表刷新
+            # 回来就自动采用推荐端点，免得每换一台设备都要重新选一次。
+            self._pending_recommended_endpoint_apply = False
             self._endpoint_options_refresh_running = False
             self._endpoint_options_refresh_pending = False
             self._endpointOptionsRefreshReady.connect(
@@ -2030,6 +1986,31 @@ def _load_qt_classes() -> dict:
                 )
             elif self._settings_dirty:
                 self._refresh_settings_dirty_state()
+            self._apply_pending_recommended_endpoint(recommended_index, values)
+
+        def _apply_pending_recommended_endpoint(
+            self, recommended_index: int, values: List[audio_output.AudioEndpoint]
+        ) -> None:
+            """Adopt the recommended endpoint for a device that never had one.
+
+            Only set right after switching to another remote whose record has no
+            saved output endpoint, so the user is not asked to pick an endpoint
+            again every time the active device changes. The save goes through
+            the normal preflight path and stays silent: a failure simply leaves
+            the field empty for the user to choose manually.
+            """
+
+            if not self._pending_recommended_endpoint_apply:
+                return
+            self._pending_recommended_endpoint_apply = False
+            if str(self._config.get("output_endpoint_name") or ""):
+                return
+            if not 0 <= recommended_index < len(values):
+                return
+            if self._endpoint_preflight_busy:
+                return
+            endpoint = values[recommended_index]
+            self._select_and_persist_output_endpoint(endpoint.name, endpoint.host_api)
 
         def _refresh_endpoint_options(self) -> None:
             self._apply_endpoint_options_payload(
@@ -2143,11 +2124,7 @@ def _load_qt_classes() -> dict:
             from . import remote_selection
             active = remote_selection.active_profile(self._config)
             if active:
-                if (
-                    active in remote_selection.XIAOMI_PROFILES
-                    and self._detected_remote_profile
-                    in remote_selection.XIAOMI_PROFILES
-                ):
+                if self._detected_remote_profile in remote_selection.XIAOMI_PROFILES:
                     # 连上后读到的型号串优先于蓝牙名：通用名可能把小米遥控器2
                     # 当成 2 Pro，型号串不会。
                     return self._detected_remote_profile
@@ -2173,8 +2150,9 @@ def _load_qt_classes() -> dict:
         def activeRemoteLabel(self) -> str:
             from . import remote_selection
             selection = self._remote_selection()
-            return remote_selection.label(self.activeRemoteKey,
-                remote_selection.profile_for_key(selection, self.activeRemoteKey),
+            key = self.activeRemoteKey
+            return remote_selection.label(
+                key, remote_selection.profile_for_key(selection, key),
                 [row["key"] for row in selection["devices"]])
 
         @Property(str, notify=remoteSelectionChanged)
@@ -2271,13 +2249,14 @@ def _load_qt_classes() -> dict:
             choices = []
             for row in rows:
                 key, profile = row["key"], row["profile"]
-                conflict = key in saved and saved[key] != profile
+                conflict = key in saved and not remote_selection.profiles_compatible(
+                    saved[key], profile)
                 ready = self._remote_scan_valid and key in present and not conflict
                 note = ("（设备信息不一致）" if conflict else
                         "（待重新读取）" if not self._remote_scan_valid else
                         "（本次未找到）" if key not in present else "")
                 choices.append(dict(key=key, profile=profile,
-                    label=remote_selection.label(key, saved.get(key, profile), peers) + note,
+                    label=remote_selection.label(key, profile, peers) + note,
                     canUse=ready, isActive=key == active))
             return choices
 
@@ -2359,13 +2338,29 @@ def _load_qt_classes() -> dict:
                     self._app_profile_store().adopt_apps_from_siblings()
                 except Exception:  # noqa: BLE001 - 补不齐也不能挡切换
                     pass
-                self._refresh_mapping_presets()
+                try:
+                    self._refresh_mapping_presets()
+                except Exception:  # noqa: BLE001 - 小米遥控器2 没有软件方案库
+                    # 只有 2 Pro 和 Chromecast 有方案库。切到 2 时读不到方案库
+                    # 不能把切换打断，否则界面会停在“正在结束旧设备”上不动。
+                    if self._mapping_edit_target:
+                        self._mapping_edit_target = ""
+                        self.mappingEditTargetChanged.emit()
+                        self._load_bindings_into_model()
+                    self._mapping_preset_rows = []
+                    self.mappingPresetsChanged.emit()
+                    self._refresh_mapping_apps()
                 self._voice_hotkey = str(saved["voice_hotkeys"].get("hold", ""))
                 self._sync_voice_key_cache()
                 self._set_mapping_dirty(False)
                 self._selected_endpoint_index = next((index for index, item in enumerate(self._endpoint_values)
                     if (item.name, item.host_api) == (saved.get("output_endpoint_name", ""), saved.get("output_endpoint_host_api", ""))), -1)
                 self.selectedEndpointIndexChanged.emit()
+                # 换到的这台遥控器还没存过输出端点：等下面的刷新拿回端点列表后
+                # 自动采用推荐端点并保存，用户不用每次切换设备都重新选一遍。
+                self._pending_recommended_endpoint_apply = not str(
+                    saved.get("output_endpoint_name") or ""
+                )
                 self._request_endpoint_options_refresh()
                 self.hotkeyTextChanged.emit()
                 self.holdVoiceHotkeyTextChanged.emit()
@@ -2375,7 +2370,6 @@ def _load_qt_classes() -> dict:
                 self.voiceMappingReadyChanged.emit()
                 self.selectedDeviceIndexChanged.emit()
                 self.selectedDeviceChanged.emit()
-                self.hidHelperStateChanged.emit()
             self._remote_save_uncertain = False
             self._bump_settings_revision()
             self.remoteSelectionChanged.emit()
@@ -2405,7 +2399,7 @@ def _load_qt_classes() -> dict:
                 return
             if (self._get_bridge_launch_busy() or self._bridge_recovery_running
                     or self._settings_save_busy or self._get_input_capture_in_use()
-                    or self._hid_helper_repair_busy or self._voice_hotkey_busy
+                    or self._voice_hotkey_busy
                     or self._endpoint_preflight_busy or _vb_cable_test_active_event.is_set()
                     or _driver_action_active_event.is_set()
                     or self._application_exit_intent.is_set()):
@@ -3047,68 +3041,6 @@ def _load_qt_classes() -> dict:
                 return
             self._mapping_auto_save_retry_available = value
             self.mappingAutoSaveRetryAvailableChanged.emit()
-
-        def _hid_helper_needs_repair(self) -> bool:
-            return (
-                self._hid_helper_frozen_distribution
-                and (
-                    self._hid_helper_cleanup_pending()
-                    or (
-                        not self._hid_helper_state.available
-                        and not self._hid_helper_process_elevated
-                    )
-                )
-            )
-
-        def _hid_helper_account_unsupported(self) -> bool:
-            return (
-                self._hid_helper_needs_repair()
-                and not self._hid_helper_can_self_elevate
-            )
-
-        def _hid_helper_cleanup_pending(self) -> bool:
-            return (
-                self._hid_helper_state.available
-                and self._hid_helper_state.detail == "helper_cleanup_pending"
-            )
-
-        def _hid_helper_repair_available(self) -> bool:
-            return (
-                self._selected_device_id() == device_catalog.RC003_ID
-                and self._hid_helper_frozen_distribution
-                and self._hid_helper_can_self_elevate
-                and not hid_elevation_windows.is_newer_helper_state(
-                    self._hid_helper_state
-                )
-                and self._hid_helper_needs_repair()
-            )
-
-        def _hid_helper_setup_required(self) -> bool:
-            return (
-                self._selected_device_id() == device_catalog.RC003_ID
-                and self._hid_helper_portable_distribution
-                and not self._hid_helper_process_elevated
-                and self._hid_helper_can_self_elevate
-                and not self._hid_helper_state.available
-                and not hid_elevation_windows.is_newer_helper_state(
-                    self._hid_helper_state
-                )
-            )
-
-        def _set_hid_helper_repair_busy(self, value: bool) -> None:
-            value = bool(value)
-            if value == self._hid_helper_repair_busy:
-                return
-            self._hid_helper_repair_busy = value
-            self.hidHelperRepairBusyChanged.emit()
-
-        def _set_hid_helper_state(
-            self, state: hid_elevation_windows.HidHelperState
-        ) -> None:
-            if state == self._hid_helper_state:
-                return
-            self._hid_helper_state = state
-            self.hidHelperStateChanged.emit()
 
         def _bump_settings_revision(self) -> None:
             self._settings_revision += 1
@@ -4710,6 +4642,18 @@ def _load_qt_classes() -> dict:
         def isVoiceModeCycleText(self, text: str) -> bool:
             return settings_ui.is_voice_mode_cycle_display(text)
 
+        @Slot(str, result=bool)
+        def isLaunchApplicationText(self, text: str) -> bool:
+            return settings_ui.is_application_launch_text(text)
+
+        @Slot(str, result=str)
+        def applicationLaunchText(self, process: str) -> str:
+            return settings_ui.application_launch_text(process)
+
+        @Slot(str, result=str)
+        def applicationLaunchTarget(self, text: str) -> str:
+            return settings_ui.application_target_for_launch_text(text)
+
         def _get_voice_slot_options(self) -> List[str]:
             return [
                 settings_ui.voice_slot_display(slot)
@@ -4740,24 +4684,166 @@ def _load_qt_classes() -> dict:
         )
 
         @Property(bool, notify=injectModesChanged)
+        def winuhidAvailable(self) -> bool:
+            from . import injection_backend
+
+            return injection_backend.winuhid_available()
+
+        @Property(str, notify=injectModesChanged)
+        def winuhidUnavailableReason(self) -> str:
+            from . import injection_backend
+
+            return injection_backend.winuhid_unavailable_reason()
+
+        @Property(str, notify=injectModesChanged)
+        def winuhidUnavailableHint(self) -> str:
+            """User-facing explanation for an unusable WinUHid backend."""
+
+            from . import injection_backend
+
+            return injection_backend.winuhid_unavailable_hint()
+
+        @Property(bool, notify=injectModesChanged)
+        def winuhidInstallerAvailable(self) -> bool:
+            """Whether this build ships the bundled WinUHid driver package.
+
+            Distinct from ``winuhidAvailable`` (the driver is installed): the
+            package can be present while the driver is not installed yet.
+            """
+
+            from . import winuhid_driver_install
+
+            return winuhid_driver_install.installer_available()
+
+        @Property(str, notify=injectModesChanged)
+        def winuhidInstallerUnavailableReason(self) -> str:
+            from . import winuhid_driver_install
+
+            return winuhid_driver_install.installer_unavailable_reason()
+
+        def _launch_winuhid_installer(self, uninstall: bool) -> dict:
+            """Shared body for the install/uninstall slots.
+
+            Only ever reached from an explicit user click in the button
+            editor.  The elevated installer is awaited, so a failed run is
+            reported with its exit code instead of looking like a success.
+            """
+
+            from . import winuhid_driver_install
+
+            verb = "卸载" if uninstall else "安装"
+            try:
+                if uninstall:
+                    exit_code = winuhid_driver_install.uninstall_driver()
+                else:
+                    exit_code = winuhid_driver_install.install_driver()
+            except winuhid_driver_install.DriverInstallCancelledError as exc:
+                return {"ok": False, "cancelled": True, "message": str(exc)}
+            except winuhid_driver_install.DriverInstallerError as exc:
+                return {"ok": False, "cancelled": False, "message": str(exc)}
+            # The device was destroyed/recreated, so the running host can no
+            # longer reach it: drop it and let the next press reconnect.
+            from . import winuhid_host_windows
+
+            winuhid_host_windows.reset_host()
+            self.injectModesChanged.emit()
+            if exit_code == 3010:
+                tail = "请重启电脑，重启后回到本页重新选择注入方式。"
+            elif uninstall:
+                tail = "重新选择注入方式后即生效。"
+            else:
+                tail = "回到本页重新选择注入方式即可使用。"
+            return {
+                "ok": True,
+                "cancelled": False,
+                "message": f"WinUHid 虚拟键盘驱动{verb}程序已成功结束。{tail}",
+            }
+
+        @Slot(result="QVariantMap")
+        def installWinUHidDriver(self) -> dict:
+            return self._launch_winuhid_installer(uninstall=False)
+
+        @Slot(result="QVariantMap")
+        def uninstallWinUHidDriver(self) -> dict:
+            return self._launch_winuhid_installer(uninstall=True)
+
+        @Property(bool, notify=injectModesChanged)
+        def winuhidDriverInstalled(self) -> bool:
+            """Whether the WinUHid driver device exists on this machine."""
+
+            from . import winuhid_driver_install
+
+            return winuhid_driver_install.driver_installed() is True
+
+        @Property(bool, notify=injectModesChanged)
         def interceptionAvailable(self) -> bool:
             from . import injection_backend
 
             return injection_backend.interception_available()
 
         @Property(str, notify=injectModesChanged)
-        def interceptionUnavailableReason(self) -> str:
-            from . import injection_backend
-
-            return injection_backend.interception_unavailable_reason()
-
-        @Property(str, notify=injectModesChanged)
         def interceptionUnavailableHint(self) -> str:
-            """User-facing, reason-specific explanation for an unusable driver."""
+            """User-facing explanation for an unusable Interception backend."""
 
             from . import injection_backend
 
             return injection_backend.interception_unavailable_hint()
+
+        @Property(bool, notify=injectModesChanged)
+        def interceptionInstallerAvailable(self) -> bool:
+            from . import interception_driver_install
+
+            return interception_driver_install.installer_available()
+
+        @Property(str, notify=injectModesChanged)
+        def interceptionInstallerUnavailableReason(self) -> str:
+            from . import interception_driver_install
+
+            return interception_driver_install.installer_unavailable_reason()
+
+        @Property(bool, notify=injectModesChanged)
+        def interceptionDriverInstalled(self) -> bool:
+            """Whether the Interception driver is installed on this machine."""
+
+            from . import interception_runtime_windows
+
+            return interception_runtime_windows.driver_installed() is True
+
+        def _launch_interception_installer(self, uninstall: bool) -> dict:
+            """Shared body for the Interception install/uninstall slots."""
+
+            from . import interception_driver_install
+
+            verb = "卸载" if uninstall else "安装"
+            try:
+                if uninstall:
+                    exit_code = interception_driver_install.uninstall_driver()
+                else:
+                    exit_code = interception_driver_install.install_driver()
+            except interception_driver_install.DriverInstallCancelledError as exc:
+                return {"ok": False, "cancelled": True, "message": str(exc)}
+            except interception_driver_install.DriverInstallerError as exc:
+                return {"ok": False, "cancelled": False, "message": str(exc)}
+            self.injectModesChanged.emit()
+            if exit_code == 3010:
+                tail = "请重启电脑，重启后回到本页重新选择注入方式。"
+            elif uninstall:
+                tail = "重新选择注入方式后即生效。"
+            else:
+                tail = "回到本页重新选择注入方式即可使用。"
+            return {
+                "ok": True,
+                "cancelled": False,
+                "message": f"Interception 驱动{verb}程序已成功结束。{tail}",
+            }
+
+        @Slot(result="QVariantMap")
+        def installInterceptionDriver(self) -> dict:
+            return self._launch_interception_installer(uninstall=False)
+
+        @Slot(result="QVariantMap")
+        def uninstallInterceptionDriver(self) -> dict:
+            return self._launch_interception_installer(uninstall=True)
 
         @Slot(str, result=str)
         def buttonInjectMode(self, button_id: str) -> str:
@@ -4769,64 +4855,6 @@ def _load_qt_classes() -> dict:
             if row < 0:
                 return
             self._model.setInjectModeAt(row, mode)
-
-        @Property(bool, notify=injectModesChanged)
-        def interceptionInstallerAvailable(self) -> bool:
-            """Whether this build ships the official Interception installer.
-
-            Distinct from ``interceptionAvailable`` (the driver is loaded):
-            the installer can be present while the driver is not yet installed.
-            """
-
-            from . import interception_driver_install
-
-            return interception_driver_install.installer_available()
-
-        @Property(str, notify=injectModesChanged)
-        def interceptionInstallerUnavailableReason(self) -> str:
-            from . import interception_driver_install
-
-            return interception_driver_install.installer_unavailable_reason()
-
-        def _launch_interception_installer(self, uninstall: bool) -> dict:
-            """Shared body for the install/uninstall slots.
-
-            Only ever reached from an explicit user click in the button
-            editor.  The elevated installer is awaited, so a failed run is
-            reported with its exit code instead of looking like a success.
-            Success still means "reboot required": the driver is not usable
-            until Windows restarts.
-            """
-
-            from . import interception_driver_install
-
-            verb = "卸载" if uninstall else "安装"
-            try:
-                if uninstall:
-                    interception_driver_install.uninstall_driver()
-                else:
-                    interception_driver_install.install_driver()
-            except interception_driver_install.DriverInstallCancelledError as exc:
-                return {"ok": False, "cancelled": True, "message": str(exc)}
-            except interception_driver_install.DriverInstallerError as exc:
-                return {"ok": False, "cancelled": False, "message": str(exc)}
-            self.injectModesChanged.emit()
-            return {
-                "ok": True,
-                "cancelled": False,
-                "message": (
-                    f"Interception 驱动{verb}程序已成功结束（退出码 0）。"
-                    f"请重启电脑，重启后回到本页重新选择注入方式。"
-                ),
-            }
-
-        @Slot(result="QVariantMap")
-        def installInterceptionDriver(self) -> dict:
-            return self._launch_interception_installer(uninstall=False)
-
-        @Slot(result="QVariantMap")
-        def uninstallInterceptionDriver(self) -> dict:
-            return self._launch_interception_installer(uninstall=True)
 
         def _save_voice_config_data(
             self, new_config: Dict[str, Any], *, restart_capture: bool = False
@@ -5183,6 +5211,8 @@ def _load_qt_classes() -> dict:
                         ),
                         "gainSteps": config.voice_key_gain_steps(self._config, slot),
                         "gainAuto": config.voice_key_gain_auto(self._config, slot),
+                        "tsfSwitch": config.voice_key_tsf_switch(self._config, slot),
+                        "tsfProfile": config.voice_key_tsf_profile(self._config, slot),
                         "plugin": plugin,
                         "locked": config.is_locked_plugin_id(plugin),
                         "first": index == 0,
@@ -5241,9 +5271,9 @@ def _load_qt_classes() -> dict:
             self._model.clear_voice_action(int(slot), label)
 
         @Slot(int, int)
-        def moveVoiceKeyConfig(self, slot: int, delta: int) -> None:
+        def moveVoiceKeyConfigTo(self, slot: int, target_index: int) -> None:
             self._save_voice_config_data(
-                config.move_voice_key_config(self._config, slot, delta)
+                config.move_voice_key_config_to(self._config, slot, target_index)
             )
 
         @Slot(int, bool)
@@ -5259,6 +5289,16 @@ def _load_qt_classes() -> dict:
                     self._config, slot, enabled
                 )
             )
+
+        @Slot(int, str)
+        def setVoiceKeyConfigTsf(self, slot: int, profile: str) -> None:
+            self._save_voice_config_data(
+                config.set_voice_key_config_tsf(self._config, slot, profile)
+            )
+
+        @Slot(result="QVariantList")
+        def tsfInputMethods(self) -> list:
+            return tsf_input_windows.list_input_methods()
 
         @Slot(int, int, bool)
         def setVoiceKeyConfigGain(self, slot: int, steps: int, auto: bool) -> None:
@@ -6020,77 +6060,6 @@ def _load_qt_classes() -> dict:
             notify=bridgeReconnectBusyChanged,
         )
 
-        hidHelperIssueVisible = Property(
-            bool,
-            _hid_helper_needs_repair,
-            notify=hidHelperStateChanged,
-        )
-        hidHelperSetupRequired = Property(
-            bool,
-            _hid_helper_setup_required,
-            notify=hidHelperStateChanged,
-        )
-        hidHelperCleanupPending = Property(
-            bool,
-            _hid_helper_cleanup_pending,
-            notify=hidHelperStateChanged,
-        )
-        hidHelperAccountUnsupported = Property(
-            bool,
-            _hid_helper_account_unsupported,
-            notify=hidHelperStateChanged,
-        )
-        hidHelperRepairVisible = Property(
-            bool,
-            _hid_helper_repair_available,
-            notify=hidHelperStateChanged,
-        )
-        hidHelperRemovalVisible = Property(
-            bool,
-            lambda self: (
-                self._hid_helper_portable_distribution
-                and self._hid_helper_can_self_elevate
-                and self._hid_helper_state.available
-                and not self._hid_helper_cleanup_pending()
-                and not hid_elevation_windows.is_newer_helper_state(
-                    self._hid_helper_state
-                )
-            ),
-            notify=hidHelperStateChanged,
-        )
-        hidHelperRepairBusy = Property(
-            bool,
-            lambda self: self._hid_helper_repair_busy,
-            notify=hidHelperRepairBusyChanged,
-        )
-        hidHelperIssueText = Property(
-            str,
-            lambda self: (
-                "换管理员账号"
-                if self._hid_helper_account_unsupported()
-                else ""
-                if self._hid_helper_cleanup_pending()
-                else "请安装新版"
-                if hid_elevation_windows.is_newer_helper_state(
-                    self._hid_helper_state
-                )
-                else ""
-                if self._hid_helper_setup_required()
-                else "改键已停用"
-                if self._hid_helper_needs_repair()
-                else ""
-            ),
-            notify=hidHelperStateChanged,
-        )
-
-        def _hid_tap_enabled(self) -> bool:
-            # 小米遥控器的返回/音量键补充通道：没有降级或手动关闭记录就是开着的。
-            return config.read_hid_tap_degraded(self._config_root) is None
-
-        hidTapEnabled = Property(
-            bool, _hid_tap_enabled, notify=bridgeInputStateChanged
-        )
-
         startHidden = Property(bool, lambda self: self._start_hidden, constant=True)
         launchAtLogin = Property(
             bool,
@@ -6495,21 +6464,10 @@ def _load_qt_classes() -> dict:
             return list(_ORDINARY_PRIMARY_ACTION_OPTIONS)
 
         def _mapping_options_available_now(self, options: List[str]) -> List[str]:
-            if self._available_mapping_app_labels is None:
-                available = set()
-                for option in dict(settings_ui.ACTION_OPTION_GROUPS)["启动应用"]:
-                    action = settings_ui._display_to_action(option)
-                    if action_executor.resolve_application_command(action) is not None:
-                        available.add(option)
-                self._available_mapping_app_labels = available
             allow_mode_cycle = config.voice_other_key_switch(self._config)
             return [
                 option for option in options
-                if (allow_mode_cycle or option != _VOICE_MODE_CYCLE_LABEL)
-                and (
-                    settings_ui.ACTION_OPTION_GROUP_BY_LABEL.get(option) != "启动应用"
-                    or option in self._available_mapping_app_labels
-                )
+                if allow_mode_cycle or option != _VOICE_MODE_CYCLE_LABEL
             ]
 
         primaryActionOptions = Property(
@@ -6936,7 +6894,6 @@ def _load_qt_classes() -> dict:
                 self._voice_hotkey_busy
                 or self._settings_save_busy
                 or self._endpoint_preflight_busy
-                or self._hid_helper_repair_busy
                 or self._bridge_recovery_running
                 or _vb_cable_test_active_event.is_set()
                 or _driver_action_active_event.is_set()
@@ -7040,297 +6997,6 @@ def _load_qt_classes() -> dict:
             if self._application_exit_requested or self._application_exit_confirmed:
                 return
             self._reject_pending_maintenance_exit()
-
-        @Slot(result=bool)
-        def claimPortableHidSetupPrompt(self) -> bool:
-            if self._hid_helper_setup_attempted_this_session:
-                return False
-            self._hid_helper_setup_attempted_this_session = True
-            if (
-                not self._hid_helper_setup_required()
-                or not self._hid_helper_offer_id
-                or self._hid_helper_setup_prompted_offer_id
-                == self._hid_helper_offer_id
-                or self._hid_helper_repair_busy
-                or self._maintenance_exit_pending
-                or self._application_exit_requested
-                or self._application_exit_confirmed
-                or self._application_exit_intent.is_set()
-                or self._background_shutdown_event.is_set()
-            ):
-                return False
-            return self._record_hid_helper_setup_prompted()
-
-        def _record_hid_helper_setup_prompted(self) -> bool:
-            if self.configurationReadOnly:
-                return False
-            offer_id = self._hid_helper_offer_id
-            if not offer_id:
-                if self._hid_helper_portable_distribution:
-                    message = (
-                        "当前程序文件不完整。请完整解压 ZIP，"
-                        f"再运行根目录里的 {product_identity.windows_executable_name(__version__)}。"
-                    )
-                else:
-                    message = "安装文件不完整，请重新安装当前版本。"
-                self._set_error_message(message, self._DEVICE_PAGE_INDEX)
-                return False
-            if self._hid_helper_setup_prompted_offer_id == offer_id:
-                return True
-            updated = dict(self._config)
-            updated["hid_helper_setup_prompted_offer_id"] = offer_id
-            try:
-                loaded = config.save_config_and_load(
-                    config.config_path(self._config_root),
-                    updated,
-                )
-            except (OSError, ValueError, config.ConfigTransactionError):
-                action_text = (
-                    "启用改键"
-                    if self._hid_helper_portable_distribution
-                    else "修复权限"
-                )
-                self._set_error_message(
-                    f"无法记录首次提示状态，请在“按键接收”中点击“{action_text}”重试。",
-                    self._DEVICE_PAGE_INDEX,
-                )
-                return False
-            self._config = loaded
-            self._hid_helper_setup_prompted_offer_id = offer_id
-            return True
-
-        @Slot()
-        def repairHidHelper(self) -> None:
-            self._begin_hid_helper_repair()
-
-        def _begin_hid_helper_repair(self) -> None:
-            if (
-                self._hid_helper_repair_busy
-                or not self._hid_helper_repair_available()
-                or self._maintenance_exit_pending
-                or self._application_exit_requested
-                or self._application_exit_confirmed
-                or self._application_exit_intent.is_set()
-                or self._background_shutdown_event.is_set()
-            ):
-                return
-            if not self._record_hid_helper_setup_prompted():
-                return
-            self._set_hid_helper_repair_busy(True)
-            self._set_error_message("")
-            self._set_status_message(
-                "请在 Windows 提示中确认管理员权限…",
-                self._DEVICE_PAGE_INDEX,
-            )
-
-            def run() -> None:
-                state = hid_helper_consumers.install_for_current_consumer(
-                    self._config_root,
-                    hid_elevation_windows.request_install_elevation,
-                )
-                self._emit_background_result(
-                    self._hidHelperRepairReady,
-                    state,
-                )
-
-            try:
-                self._start_background_task(run, "remote-mic-hid-helper-repair")
-            except RuntimeError as exc:
-                self._set_hid_helper_repair_busy(False)
-                self._set_status_message("")
-                self._set_error_message(str(exc), self._DEVICE_PAGE_INDEX)
-
-        def _on_hid_helper_repair_ready(self, payload: object) -> None:
-            self._set_hid_helper_repair_busy(False)
-            state = (
-                payload
-                if isinstance(payload, hid_elevation_windows.HidHelperState)
-                else hid_elevation_windows.HidHelperState(
-                    False, "hid_helper_setup_result_unavailable"
-                )
-            )
-            self._set_hid_helper_state(state)
-            logging_setup.write_parent_hid_helper_event(
-                "setup_result",
-                available=state.available,
-                detail=state.detail,
-                root=self._config_root,
-            )
-            if state.available:
-                self._set_error_message("")
-                if state.detail == "helper_cleanup_pending":
-                    self._set_status_message(
-                        "自定义按键映射可用，旧权限组件尚未清理，请重试。",
-                        self._DEVICE_PAGE_INDEX,
-                    )
-                else:
-                    self._set_status_message(
-                        "管理员按键组件已启用。",
-                        self._DEVICE_PAGE_INDEX,
-                    )
-                if (
-                    self._bridge_running
-                    and not self._maintenance_exit_pending
-                    and not self._application_exit_requested
-                    and not self._application_exit_confirmed
-                    and not self._application_exit_intent.is_set()
-                    and not self._background_shutdown_event.is_set()
-                ):
-                    self.restartBridge()
-                return
-
-            self._set_status_message("")
-            if state.detail == "uac_cancelled":
-                message = (
-                    "未确认管理员权限。全部自定义按键映射已停用，"
-                    "只保留 Windows 原始按键操作。"
-                )
-            elif state.detail == "current_account_cannot_self_elevate":
-                message = (
-                    "当前账号无法直接完成管理员授权。"
-                    "请确认正在使用管理员账号后重试。"
-                )
-            elif hid_elevation_windows.is_newer_helper_state(state):
-                message = (
-                    "检测到较新版本的管理员按键组件。"
-                    "当前版本不能覆盖，请使用或重新安装较新版本。"
-                )
-            elif state.detail == "bundled_helper_missing":
-                if self._hid_helper_portable_distribution:
-                    message = (
-                        "当前程序文件不完整。请完整解压 ZIP，"
-                        f"再运行根目录里的 {product_identity.windows_executable_name(__version__)}。"
-                    )
-                else:
-                    message = "安装文件不完整，请重新安装当前版本。"
-            elif state.detail in {
-                "hid_helper_operation_busy",
-                f"hid_helper_setup_exit_{hid_elevation_windows.HELPER_EXIT_OPERATION_BUSY}",
-            }:
-                message = "另一个管理员按键操作正在进行，请稍后重试。"
-            elif state.detail in {
-                "hid_helper_setup_timeout",
-                "hid_helper_setup_terminate_failed",
-                "hid_helper_setup_terminate_wait_failed",
-                "hid_helper_setup_wait_failed",
-            }:
-                action_text = (
-                    "启用改键"
-                    if self._hid_helper_portable_distribution
-                    else "修复权限"
-                )
-                message = f"请再次尝试点击“{action_text}”；仍失败时打开运行日志。"
-            elif state.detail in {
-                f"hid_helper_setup_exit_{hid_elevation_windows.HELPER_EXIT_REQUIRES_ADMIN}",
-                f"hid_helper_setup_exit_{hid_elevation_windows.HELPER_EXIT_VALIDATION_FAILED}",
-                f"hid_helper_setup_exit_{hid_elevation_windows.HELPER_EXIT_UNEXPECTED_FAILURE}",
-            } or hid_elevation_windows.is_helper_setup_failure_detail(state.detail):
-                action_text = (
-                    "启用改键"
-                    if self._hid_helper_portable_distribution
-                    else "修复权限"
-                )
-                message = f"请再次尝试点击“{action_text}”；仍失败时打开运行日志。"
-            else:
-                message = (
-                    "管理员按键组件启用失败。全部自定义按键映射已停用，"
-                    "只保留 Windows 原始按键操作。"
-                )
-            self._set_error_message(message, self._DEVICE_PAGE_INDEX)
-
-        @Slot()
-        def removeHidHelper(self) -> None:
-            if (
-                self._hid_helper_repair_busy
-                or not self._hid_helper_portable_distribution
-                or not self._hid_helper_can_self_elevate
-                or not self._hid_helper_state.available
-                or self._maintenance_exit_pending
-                or self._application_exit_requested
-                or self._application_exit_confirmed
-                or self._application_exit_intent.is_set()
-                or self._background_shutdown_event.is_set()
-            ):
-                return
-            self._set_hid_helper_repair_busy(True)
-            self._set_error_message("")
-            self._set_status_message(
-                "正在处理管理员按键组件…",
-                self._DEVICE_PAGE_INDEX,
-            )
-
-            def run() -> None:
-                state = hid_helper_consumers.remove_for_portable_consumer(
-                    self._config_root,
-                    hid_elevation_windows.request_uninstall_elevation,
-                )
-                self._emit_background_result(
-                    self._hidHelperRemovalReady,
-                    state,
-                )
-
-            try:
-                self._start_background_task(run, "remote-mic-hid-helper-removal")
-            except RuntimeError as exc:
-                self._set_hid_helper_repair_busy(False)
-                self._set_status_message("")
-                self._set_error_message(str(exc), self._DEVICE_PAGE_INDEX)
-
-        def _on_hid_helper_removal_ready(self, payload: object) -> None:
-            self._set_hid_helper_repair_busy(False)
-            state = (
-                payload
-                if isinstance(payload, hid_elevation_windows.HidHelperState)
-                else hid_elevation_windows.HidHelperState(
-                    False, "hid_helper_removal_result_unavailable"
-                )
-            )
-            logging_setup.write_parent_hid_helper_event(
-                "removal_result",
-                available=state.available,
-                detail=state.detail,
-                root=self._config_root,
-            )
-            if state.available:
-                self._set_hid_helper_state(
-                    hid_elevation_windows.HidHelperState(
-                        False, "helper_manifest_missing"
-                    )
-                )
-                self._set_error_message("")
-                self._set_status_message(
-                    "管理员按键组件已移除。",
-                    self._DEVICE_PAGE_INDEX,
-                )
-                if (
-                    self._bridge_running
-                    and not self._maintenance_exit_pending
-                    and not self._application_exit_requested
-                    and not self._application_exit_confirmed
-                    and not self._application_exit_intent.is_set()
-                    and not self._background_shutdown_event.is_set()
-                ):
-                    self.restartBridge()
-                return
-
-            self._set_status_message("")
-            if state.detail == "uac_cancelled":
-                message = "未确认管理员权限，管理员按键组件没有移除。"
-            elif state.detail == "current_account_cannot_self_elevate":
-                message = (
-                    "当前 Windows 账号不能移除管理员按键组件。"
-                    "请登录原管理员账号后重试。"
-                )
-            elif state.detail == "helper_preserved_newer_contract":
-                message = "检测到较新版本正在使用，管理员按键组件未移除。"
-            elif state.detail == "helper_consumer_marker_restore_failed":
-                message = (
-                    "权限没有移除，但当前版本的使用记录未能恢复。"
-                    "请保留程序文件并重新打开后再试。"
-                )
-            else:
-                message = "管理员按键组件移除失败，请稍后重试。"
-            self._set_error_message(message, self._DEVICE_PAGE_INDEX)
 
         @Slot()
         def pollWindowRestoreRequest(self) -> None:
@@ -7758,57 +7424,7 @@ def _load_qt_classes() -> dict:
 
         @Slot()
         def restartBridge(self) -> None:
-            # 用户主动重启服务（含“重新授权”）：清掉降级记录，重试一次返回/音量键。
-            record = config.read_hid_tap_degraded(self._config_root)
-            if (
-                record is not None
-                and record["state"] == config.HID_TAP_STATE_DEGRADED
-            ):
-                config.clear_hid_tap_degraded(self._config_root)
-                self.bridgeInputStateChanged.emit()
             self._begin_bridge_restart(automatic=False)
-
-        @Slot(bool)
-        def setHidTapEnabled(self, enabled: bool) -> None:
-            """「返回/音量键」开关：只管补充通道，普通按键和语音不受影响。"""
-
-            enabled = bool(enabled)
-            if self.configurationReadOnly:
-                self.bridgeInputStateChanged.emit()
-                return
-            if enabled:
-                status = bridge_runtime_status.read_status(self._config_root)
-                if (
-                    self._bridge_running
-                    and status is not None
-                    and status.voice_active
-                ):
-                    self.bridgeInputStateChanged.emit()
-                    self._set_error_message(
-                        "当前正在语音输入；结束本次语音后再打开返回/音量键。",
-                        self._DEVICE_PAGE_INDEX,
-                    )
-                    return
-                # 打开：清掉降级/关闭记录，重启服务重新尝试授权。
-                config.clear_hid_tap_degraded(self._config_root)
-            elif not config.save_hid_tap_degraded(
-                self._config_root, state=config.HID_TAP_STATE_DISABLED
-            ):
-                self.bridgeInputStateChanged.emit()
-                self._set_error_message(
-                    "无法保存返回/音量键设置。", self._DEVICE_PAGE_INDEX
-                )
-                return
-            self.bridgeInputStateChanged.emit()
-            self._set_error_message("")
-            if self._bridge_running:
-                self._begin_bridge_restart(automatic=False)
-            else:
-                self._set_launch_status(
-                    "正在重启服务，重新尝试接收返回/音量键…"
-                    if enabled
-                    else "已关闭返回/音量键；其它按键与语音不受影响。"
-                )
 
         @Slot()
         def reconnectBridgeNow(self) -> None:

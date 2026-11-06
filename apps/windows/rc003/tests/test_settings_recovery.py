@@ -187,7 +187,6 @@ class SettingsControllerRecoveryTests(unittest.TestCase):
             self.assertFalse(controller._save_mapping())
             self.assertFalse(controller._persist_desktop_behavior("close_behavior", "quit"))
             self.assertFalse(controller._save_remote_selection(remote_selection.empty_selection()))
-            self.assertFalse(controller._record_hid_helper_setup_prompted())
             self.assertFalse(controller.mappingPresetAction("copy", "", "test")["ok"])
             start.assert_not_called(); startup.assert_not_called(); work.assert_not_called()
         self.assertFalse(controller._mapping_auto_save_scheduled)

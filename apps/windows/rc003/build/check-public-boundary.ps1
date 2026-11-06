@@ -114,9 +114,16 @@ $reviewedElevationMarkers = @{
     "src/ovb_rc003/chromecast_pipe_windows.py" = @("runas", "ShellExecute")
     # Runs the bundled, SHA-256-pinned THIRD-PARTY Interception installer with
     # Windows' own "runas"/UAC verb, only from an explicit user click in the
-    # button editor (never on startup, never silently). The desktop process
-    # stays asInvoker; branding/autostart are still scanned here.
+    # driver manager dialog (never on startup, never silently).
     "src/ovb_rc003/interception_driver_install.py" = @("runas", "ShellExecute")
+    # Runs the bundled WinUHid driver installer script with Windows' own
+    # "runas"/UAC verb, only from an explicit user click in the button editor
+    # (never on startup, never silently). The desktop process stays asInvoker.
+    # Same reviewed pattern as the hidden WinUHid host below.
+    "src/ovb_rc003/winuhid_driver_install.py" = @("runas", "ShellExecute")
+    # Hidden elevated host that owns the virtual HID device; fixed arguments,
+    # one generation token and the parent's identity only.
+    "src/ovb_rc003/winuhid_host_windows.py" = @("runas", "ShellExecute")
 }
 $autostartMarkers = @("CurrentVersion\Run", "userstartup")
 

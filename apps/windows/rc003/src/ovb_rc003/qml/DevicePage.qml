@@ -16,8 +16,6 @@ Item {
     readonly property int deviceStateColumnWidth: 96
     readonly property int deviceActionColumnWidth: tokens.buttonWidth4Chars
     signal openButtonsRequested()
-    signal enableHidHelperRequested()
-    signal removeHidHelperRequested()
 
     function restoreLogExportFocus() {
         Qt.callLater(function() {
@@ -178,21 +176,7 @@ Item {
             return "unselected"
         if (!SettingsController.activeRemoteReady)
             return "pending"
-        if (SettingsController.hidHelperRepairBusy)
-            return "checking"
-        if (SettingsController.hidHelperIssueVisible) {
-            if (SettingsController.hidHelperAccountUnsupported)
-                return "account"
-            if (SettingsController.hidHelperCleanupPending)
-                return "cleanup"
-            if (!SettingsController.hidHelperRepairVisible)
-                return "version"
-            return SettingsController.hidHelperSetupRequired
-                ? "disabled" : "permission"
-        }
         if (SettingsController.bridgeRunning) {
-            if (SettingsController.hidTapState === "disabled_by_user")
-                return "hid_tap_off"
             if (SettingsController.hidTapState === "authorization_cancelled")
                 return "source_authorization_cancelled"
             if (SettingsController.hidTapState === "authorization_failed")
@@ -268,16 +252,10 @@ Item {
         case "source_authorization_cancelled": return qsTr("授权已取消")
         case "source_authorization_failed": return qsTr("授权未完成")
         case "checking": return qsTr("正在检查")
-        case "cleanup": return qsTr("点击“完成清理”")
         case "recovering": return qsTr("正在恢复")
-        case "account": return qsTr("请更换账号")
-        case "disabled": return qsTr("点击“启用改键”")
-        case "permission": return qsTr("点击“修复权限”")
-        case "version": return qsTr("请安装兼容版")
         case "component_unavailable": return qsTr("按键组件不完整")
         case "restart_computer": return qsTr("请重启电脑一次")
         case "shared_host": return qsTr("按键来源待区分")
-        case "hid_tap_off": return qsTr("已关闭")
         case "waiting_remote": return qsTr("未连接")
         case "unpaired": return qsTr("请先配对遥控器")
         case "conflict": return qsTr("设备识别异常")
@@ -301,8 +279,8 @@ Item {
                 || code === "custom_only"
                 || code === "original_only")
             return tokens.voiceAccent
-        if (code === "cleanup" || code === "unchecked" || code === "pending"
-                || code === "service_stopped" || code === "hid_tap_off")
+        if (code === "unchecked" || code === "pending"
+                || code === "service_stopped")
             return tokens.disabledText
         return tokens.errorColor
     }
@@ -752,8 +730,7 @@ Item {
                         text: qsTr("选择设备")
                         onClicked: remoteDeviceDialog.open()
                         KeyNavigation.backtab: openBluetoothSettingsButton
-                        KeyNavigation.tab: SettingsController.isRc003Device
-                            ? hidTapSwitch : buttonReceiverPrimaryButton
+                        KeyNavigation.tab: buttonReceiverPrimaryButton
                     }
                 }
 
@@ -792,74 +769,12 @@ Item {
                         : root.buttonReceiverStateCode() === "restart_computer"
                         ? qsTr("旧按键组件未释放，请重启电脑")
                         : root.buttonReceiverStateCode() === "component_unavailable"
-                        ? qsTr("组件缺失或校验失败，补齐后打开“返回/音量键”开关")
-                        : root.buttonReceiverStateCode() === "hid_tap_off"
-                        ? qsTr("返回键和音量键未启用")
+                        ? qsTr("组件缺失或校验失败")
                         : root.buttonReceiverStateCode() === "recovering"
                         ? qsTr("按键设备尚未就绪，正在自动重试")
                         : qsTr("让遥控器按键在电脑上生效")
                     stateText: root.buttonReceiverStateText()
                     stateColor: root.buttonReceiverStateColor()
-
-                    CompactButton {
-                        objectName: "repairHidHelperButton"
-                        visible: SettingsController.hidHelperRepairVisible
-                        tokens: root.tokens
-                        flat: true
-                        text: SettingsController.hidHelperRepairBusy
-                            ? qsTr("处理中…")
-                            : (SettingsController.hidHelperSetupRequired
-                                ? qsTr("启用改键")
-                                : SettingsController.hidHelperCleanupPending
-                                ? qsTr("完成清理") : qsTr("修复权限"))
-                        highlighted: false
-                        enabled: !SettingsController.hidHelperRepairBusy
-                            && !SettingsController.bridgeLaunchBusy
-                            && !SettingsController.configurationReadOnly
-                        onClicked: root.enableHidHelperRequested()
-                    }
-                    CompactButton {
-                        objectName: "removeHidHelperButton"
-                        visible: SettingsController.hidHelperRemovalVisible
-                        tokens: root.tokens
-                        flat: true
-                        text: qsTr("移除权限")
-                        enabled: !SettingsController.hidHelperRepairBusy
-                            && !SettingsController.bridgeLaunchBusy
-                            && !SettingsController.configurationReadOnly
-                        onClicked: root.removeHidHelperRequested()
-                    }
-                    // 小米遥控器的返回键/音量键走单独的补充通道（HID tap），这里用
-                    // 开关代替“按键设置”入口：降级或手动关闭后显示为关，打开会清掉
-                    // 降级记录并重启服务重试一次。谷歌遥控器保持原来的入口不变。
-                    RowLayout {
-                        objectName: "hidTapSwitchRow"
-                        visible: SettingsController.isRc003Device
-                        spacing: 6
-
-                        Label {
-                            Layout.alignment: Qt.AlignVCenter
-                            text: qsTr("返回/音量键")
-                            font.family: root.tokens.fontFamily
-                            font.pixelSize: 12
-                            color: root.tokens.textTertiary
-                        }
-
-                        CompactSwitch {
-                            id: hidTapSwitch
-                            objectName: "hidTapSwitch"
-                            tokens: root.tokens
-                            checked: SettingsController.hidTapEnabled
-                            enabled: !SettingsController.bridgeLaunchBusy
-                                && !SettingsController.hidHelperRepairBusy
-                                && !SettingsController.configurationReadOnly
-                            Accessible.name: qsTr("返回/音量键")
-                            onToggled: {
-                                if (checked !== SettingsController.hidTapEnabled)
-                                    SettingsController.setHidTapEnabled(checked)
-                            }
-                        }
-                    }
 
                     CompactButton {
                         id: buttonReceiverPrimaryButton
@@ -897,7 +812,6 @@ Item {
                         enabled: SettingsController.bridgeLaunchPhase !== "stopping"
                             && !SettingsController.bridgeLaunchBusy
                             && !SettingsController.configurationReadOnly
-                            && !SettingsController.hidHelperRepairBusy
                             && !DiagnosticsController.vbCableTestRunning
                             && !DiagnosticsController.driverActionRunning
                             && !SettingsController.voiceHotkeyBusy
@@ -916,7 +830,6 @@ Item {
                             && (SettingsController.bridgeRunning || !SettingsController.activeRemoteKey
                                 || SettingsController.activeRemoteReady)
                             && !SettingsController.bridgeReconnectBusy
-                            && !SettingsController.hidHelperRepairBusy
                             && !DiagnosticsController.vbCableTestRunning
                             && !DiagnosticsController.driverActionRunning
                             && !SettingsController.voiceHotkeyBusy

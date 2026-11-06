@@ -35,7 +35,11 @@ BUNDLE_APP_FIELDS = {"name", "process", "hotkey", "mapping"}
 MAX_BYTES = 2 * 1024 * 1024
 MAX_PRESETS = 100
 MAPPING_FIELDS = ("bindings", "secondary_bindings", "display_notes")
-PROFILES = (device_catalog.RC003_ID, remote_selection.CHROMECAST_PROFILE)
+PROFILES = (
+    device_catalog.RC003_ID,
+    device_catalog.RC001_ID,
+    remote_selection.CHROMECAST_PROFILE,
+)
 AUTO_ID = "automatic"
 AUTO_NAME = "26-1012 自动保存"
 SCHEMA_VERSION = 3

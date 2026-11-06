@@ -139,12 +139,19 @@ def runtime_ready(profile: str) -> bool:
 
 
 # GATT Device Information 的 Model Number String 取值（区分小米遥控器2 与
-# 2 Pro）。两款都可能广播同一个通用蓝牙名，连上后以型号串为准。
+# 2 Pro）。两款都可能广播同一个通用蓝牙名，扫描时直接读型号串来判定。
 _MODEL_NUMBER_PROFILES = {
     "RC001": RC001_PROFILE,
     "RC003": RC003_PROFILE,
     "ARN9": RC003_PROFILE,
 }
+_MODEL_NUMBER_SERVICE_UUID = "0000180a-0000-1000-8000-00805f9b34fb"
+_MODEL_NUMBER_UUID = "00002a24-0000-1000-8000-00805f9b34fb"
+_MODEL_NUMBER_TIMEOUT_SECONDS = 3.0
+
+# 早期版本把“连上后读到的型号”按设备写进配置来修正列表显示。现在扫描时就
+# 直接读设备型号，这条旧记录不再使用；读到后直接丢弃，不再回写。
+RETIRED_MODEL_HINTS_KEY = "remote_model_hints"
 
 
 def profile_for_model_number(value: object) -> str:
@@ -152,6 +159,47 @@ def profile_for_model_number(value: object) -> str:
 
     text = "".join(str(value or "").split()).upper()
     return _MODEL_NUMBER_PROFILES.get(text, "") if text else ""
+
+
+def profiles_compatible(saved: str, scanned: str) -> bool:
+    """Whether a freshly scanned model may replace a saved one.
+
+    小米两代遥控器广播名相同，旧记录里的型号可能按蓝牙名猜错了；扫描读到的是
+    设备真实型号，允许用它纠正。其它型号必须完全一致。
+    """
+
+    return saved == scanned or (saved in XIAOMI_PROFILES and scanned in XIAOMI_PROFILES)
+
+
+async def _model_number_profile(winrt: object, device_id: str) -> str:
+    """Read the cached Device Information model number; '' when unavailable."""
+
+    if not device_id:
+        return ""
+    device = await winrt.bluetooth_le_device.from_id_async(device_id)
+    if device is None:
+        return ""
+    try:
+        services = await device.get_gatt_services_for_uuid_with_cache_mode_async(
+            uuid.UUID(_MODEL_NUMBER_SERVICE_UUID), winrt.bluetooth_cache_mode.CACHED)
+        if services.status != winrt.gatt_communication_status.SUCCESS or not services.services:
+            return ""
+        characteristics = await services.services[0].get_characteristics_with_cache_mode_async(
+            winrt.bluetooth_cache_mode.CACHED)
+        if characteristics.status != winrt.gatt_communication_status.SUCCESS:
+            return ""
+        characteristic = next(
+            (item for item in characteristics.characteristics
+             if str(item.uuid).casefold() == _MODEL_NUMBER_UUID), None)
+        if characteristic is None:
+            return ""
+        value = await characteristic.read_value_with_cache_mode_async(
+            winrt.bluetooth_cache_mode.CACHED)
+        if value.status != winrt.gatt_communication_status.SUCCESS:
+            return ""
+        return profile_for_model_number(bytes(value.value).decode("utf-8", "replace"))
+    finally:
+        device.close()
 
 
 def label(key: str, profile: str = RC003_PROFILE, peers=()) -> str:
@@ -212,7 +260,12 @@ def select_paired_device(selection: dict, key: str, paired: list[dict]) -> tuple
         raise SelectionError("未找到这台已配对且支持的设备，请刷新后重新选择。")
     saved_profile = profile_for_key(result, key)
     if saved_profile and saved_profile != row["profile"]:
-        raise SelectionError("设备型号信息与已保存记录不一致，请重新检查。")
+        if not profiles_compatible(saved_profile, row["profile"]):
+            raise SelectionError("设备型号信息与已保存记录不一致，请重新检查。")
+        # 旧记录里的型号可能是按通用蓝牙名猜错的，扫描读到真实型号后以扫描为准。
+        result["devices"] = [
+            dict(item, profile=row["profile"]) if item["key"] == key else item
+            for item in result["devices"]]
     known_xiaomi = {item["key"] for item in result["devices"] + paired
                     if item.get("profile") in XIAOMI_PROFILES}
     result = select_device(add_device(result, row), key)
@@ -334,6 +387,17 @@ async def _scan_paired() -> list[dict]:
             profile = CHROMECAST_PROFILE
         else:
             profile = ""
+        if profile in XIAOMI_PROFILES:
+            # 两款小米遥控器广播名相同，只有读设备信息里的型号串才分得清。
+            # 读不到就沿用蓝牙名的判断，不影响列表可用。
+            try:
+                exact = await asyncio.wait_for(
+                    _model_number_profile(winrt, str(getattr(info, "id", "") or "")),
+                    timeout=_MODEL_NUMBER_TIMEOUT_SECONDS)
+            except Exception:  # noqa: BLE001 - 型号读失败只退回名字判断
+                exact = ""
+            if exact in XIAOMI_PROFILES:
+                profile = exact
         # Unsupported names are display-only; saved selection still contains only digests/profiles.
         row = {"key": key, "profile": profile,
                "label": label(key, profile) if profile else _unsupported_label(name, key)}

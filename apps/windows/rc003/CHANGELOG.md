@@ -8,6 +8,18 @@
 后续候选继续从 `candidate.31` 递增。正式 tag 不带 `windows`、`rc003` 或 `candidate`。
 完整命名规则以 `VALIDATION-AND-DELIVERY.md` 的“版本与命名规则”为准。
 
+## [0.2.0] — 2026-11-06（正式版，大版本升级）
+
+- 新增 WinUHid 虚拟键盘驱动与「驱动管理」：按键页可一键安装/卸载 WinUHid 或 Interception，两者互斥（装 Interception 前会先卸载 WinUHid），都需要管理员授权；WinUHid 标为推荐方案，不接管物理键盘，也支持通过驱动发送鼠标点击。每个按键可单独选择按键发送方式，「驱动管理」左侧显示当前是否已安装（任一驱动装上即显示「已安装」）。
+- 新增通用「启动应用」动作：任意按键都能选择并启动本机任意程序。
+- 语音键新增「TSF 切换」：按下前自动切到指定输入法，适配只认当前输入法的语音工具；能在输入法里设置全局触发的不需要开启。
+- 语音键列表支持拖动排序，顺序即实际生效顺序。
+- 返回键、音量键不再需要手动开关和「管理员按键组件」权限提示，改为启动时自动重试生效。
+- 修复两款小米遥控器型号被认错：改为扫描时直接读取设备型号。
+- 修复上一段语音刚结束时快速短按被忽略、无法切换语音模式的问题，以及重启语音提示窗口偶发闪退。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3475 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.0-unsigned.exe`（182637186 字节，SHA-256 `613219f5ede37716862054ee0f0a01c9166277bbd9ecac7b5fc41015cdb063f2`），插件包 `MoteDeck2Vokie-0.1.2.zip` 随包重发。
+- 构建清单新增「不编译名单」：`hid_host_reload_windows`、`frida_hid_tap_injector/runtime`、`gadget_windows`、`frida_compat`、`hid_source_injector`、`hid_injection_diagnostics` 这 7 个模块不参与 Cython 编译，以源码形式进包、由 PyInstaller 打成 `.pyc`。
+
 ## [0.1.11] — 2026-11-05（正式版）
 
 - 已适配正式谷歌遥控器 9450 与小米遥控器 2 Pro：按键、语音与「按键检测」在两种遥控器上都按各自键位工作；小米遥控器 2 的支持放到下个版本。

@@ -180,7 +180,7 @@ class ConfigurationQmlFlowTests(unittest.TestCase):
         from tests.test_hid_runtime_upgrade_qml import _SETUP
 
         script = _SETUP + r'''
-from ovb_rc003 import bridge_runtime_status, hid_elevation_windows
+from ovb_rc003 import bridge_runtime_status
 from unittest import mock
 find(window, "bridgeStatusRefreshTimer").setProperty("running", False)
 find(window, "tabBar").setProperty("currentIndex", 2)
@@ -190,8 +190,6 @@ controller._bridge_running = True
 controller.bridgeRunningChanged.emit()
 controller._set_bridge_connected(True)
 controller._set_bridge_connection_state("connected")
-controller._hid_helper_state = hid_elevation_windows.HidHelperState(True, "ready")
-controller.hidHelperStateChanged.emit()
 bridge_runtime_status.publish_status(m.config.config_root(), bridge_runtime_status.BridgeConnectionState.CONNECTED,
     pid=os.getpid(), raw_input_state="ready", hid_tap_state="ready", voice_key_physicalizer_state="ready")
 controller._set_bridge_input_states(bridge_runtime_status.read_status(m.config.config_root()))

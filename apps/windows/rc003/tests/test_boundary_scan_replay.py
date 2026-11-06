@@ -113,11 +113,19 @@ _REVIEWED_ELEVATION_MARKERS = {
     Path("src/ovb_rc003/pipe_windows.py"): {"runas", "ShellExecute"},
     Path("src/ovb_rc003/hid_source_injector.py"): {"runas", "ShellExecute"},
     Path("src/ovb_rc003/chromecast_pipe_windows.py"): {"runas", "ShellExecute"},
-    # Launches the bundled, SHA-256-pinned THIRD-PARTY Interception installer
-    # with Windows' own "runas"/UAC verb, only from an explicit user click -
-    # see test_interception_driver_install_py_is_exempt_only_for_the_vendor_
-    # installer_launch below, which proves this is not a blank check.
+    # Launches the bundled, SHA-256-pinned third-party Interception installer
+    # with Windows' own "runas"/UAC verb, only from an explicit user click in
+    # the driver manager dialog (never on startup, never silently).
     Path("src/ovb_rc003/interception_driver_install.py"): {"runas", "ShellExecute"},
+    # Launches the bundled WinUHid install script with Windows' own
+    # "runas"/UAC verb, only from an explicit user click - see
+    # test_winuhid_driver_install_py_is_exempt_only_for_the_bundled_script_
+    # launch below, which proves this is not a blank check.
+    Path("src/ovb_rc003/winuhid_driver_install.py"): {"runas", "ShellExecute"},
+    # Starts the hidden, elevated host that owns the virtual HID devices with
+    # the app's own executable and the fixed --inject-host flag only - see
+    # test_winuhid_host_py_is_exempt_only_for_the_elevated_host_launch below.
+    Path("src/ovb_rc003/winuhid_host_windows.py"): {"runas", "ShellExecute"},
 }
 _BRANDING_CHECK_EXEMPT_RELATIVE_PATHS = {
     Path("tests/test_privacy_contract.py"),
@@ -287,20 +295,38 @@ class BoundaryScanReplayTests(unittest.TestCase):
         self.assertFalse(any(pattern.search(text) for pattern in _FORBIDDEN_BRANDING_PATTERNS))
         self.assertFalse(any(marker in text for marker in _AUTOSTART_MARKERS))
 
-    def test_interception_driver_install_py_is_exempt_only_for_the_vendor_installer_launch(self):
+    def test_winuhid_driver_install_py_is_exempt_only_for_the_bundled_script_launch(self):
         # Proves the exemption is scoped, not a blank check: the file must
         # reference the elevation verb (or the exemption is dead weight), must
         # never contain a forbidden BRANDING or AUTOSTART term, and must launch
-        # only the SHA-256-pinned bundled installer - never this app's own
-        # executable or an arbitrary caller-supplied command.
-        path = _RC003_ROOT / "src" / "ovb_rc003" / "interception_driver_install.py"
+        # only the bundled install-winuhid.ps1 with fixed arguments - never
+        # this app's own executable or an arbitrary caller-supplied command.
+        path = _RC003_ROOT / "src" / "ovb_rc003" / "winuhid_driver_install.py"
         text = path.read_text(encoding="utf-8")
         self.assertTrue(any(marker in text for marker in _ELEVATION_MARKERS))
         self.assertFalse(any(pattern.search(text) for pattern in _FORBIDDEN_BRANDING_PATTERNS))
         self.assertFalse(any(marker in text for marker in _AUTOSTART_MARKERS))
-        self.assertIn("INSTALLER_SHA256", text)
-        self.assertIn('"runas"', text)
+        self.assertIn('info.lpVerb = "runas"', text)
         self.assertIn("ShellExecuteExW", text)
+        self.assertIn('"-Action"', text)
+        self.assertNotIn("sys.argv", text)
+        self.assertNotIn("RequireAdministrator", text)
+
+    def test_winuhid_host_py_is_exempt_only_for_the_elevated_host_launch(self):
+        # Proves the exemption is scoped, not a blank check: the file must
+        # reference the elevation verb (or the exemption is dead weight), must
+        # never contain a forbidden BRANDING or AUTOSTART term, and must launch
+        # only this application's own executable with fixed --inject-host
+        # arguments - never an arbitrary caller-supplied executable or command.
+        path = _RC003_ROOT / "src" / "ovb_rc003" / "winuhid_host_windows.py"
+        text = path.read_text(encoding="utf-8")
+        self.assertTrue(any(marker in text for marker in _ELEVATION_MARKERS))
+        self.assertFalse(any(pattern.search(text) for pattern in _FORBIDDEN_BRANDING_PATTERNS))
+        self.assertFalse(any(marker in text for marker in _AUTOSTART_MARKERS))
+        self.assertIn('info.lpVerb = "runas"', text)
+        self.assertIn("ShellExecuteExW", text)
+        self.assertIn('info.lpFile = sys.executable', text)
+        self.assertIn('HOST_FLAG = "--inject-host"', text)
         self.assertNotIn("RequireAdministrator", text)
 
     def test_hid_elevation_module_has_only_the_fixed_on_demand_task_boundary(self):

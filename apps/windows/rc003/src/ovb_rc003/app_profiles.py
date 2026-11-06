@@ -64,7 +64,8 @@ VOICE_KEY_FIELDS = ("id", "name", "hotkey", "source", "device", "enabled", "plug
 # config.json 的语音键后来多了“延迟发送”开关和录音增益；旧版保存的 profile
 # 快照里没有这些字段，所以它们只能是可选字段，不能参与“字段集合必须完全相等”
 # 的校验，否则老数据会让整份配置读取失败。
-OPTIONAL_VOICE_KEY_FIELDS = ("short_press_resend", "gain_steps", "gain_auto")
+OPTIONAL_VOICE_KEY_FIELDS = ("short_press_resend", "gain_steps", "gain_auto",
+                            "tsf_switch", "tsf_profile")
 VOICE_KEYS_FIELD = "voice_keys"
 ENTRY_FIELDS = ("id", "name", "scope", "process", "hotkey", "mapping",
                 *VOICE_FIELDS, VOICE_KEYS_FIELD)
@@ -189,13 +190,19 @@ def validate_voice_keys(value: object) -> list[dict]:
             gain_steps = int(raw.get("gain_steps", 0))
         except (TypeError, ValueError):
             raise ValueError("配置里的语音键录音增益无效。") from None
+        # 插件提供的语音键不保存 TSF 切换，这里也保持一致。
+        tsf_enabled = (not plugin.strip()
+                       and raw.get("tsf_switch", False) is not False)
         result.append({"id": slot, "name": name.strip(),
                        "hotkey": hotkey.strip().lower(), "source": source,
                        "device": device, "enabled": raw["enabled"],
                        "plugin": plugin.strip().lower(),
                        "short_press_resend": raw.get("short_press_resend", False) is not False,
                        "gain_steps": max(-3, min(3, gain_steps)),
-                       "gain_auto": raw.get("gain_auto", False) is not False})
+                       "gain_auto": raw.get("gain_auto", False) is not False,
+                       "tsf_switch": tsf_enabled,
+                       "tsf_profile": (config._normalize_tsf_profile(
+                           raw.get("tsf_profile", "")) if tsf_enabled else "")})
     return result
 
 

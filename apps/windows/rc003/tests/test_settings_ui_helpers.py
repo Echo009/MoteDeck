@@ -101,7 +101,8 @@ class DisplayRoundTripTests(unittest.TestCase):
         self.assertNotIn("ralt", flattened)
         self.assertNotIn("ralt+space", flattened)
         self.assertNotIn("打开 Codex", flattened)
-        self.assertIn("打开 Claude", flattened)
+        self.assertNotIn("打开 Claude", flattened)
+        self.assertIn("启动应用", flattened)
         mouse_group = dict(settings_ui.ACTION_OPTION_GROUPS)["鼠标操作"]
         self.assertEqual(
             mouse_group[:6],
@@ -408,14 +409,14 @@ class BuildSaveModelTests(unittest.TestCase):
                 gesture,
             )
 
-    def test_voice_mode_cycle_accepts_interception_backend(self):
+    def test_voice_mode_cycle_accepts_winuhid_backend(self):
         # 该动作由应用自己分发，不经过注入后端，因此不能因为选了
-        # Interception 就拒绝保存。
-        settings_ui._ensure_interception_supports(
+        # WinUHid 就拒绝保存。
+        settings_ui._ensure_winuhid_supports(
             "power",
             "长按",
             key_mapping.ButtonAction(key_mapping.ActionKind.VOICE_MODE_CYCLE),
-            key_mapping.INJECT_MODE_INTERCEPTION,
+            key_mapping.INJECT_MODE_WINUHID,
         )
 
     def test_absent_mic_mapping_is_not_synthesized(self):
@@ -440,12 +441,12 @@ class BuildSaveModelTests(unittest.TestCase):
             endpoint_display_text="",
             base_config=self.base_config,
             base_bindings=base,
-            button_inject_modes={"power": "interception"},
+            button_inject_modes={"power": "winuhid"},
         )
-        self.assertEqual(saved["bindings"]["power"]["inject_mode"], "interception")
+        self.assertEqual(saved["bindings"]["power"]["inject_mode"], "winuhid")
         self.assertEqual(
             saved["secondary_bindings"]["power"]["long_press"]["inject_mode"],
-            "interception",
+            "winuhid",
         )
 
     def test_voice_button_keeps_its_inject_mode_choice(self):
@@ -458,10 +459,10 @@ class BuildSaveModelTests(unittest.TestCase):
             endpoint_display_text="",
             base_config=self.base_config,
             base_bindings=self.base_bindings,
-            button_inject_modes={"power": "interception"},
+            button_inject_modes={"power": "winuhid"},
         )
         self.assertTrue(saved["bindings"]["power"]["kind"].startswith("voice"))
-        self.assertEqual(saved["bindings"]["power"]["inject_mode"], "interception")
+        self.assertEqual(saved["bindings"]["power"]["inject_mode"], "winuhid")
 
     def test_default_inject_mode_keeps_the_legacy_payload_unchanged(self):
         _config, saved = build_save_model(

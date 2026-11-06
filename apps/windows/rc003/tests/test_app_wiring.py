@@ -639,6 +639,21 @@ class LiveSettingsReloadTests(_AppWiringTestCase):
         bindings = config.default_key_bindings()
         bindings["bindings"]["mic"] = key_mapping.ButtonAction(
             key_mapping.ActionKind.VOICE_HOLD,
+            inject_mode=key_mapping.INJECT_MODE_WINUHID,
+        ).to_dict()
+        self._save_button_bindings(bindings)
+        self._save_voice_slot_settings(slot=2, hotkey_text="ralt")
+        self.app._reload_settings_if_changed()
+
+        self.assertEqual(
+            self.app._voice_slot_inject_mode(2),
+            key_mapping.INJECT_MODE_WINUHID,
+        )
+
+    def test_voice_slot_without_its_own_button_inherits_the_interception_mode(self):
+        bindings = config.default_key_bindings()
+        bindings["bindings"]["mic"] = key_mapping.ButtonAction(
+            key_mapping.ActionKind.VOICE_HOLD,
             inject_mode=key_mapping.INJECT_MODE_INTERCEPTION,
         ).to_dict()
         self._save_button_bindings(bindings)
@@ -654,7 +669,7 @@ class LiveSettingsReloadTests(_AppWiringTestCase):
         bindings = config.default_key_bindings()
         bindings["bindings"]["mic"] = key_mapping.ButtonAction(
             key_mapping.ActionKind.VOICE_HOLD,
-            inject_mode=key_mapping.INJECT_MODE_INTERCEPTION,
+            inject_mode=key_mapping.INJECT_MODE_WINUHID,
         ).to_dict()
         bindings["bindings"]["tv"] = key_mapping.ButtonAction(
             key_mapping.ActionKind.VOICE_HOLD_2,
@@ -2275,6 +2290,37 @@ class OrdinaryButtonGestureWiringTests(_AppWiringTestCase):
                     self.assertEqual(tap.call_count, 5)
                     self.app._on_button_event(button, False, event_source=source)
 
+    def test_winuhid_direction_hold_replays_key_down_until_release(self):
+        timers = self._use_recorded_repeat_timers()
+        fake_backend = mock.Mock()
+        with mock.patch.object(
+            app_module.injection_backend, "backend_for", return_value=fake_backend
+        ) as backend_for, mock.patch.object(
+            app_module.element_navigation_control_windows,
+            "route_mapped_navigation_key", return_value=False,
+        ), mock.patch.object(win32_input, "send_arrow_up") as tap:
+            self.app._bindings["bindings"]["up"] = key_mapping.ButtonAction(
+                kind=key_mapping.ActionKind.ARROW_UP,
+                inject_mode=key_mapping.INJECT_MODE_WINUHID,
+            ).to_dict()
+            self.app._on_button_event("up", True, event_source="hid_tap")
+            # WinUHid emulates a Windows key hold, so the press delivers only a
+            # key-down and never a whole click.
+            backend_for.assert_called_once_with(key_mapping.INJECT_MODE_WINUHID)
+            tokens = fake_backend.key_down.call_args.args[0]
+            self.assertEqual(fake_backend.key_down.call_count, 1)
+            fake_backend.key_up.assert_not_called()
+            tap.assert_not_called()
+            # Each repeat re-sends only the key-down, keeping one sustained press.
+            timers[-1].fire()
+            self.assertEqual(fake_backend.key_down.call_count, 2)
+            self.assertEqual(fake_backend.key_down.call_args.args[0], tokens)
+            fake_backend.key_up.assert_not_called()
+            tap.assert_not_called()
+            # The single matching key-up is delivered only on release.
+            self.app._on_button_event("up", False, event_source="hid_tap")
+            fake_backend.key_up.assert_called_once_with(tokens)
+
     def test_interception_direction_hold_replays_key_down_until_release(self):
         timers = self._use_recorded_repeat_timers()
         fake_backend = mock.Mock()
@@ -2492,6 +2538,35 @@ class OrdinaryButtonGestureWiringTests(_AppWiringTestCase):
             )
 
         toggle.assert_called_once_with()
+
+    def test_winuhid_element_navigation_still_routes_to_the_toggle(self):
+        # Element navigation is not a plain key, so it can never be delivered
+        # by WinUHid.  A driver-level inject mode must not swallow it as
+        # "winuhid_unsupported_action"; it still has to reach the toggle
+        # controller.
+        result = app_module.element_navigation_control_windows.ToggleResult(
+            app_module.element_navigation_control_windows.ToggleResultKind.DELIVERED,
+            321,
+        )
+        with mock.patch.object(
+            app_module.element_navigation_control_windows,
+            "toggle_element_navigation",
+            return_value=result,
+        ) as toggle, mock.patch.object(
+            self.app, "_apply_button_action_winuhid"
+        ) as winuhid, mock.patch.object(
+            app_module.injection_backend, "backend_for"
+        ) as backend_for:
+            self.app._apply_button_action(
+                key_mapping.ButtonAction(
+                    key_mapping.ActionKind.ELEMENT_NAVIGATION_TOGGLE,
+                    inject_mode=key_mapping.INJECT_MODE_WINUHID,
+                )
+            )
+
+        toggle.assert_called_once_with()
+        winuhid.assert_not_called()
+        backend_for.assert_not_called()
 
     def test_interception_element_navigation_still_routes_to_the_toggle(self):
         # Element navigation is not a plain key, so it can never be delivered
@@ -2751,12 +2826,22 @@ class OrdinaryButtonGestureWiringTests(_AppWiringTestCase):
             ))
             for option in settings_ui._PRESET_KEY_COMBOS:
                 with self.subTest(option=option):
-                    self.assertEqual(settings_ui.button_action_validation_message(
-                        "up", "single_click", option
-                    ), "")
-                    self.assertEqual(settings_ui.button_action_validation_message(
-                        "up", "double_click", option
-                    ), "")
+                    # 裸「启动应用」只用来展开选择，必须先选好程序才算有效。
+                    if settings_ui.is_application_launch_text(option):
+                        for trigger in ("single_click", "double_click"):
+                            self.assertIn(
+                                "请先选择要启动的应用程序",
+                                settings_ui.button_action_validation_message(
+                                    "up", trigger, option
+                                ),
+                            )
+                    else:
+                        self.assertEqual(settings_ui.button_action_validation_message(
+                            "up", "single_click", option
+                        ), "")
+                        self.assertEqual(settings_ui.button_action_validation_message(
+                            "up", "double_click", option
+                        ), "")
                     action = settings_ui._display_to_action(option)
                     if action.kind in (
                         key_mapping.ActionKind.DISABLED,
@@ -8182,6 +8267,65 @@ class VoiceRemoteMicrophoneModeTests(_AppWiringTestCase):
         self.assertFalse(self.app._voice_gesture.latched)
         self.assertEqual(self.app._ble_session.mic_open_calls, 0)
 
+    def _bind_mic_to_winuhid(self):
+        self.app._bindings["bindings"]["mic"] = key_mapping.ButtonAction(
+            kind=key_mapping.ActionKind.VOICE_HOLD,
+            inject_mode=key_mapping.INJECT_MODE_WINUHID,
+        ).to_dict()
+
+    def test_press_immediately_reaches_the_winuhid_backend(self):
+        self._bind_mic_to_winuhid()
+        backend = mock.Mock()
+        with mock.patch.object(
+            app_module.injection_backend,
+            "backend_for",
+            return_value=backend,
+        ) as backend_for:
+            self.app._on_control_event(MicButtonPressed())
+            backend_for.assert_called_once_with(
+                key_mapping.INJECT_MODE_WINUHID
+            )
+            backend.key_down.assert_called_once_with(("ralt",))
+            self.app._on_control_event(AudioStarted(session_id=1))
+            self.app._on_control_event(AudioStopped(reason=0))
+
+        backend.key_up.assert_called_once_with(("ralt",))
+        self.assertFalse(self.app._voice_shortcut.controller.active)
+
+    def test_short_press_delay_replays_through_the_winuhid_backend(self):
+        self._bind_mic_to_winuhid()
+        _stamp_voice_key(self.app._config, 1, short_press_resend=True)
+        timers = self._use_manual_press_timers()
+        calls = []
+
+        class _RecordingBackend:
+            def key_down(self, tokens, **_kwargs):
+                calls.append(("driver-down", tokens))
+
+            def key_up(self, tokens):
+                calls.append(("driver-up", tokens))
+
+            def key_repeat(self, tokens):
+                calls.append(("driver-repeat", tokens))
+
+        with mock.patch.object(
+            app_module.injection_backend,
+            "backend_for",
+            return_value=_RecordingBackend(),
+        ):
+            self.app._on_button_event("mic", True, event_source="hid")
+            self.assertEqual(calls, [], "驱动级注入同样延迟")
+            timers.pop(0).fire()
+            self.assertEqual(calls, [("driver-down", ("ralt",))])
+            self.app._on_button_event("mic", False, event_source="hid")
+
+        self.assertEqual(
+            calls,
+            [("driver-down", ("ralt",)), ("driver-up", ("ralt",))],
+            "延迟下发必须走驱动级，窗口走完只有一次按下/松开",
+        )
+        self.assertFalse(self.app._voice_shortcut.controller.active)
+
     def _bind_mic_to_interception(self):
         self.app._bindings["bindings"]["mic"] = key_mapping.ButtonAction(
             kind=key_mapping.ActionKind.VOICE_HOLD,
@@ -8212,26 +8356,24 @@ class VoiceRemoteMicrophoneModeTests(_AppWiringTestCase):
         _stamp_voice_key(self.app._config, 1, short_press_resend=True)
         timers = self._use_manual_press_timers()
         calls = []
+
+        class _RecordingBackend:
+            def key_down(self, tokens, **_kwargs):
+                calls.append(("driver-down", tokens))
+
+            def key_up(self, tokens):
+                calls.append(("driver-up", tokens))
+
+            def key_repeat(self, tokens):
+                calls.append(("driver-repeat", tokens))
+
+        # 只装了一种虚拟驱动时，backend_for() 会借用另一个已安装的驱动
+        # （见 injection_backend.backend_for），所以这里不能假定实际调用
+        # 落到 Interception 自己的模块函数上，直接记录驱动级调用即可。
         with mock.patch.object(
             app_module.injection_backend,
-            "send_hold_tokens_down",
-            side_effect=lambda tokens: calls.append(("driver-down", tokens)),
-        ), mock.patch.object(
-            app_module.injection_backend,
-            "send_hold_tokens_up",
-            side_effect=lambda tokens: calls.append(("driver-up", tokens)),
-        ), mock.patch.object(
-            app_module.injection_backend,
-            "send_hold_tokens_repeat",
-            side_effect=lambda tokens: calls.append(("driver-repeat", tokens)),
-        ), mock.patch.object(
-            win32_input,
-            "send_voice_key_combo_down",
-            side_effect=lambda tokens: calls.append(("sendinput-down", tokens)),
-        ), mock.patch.object(
-            win32_input,
-            "send_voice_key_combo_up",
-            side_effect=lambda tokens: calls.append(("sendinput-up", tokens)),
+            "backend_for",
+            return_value=_RecordingBackend(),
         ):
             self.app._on_button_event("mic", True, event_source="hid")
             self.assertEqual(calls, [], "驱动级注入同样延迟")
@@ -8244,7 +8386,6 @@ class VoiceRemoteMicrophoneModeTests(_AppWiringTestCase):
             [("driver-down", ("ralt",)), ("driver-up", ("ralt",))],
             "延迟下发必须走驱动级，窗口走完只有一次按下/松开",
         )
-        self.assertFalse(self.app._voice_shortcut.controller.active)
 
 
 if __name__ == "__main__":

@@ -1,13 +1,23 @@
 """Per-button injection backend selection.
 
-Every button action is delivered to Windows by injecting input.  There are two
-ways to do that, and each button may choose its own:
+Every button action is delivered to Windows by injecting input.  There are
+three ways to do that, and each button may choose its own:
 
 ``sendinput`` (default)
     ``user32!SendInput`` via :mod:`win32_input`.  Works everywhere, but the
     events carry ``LLKHF_INJECTED``, so a target application that deliberately
     ignores synthetic input (some chat clients, games, remote-desktop stacks)
     will not react.
+
+``winuhid``
+    A real virtual HID keyboard/mouse built on the WinUHid driver (see
+    :mod:`winuhid_windows`).  Reports enter Windows through the ordinary HID
+    path, so nothing is flagged as synthetic and applications that ignore
+    ``LLKHF_INJECTED`` accept the strokes.  The driver device can only be
+    created by an elevated process, so the actual input is submitted by the
+    hidden host process (see :mod:`winuhid_host_windows`) - the desktop
+    application itself never elevates.  Keys without a keyboard-page usage id
+    stay SendInput-only.
 
 ``interception``
     The Interception kernel driver via :mod:`interception_runtime_windows`.
@@ -17,29 +27,47 @@ ways to do that, and each button may choose its own:
 
 This module is the single place that answers "which backend, and can it do
 this action?" - it holds the semantic action -> key-token table and the mode
-normalization, and it isolates the Interception runtime so the rest of the app
-never touches the driver directly.
+normalization, and it isolates the driver runtimes so the rest of the app
+never touches them directly.
 """
 
 from __future__ import annotations
 
 from typing import Dict, Optional, Protocol, Tuple
 
-from . import interception_runtime_windows, key_mapping, win32_input, win32_keys
+from . import (
+    interception_runtime_windows,
+    key_mapping,
+    win32_input,
+    win32_keys,
+    winuhid_driver_install,
+    winuhid_host_windows,
+    winuhid_windows,
+)
 
 INJECT_MODE_SENDINPUT = key_mapping.DEFAULT_INJECT_MODE
+INJECT_MODE_WINUHID = key_mapping.INJECT_MODE_WINUHID
 INJECT_MODE_INTERCEPTION = key_mapping.INJECT_MODE_INTERCEPTION
 DEFAULT_INJECT_MODE = key_mapping.DEFAULT_INJECT_MODE
 INJECT_MODES = key_mapping.INJECT_MODES
 
 INJECT_MODE_LABELS = {
     INJECT_MODE_SENDINPUT: "SendInput（默认）",
+    INJECT_MODE_WINUHID: "WinUHid（虚拟键盘）",
     INJECT_MODE_INTERCEPTION: "Interception（驱动级）",
 }
 
 # Re-exported so callers can catch an unavailable driver without importing the
 # low-level runtime module themselves.
 InterceptionUnavailableError = interception_runtime_windows.InterceptionUnavailableError
+#: Raised by :class:`WinUHidBackend` when the driver, the elevation prompt or
+#: the host process is not usable.
+WinUHidUnavailableError = winuhid_windows.WinUHidUnavailableError
+#: Anything a driver-level backend may raise because the driver is missing.
+DriverUnavailableError = (
+    WinUHidUnavailableError,
+    InterceptionUnavailableError,
+)
 
 # The key sequence each *semantic* action injects.  These are the exact
 # tokens the SendInput path already uses (see win32_input.send_show_desktop and
@@ -63,7 +91,7 @@ SEMANTIC_ACTION_KEY_TOKENS: Dict[key_mapping.ActionKind, Tuple[str, ...]] = {
     key_mapping.ActionKind.PLAY_PAUSE: ("media_play_pause",),
 }
 
-_INTERCEPTION_MOUSE_CLICKS = {
+_MOUSE_CLICKS = {
     key_mapping.ActionKind.MOUSE_LEFT_CLICK: "left",
     key_mapping.ActionKind.MOUSE_RIGHT_CLICK: "right",
     key_mapping.ActionKind.MOUSE_MIDDLE_CLICK: "middle",
@@ -71,9 +99,8 @@ _INTERCEPTION_MOUSE_CLICKS = {
     key_mapping.ActionKind.MOUSE_X2_CLICK: "x2",
 }
 
-# Consumer/multimedia controls used to have no Interception delivery because
-# they carry no ``MapVirtualKey`` code. They do have fixed E0-prefixed
-# scan codes (see ``win32_input._MULTIMEDIA_SCAN_CODES``), so they are now
+# Consumer/multimedia controls carry fixed E0-prefixed scan codes (see
+# ``win32_input._MULTIMEDIA_SCAN_CODES``) and fixed HID usages, so they are
 # injectable like any other key and need no special case here.
 
 
@@ -96,9 +123,9 @@ def key_tokens_for_action(action: key_mapping.ButtonAction) -> Optional[Tuple[st
 
 
 def mouse_button_for_action(action: key_mapping.ButtonAction) -> Optional[str]:
-    """Return the mouse button ``action`` clicks via Interception, or ``None``."""
+    """Return the mouse button ``action`` clicks, or ``None``."""
 
-    return _INTERCEPTION_MOUSE_CLICKS.get(action.kind)
+    return _MOUSE_CLICKS.get(action.kind)
 
 
 def tokens_supported_by_interception(tokens: Tuple[str, ...]) -> bool:
@@ -125,6 +152,73 @@ def action_supported_by_interception(action: key_mapping.ButtonAction) -> bool:
     return mouse_button_for_action(action) is not None
 
 
+def tokens_supported_by_winuhid(tokens: Tuple[str, ...]) -> bool:
+    """Whether every token fits one HID keyboard report (see winuhid_windows)."""
+
+    if not tokens:
+        return False
+    return winuhid_windows.supports_tokens(tokens)
+
+
+def action_supported_by_winuhid(action: key_mapping.ButtonAction) -> bool:
+    """Whether ``action`` can be delivered by the WinUHid backend."""
+
+    tokens = key_tokens_for_action(action)
+    if tokens is not None:
+        return tokens_supported_by_winuhid(tokens)
+    return mouse_button_for_action(action) is not None
+
+
+def winuhid_available() -> bool:
+    """Whether this machine can currently use the WinUHid backend.
+
+    Two separate things must be true: ``WinUHid.dll`` must ship with this
+    build, and the driver must be installed.  Whether the elevation prompt is
+    accepted can only be answered by the host process on first use, so that
+    stays out of this check.
+    """
+
+    if not winuhid_windows.dll_available():
+        return False
+    return winuhid_driver_install.driver_installed() is not False
+
+
+def winuhid_unavailable_reason() -> str:
+    if winuhid_available():
+        return ""
+    if not winuhid_windows.dll_available():
+        return winuhid_windows.DLL_NOT_FOUND_REASON
+    return (
+        "driver_not_installed: the WinUHid virtual HID driver is not installed "
+        "on this machine"
+    )
+
+
+def _fallback_hint(exclude: str) -> str:
+    """Return the options left when the ``exclude`` backend is unusable.
+
+    The other virtual driver is a valid choice too, so a missing backend must
+    not claim SendInput is the only option left.
+    """
+
+    if exclude != INJECT_MODE_INTERCEPTION and interception_available():
+        return "可选 SendInput 或 Interception"
+    if exclude != INJECT_MODE_WINUHID and winuhid_available():
+        return "可选 SendInput 或 WinUHid"
+    return "仅可用 SendInput"
+
+
+def winuhid_unavailable_hint() -> str:
+    """Return the Chinese, user-facing reason WinUHid is unavailable."""
+
+    if winuhid_available():
+        return ""
+    fallback = _fallback_hint(INJECT_MODE_WINUHID)
+    if not winuhid_windows.dll_available():
+        return f"缺少 WinUHid.dll，{fallback}"
+    return f"未安装 WinUHid 虚拟键盘驱动，{fallback}"
+
+
 def interception_available() -> bool:
     return interception_runtime_windows.is_available()
 
@@ -138,13 +232,14 @@ def interception_unavailable_reason() -> str:
 # map correctly.  A missing DLL or a disabled live-input gate must not be
 # misreported as "the driver is not installed".
 _UNAVAILABLE_HINTS = (
-    ("driver_not_installed", "未检测到 Interception 驱动，仅可用 SendInput"),
+    ("driver_not_installed", "未检测到 Interception 驱动"),
     ("driver_not_loaded", "Interception 驱动尚未生效，请重启电脑"),
-    ("dll_not_found", "缺少 interception.dll，仅可用 SendInput"),
+    ("dll_not_found", "缺少 interception.dll"),
     ("create_context_failed", "Interception 驱动上下文创建失败"),
 )
+# Prefixes whose sentence ends with the list of remaining options.
+_FALLBACK_PREFIXES = ("driver_not_installed", "dll_not_found")
 _LIVE_INPUT_DISABLED_HINT = "当前进程已禁用实时输入，Interception 暂不可用"
-_DEFAULT_UNAVAILABLE_HINT = "Interception 暂不可用，仅可用 SendInput"
 
 
 def interception_unavailable_hint() -> str:
@@ -160,16 +255,21 @@ def interception_unavailable_hint() -> str:
         return ""
     if "live Windows input is disabled" in reason:
         return _LIVE_INPUT_DISABLED_HINT
+    fallback = _fallback_hint(INJECT_MODE_INTERCEPTION)
     for prefix, hint in _UNAVAILABLE_HINTS:
         if reason.startswith(prefix):
+            if prefix in _FALLBACK_PREFIXES:
+                return f"{hint}，{fallback}"
             return hint
-    return _DEFAULT_UNAVAILABLE_HINT
+    return f"Interception 暂不可用，{fallback}"
 
 
 def mode_available(mode: object) -> bool:
     """Whether ``mode`` can currently deliver input on this machine."""
 
     normalized = normalize_inject_mode(mode)
+    if normalized == INJECT_MODE_WINUHID:
+        return winuhid_available()
     if normalized == INJECT_MODE_INTERCEPTION:
         return interception_available()
     return True
@@ -179,6 +279,9 @@ def mode_status(mode: object) -> Tuple[bool, str]:
     """Return ``(available, reason)`` for one mode, for display in settings."""
 
     normalized = normalize_inject_mode(mode)
+    if normalized == INJECT_MODE_WINUHID:
+        available = winuhid_available()
+        return available, "" if available else winuhid_unavailable_reason()
     if normalized == INJECT_MODE_INTERCEPTION:
         available = interception_available()
         return available, "" if available else interception_unavailable_reason()
@@ -281,6 +384,43 @@ class SendInputBackend:
         win32_input.send_mouse_button_click(button)
 
 
+class WinUHidBackend:
+    """Virtual HID keyboard/mouse owned by the elevated WinUHid host.
+
+    Every call is one pipe request; the host keeps the devices and their held
+    keys, so ``require_tracked_hold`` has no meaning here - the host always
+    tracks which tokens are down.
+    """
+
+    name = INJECT_MODE_WINUHID
+
+    def _request(self, message: dict) -> None:
+        # Never launch the elevated host when the driver is gone: the host would
+        # fail immediately and every press would raise another UAC prompt.
+        if winuhid_driver_install.driver_installed() is False:
+            raise winuhid_windows.WinUHidUnavailableError(
+                "未安装 WinUHid 虚拟键盘驱动，WinUHid 注入不可用"
+            )
+        winuhid_host_windows.ensure_host().request(message)
+
+    def key_down(
+        self, tokens: Tuple[str, ...], *, require_tracked_hold: bool = True
+    ) -> None:
+        self._request({"op": "key_down", "tokens": list(tokens)})
+
+    def key_up(self, tokens: Tuple[str, ...]) -> None:
+        self._request({"op": "key_up", "tokens": list(tokens)})
+
+    def key_repeat(self, tokens: Tuple[str, ...]) -> None:
+        self._request({"op": "key_repeat", "tokens": list(tokens)})
+
+    def key_tap(self, tokens: Tuple[str, ...]) -> None:
+        self._request({"op": "key_tap", "tokens": list(tokens)})
+
+    def mouse_click(self, button: str) -> None:
+        self._request({"op": "mouse_click", "button": str(button)})
+
+
 class InterceptionBackend:
     """Interception kernel driver path; strokes look like real hardware."""
 
@@ -305,12 +445,28 @@ class InterceptionBackend:
 
 
 _SENDINPUT_BACKEND = SendInputBackend()
+_WINUHID_BACKEND = WinUHidBackend()
 _INTERCEPTION_BACKEND = InterceptionBackend()
 
 
 def backend_for(mode: object) -> InjectionBackend:
-    """Return the backend for ``mode``; unknown values fall back to SendInput."""
+    """Return the backend for ``mode``; unknown values fall back to SendInput.
 
-    if normalize_inject_mode(mode) == INJECT_MODE_INTERCEPTION:
+    A saved mode outlives the driver it names: the two virtual drivers cannot
+    be installed together, so a per-button or per-app mode can still say
+    "interception" after WinUHid replaced it.  Delivering through the other
+    installed driver keeps those keys working instead of failing outright; the
+    requested backend is still returned when no driver can serve it, so the
+    caller reports the real reason.
+    """
+
+    normalized = normalize_inject_mode(mode)
+    if normalized == INJECT_MODE_WINUHID:
+        if not winuhid_available() and interception_available():
+            return _INTERCEPTION_BACKEND
+        return _WINUHID_BACKEND
+    if normalized == INJECT_MODE_INTERCEPTION:
+        if not interception_available() and winuhid_available():
+            return _WINUHID_BACKEND
         return _INTERCEPTION_BACKEND
     return _SENDINPUT_BACKEND

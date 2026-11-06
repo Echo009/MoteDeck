@@ -89,23 +89,31 @@ class InjectModeNormalizationTests(unittest.TestCase):
                     injection_backend.normalize_inject_mode(value), "sendinput"
                 )
 
-    def test_interception_is_case_insensitive(self):
-        for value in ("sendinput", "SENDINPUT", "  SendInput "):
+    def test_every_supported_mode_is_case_insensitive(self):
+        cases = {
+            "sendinput": "sendinput",
+            "SENDINPUT": "sendinput",
+            "  SendInput ": "sendinput",
+            "winuhid": "winuhid",
+            "WinUHid": "winuhid",
+            "  WINUHID ": "winuhid",
+            "interception": "interception",
+            "Interception": "interception",
+            "  INTERCEPTION ": "interception",
+        }
+        for value, expected in cases.items():
             with self.subTest(value=value):
-                self.assertEqual(
-                    injection_backend.normalize_inject_mode(value), "sendinput"
-                )
-        for value in ("interception", "Interception", "  INTERCEPTION "):
-            with self.subTest(value=value):
-                self.assertEqual(
-                    injection_backend.normalize_inject_mode(value), "interception"
-                )
+                self.assertEqual(injection_backend.normalize_inject_mode(value), expected)
 
     def test_key_mapping_and_backend_share_one_definition(self):
         self.assertEqual(
             injection_backend.DEFAULT_INJECT_MODE, key_mapping.DEFAULT_INJECT_MODE
         )
         self.assertIs(injection_backend.INJECT_MODES, key_mapping.INJECT_MODES)
+        self.assertEqual(
+            set(injection_backend.INJECT_MODES),
+            {"sendinput", "winuhid", "interception"},
+        )
         self.assertEqual(
             key_mapping.normalize_stored_inject_mode("INTERCEPTION"), "interception"
         )
@@ -156,7 +164,7 @@ class ActionTranslationTests(unittest.TestCase):
                     )
                 )
 
-    def test_mouse_clicks_map_to_interception_buttons(self):
+    def test_mouse_clicks_map_to_backend_buttons(self):
         for action_kind, expected in (
             (key_mapping.ActionKind.MOUSE_LEFT_CLICK, "left"),
             (key_mapping.ActionKind.MOUSE_RIGHT_CLICK, "right"),
@@ -284,12 +292,117 @@ class InterceptionCapabilityTests(unittest.TestCase):
                 interception_runtime_windows,
                 "unavailable_reason",
                 return_value=reason,
+            ), mock.patch.object(
+                injection_backend, "interception_available", return_value=False
+            ), mock.patch.object(
+                injection_backend, "winuhid_available", return_value=False
             ):
                 hint = injection_backend.interception_unavailable_hint()
                 if expected:
                     self.assertIn(expected, hint)
                 else:
                     self.assertEqual(hint, "")
+
+    def test_interception_hint_lists_winuhid_when_it_is_installed(self):
+        with mock.patch.object(
+            interception_runtime_windows,
+            "unavailable_reason",
+            return_value=(
+                "driver_not_installed: the Interception keyboard filter is not "
+                "registered"
+            ),
+        ), mock.patch.object(
+            injection_backend, "interception_available", return_value=False
+        ), mock.patch.object(
+            injection_backend, "winuhid_available", return_value=True
+        ):
+            self.assertEqual(
+                injection_backend.interception_unavailable_hint(),
+                "未检测到 Interception 驱动，可选 SendInput 或 WinUHid",
+            )
+
+
+class WinUHidCapabilityTests(unittest.TestCase):
+    def test_winuhid_status_reports_the_dll_reason(self):
+        with mock.patch.object(
+            injection_backend.winuhid_windows, "dll_available", return_value=False
+        ):
+            self.assertEqual(
+                injection_backend.mode_status("winuhid"),
+                (False, injection_backend.winuhid_windows.DLL_NOT_FOUND_REASON),
+            )
+            self.assertFalse(injection_backend.mode_available("winuhid"))
+        with mock.patch.object(
+            injection_backend.winuhid_windows, "dll_available", return_value=True
+        ), mock.patch.object(
+            injection_backend.winuhid_driver_install,
+            "driver_installed",
+            return_value=True,
+        ):
+            self.assertEqual(injection_backend.mode_status("winuhid"), (True, ""))
+
+    def test_winuhid_requires_an_installed_driver(self):
+        with mock.patch.object(
+            injection_backend.winuhid_windows, "dll_available", return_value=True
+        ), mock.patch.object(
+            injection_backend.winuhid_driver_install,
+            "driver_installed",
+            return_value=False,
+        ):
+            self.assertFalse(injection_backend.mode_available("winuhid"))
+
+    def test_winuhid_unavailable_hint_maps_each_reason(self):
+        with mock.patch.object(
+            injection_backend.winuhid_windows, "dll_available", return_value=False
+        ), mock.patch.object(
+            injection_backend, "interception_available", return_value=False
+        ), mock.patch.object(
+            injection_backend, "winuhid_available", return_value=False
+        ):
+            self.assertEqual(
+                injection_backend.winuhid_unavailable_hint(),
+                "缺少 WinUHid.dll，仅可用 SendInput",
+            )
+        with mock.patch.object(
+            injection_backend.winuhid_windows, "dll_available", return_value=True
+        ), mock.patch.object(
+            injection_backend.winuhid_driver_install,
+            "driver_installed",
+            return_value=False,
+        ), mock.patch.object(
+            injection_backend, "interception_available", return_value=False
+        ), mock.patch.object(
+            injection_backend, "winuhid_available", return_value=False
+        ):
+            self.assertEqual(
+                injection_backend.winuhid_unavailable_hint(),
+                "未安装 WinUHid 虚拟键盘驱动，仅可用 SendInput",
+            )
+        with mock.patch.object(
+            injection_backend.winuhid_windows, "dll_available", return_value=True
+        ), mock.patch.object(
+            injection_backend.winuhid_driver_install,
+            "driver_installed",
+            return_value=True,
+        ):
+            self.assertEqual(injection_backend.winuhid_unavailable_hint(), "")
+
+    def test_winuhid_hint_lists_interception_when_it_is_installed(self):
+        with mock.patch.object(
+            injection_backend.winuhid_windows, "dll_available", return_value=True
+        ), mock.patch.object(
+            injection_backend.winuhid_driver_install,
+            "driver_installed",
+            return_value=False,
+        ), mock.patch.object(
+            injection_backend, "winuhid_available", return_value=False
+        ), mock.patch.object(
+            injection_backend, "interception_available", return_value=True
+        ):
+            self.assertEqual(
+                injection_backend.winuhid_unavailable_hint(),
+                "未安装 WinUHid 虚拟键盘驱动，可选 SendInput 或 Interception",
+            )
 
 
 class InterceptionAssetDiscoveryTests(unittest.TestCase):
@@ -503,13 +616,13 @@ class DriverProbeTests(unittest.TestCase):
         self.assertTrue(interception_runtime_windows.driver_installed())
 
     def test_service_without_driver_file_means_not_installed(self):
-        patches = self._all_present(service_names=("keyboard",))
+        patches = self._all_present(service_names=())
         for patch in patches:
             patch.start()
             self.addCleanup(patch.stop)
         self.assertFalse(interception_runtime_windows.driver_installed())
 
-    def test_missing_class_filter_means_not_installed(self):
+    def test_missing_keyboard_class_filter_means_not_installed(self):
         with mock.patch.object(
             interception_runtime_windows,
             "_service_driver_file",
@@ -518,6 +631,20 @@ class DriverProbeTests(unittest.TestCase):
             interception_runtime_windows,
             "_class_filter_registered",
             side_effect=lambda guid, name: name == "mouse",
+        ):
+            self.assertFalse(interception_runtime_windows.driver_installed())
+
+    def test_missing_mouse_class_filter_means_not_installed(self):
+        """Mouse clicks go through this backend too, so the mouse half is required."""
+
+        with mock.patch.object(
+            interception_runtime_windows,
+            "_service_driver_file",
+            return_value="C:/Windows/System32/drivers/x.sys",
+        ), mock.patch.object(
+            interception_runtime_windows,
+            "_class_filter_registered",
+            side_effect=lambda guid, name: name == "keyboard",
         ):
             self.assertFalse(interception_runtime_windows.driver_installed())
 
@@ -727,6 +854,14 @@ class ButtonActionPersistenceTests(unittest.TestCase):
         self.assertEqual(payload["inject_mode"], "interception")
         self.assertEqual(key_mapping.ButtonAction.from_dict(payload), action)
 
+    def test_winuhid_mode_round_trips(self):
+        action = key_mapping.ButtonAction(
+            key_mapping.ActionKind.ARROW_UP, inject_mode="winuhid"
+        )
+        payload = action.to_dict()
+        self.assertEqual(payload["inject_mode"], "winuhid")
+        self.assertEqual(key_mapping.ButtonAction.from_dict(payload), action)
+
     def test_unknown_stored_mode_falls_back_to_sendinput(self):
         action = key_mapping.ButtonAction.from_dict(
             {"kind": "escape", "keys": [], "inject_mode": "bogus"}
@@ -752,6 +887,13 @@ class ButtonActionInterceptionBranchTests(unittest.TestCase):
         )
         self.holder = holder
         self.apply = app_module.RC003App._apply_button_action_interception
+        # Pin the branch to the interception backend: backend_for would borrow
+        # WinUHid on a machine where that driver is the installed one.
+        pin = mock.patch.object(
+            injection_backend, "winuhid_available", return_value=False
+        )
+        pin.start()
+        self.addCleanup(pin.stop)
 
     def test_successful_semantic_action(self):
         runtime = mock.Mock()
@@ -809,6 +951,75 @@ class ButtonActionInterceptionBranchTests(unittest.TestCase):
         self.assertEqual(error_type, "OSError")
 
 
+class ButtonActionWinUHidBranchTests(unittest.TestCase):
+    """The app-level branch must translate errors instead of raising."""
+
+    def setUp(self):
+        holder = types.SimpleNamespace(
+            _logger=logging.getLogger("test.injection_backend")
+        )
+        self.holder = holder
+        self.apply = app_module.RC003App._apply_button_action_winuhid
+        self.host = mock.Mock()
+        patcher = mock.patch.object(
+            injection_backend.winuhid_host_windows, "ensure_host", return_value=self.host
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        driver = mock.patch.object(
+            injection_backend.winuhid_driver_install, "driver_installed", return_value=True
+        )
+        driver.start()
+        self.addCleanup(driver.stop)
+
+    def test_successful_semantic_action(self):
+        result = self.apply(
+            self.holder, key_mapping.ButtonAction(key_mapping.ActionKind.ESCAPE)
+        )
+        self.assertEqual(result, ("", ""))
+        self.assertEqual(
+            self.host.request.call_args_list,
+            [mock.call({"op": "key_tap", "tokens": ["escape"]})],
+        )
+
+    def test_unavailable_host_is_reported(self):
+        self.host.request.side_effect = injection_backend.WinUHidUnavailableError(
+            "gone"
+        )
+        error, error_type = self.apply(
+            self.holder, key_mapping.ButtonAction(key_mapping.ActionKind.ESCAPE)
+        )
+        self.assertEqual(error, "winuhid_unavailable")
+        self.assertEqual(error_type, "WinUHidUnavailableError")
+
+    def test_unsupported_action_is_reported_without_touching_the_host(self):
+        error, error_type = self.apply(
+            self.holder, key_mapping.ButtonAction(key_mapping.ActionKind.DISABLED)
+        )
+        self.host.request.assert_not_called()
+        self.assertEqual(error, "winuhid_unsupported_action")
+        self.assertEqual(error_type, "")
+
+    def test_mouse_click_is_delivered(self):
+        result = self.apply(
+            self.holder,
+            key_mapping.ButtonAction(key_mapping.ActionKind.MOUSE_MIDDLE_CLICK),
+        )
+        self.assertEqual(result, ("", ""))
+        self.assertEqual(
+            self.host.request.call_args_list,
+            [mock.call({"op": "mouse_click", "button": "middle"})],
+        )
+
+    def test_oserror_is_reported_as_delivery_failure(self):
+        self.host.request.side_effect = OSError("boom")
+        error, error_type = self.apply(
+            self.holder, key_mapping.ButtonAction(key_mapping.ActionKind.ESCAPE)
+        )
+        self.assertEqual(error, "delivery_failed")
+        self.assertEqual(error_type, "OSError")
+
+
 @unittest.skipUnless(sys.platform == "win32", "requires Windows scan-code lookup")
 class PhysicalScanCodeTests(unittest.TestCase):
     def test_letters_and_named_keys_resolve(self):
@@ -818,7 +1029,7 @@ class PhysicalScanCodeTests(unittest.TestCase):
     def test_multimedia_controls_resolve_to_their_e0_scan_codes(self):
         # Consumer controls keep their virtual-key SendInput delivery but also
         # report the E0-prefixed scan code a real keyboard emits, so the
-        # Interception backend can reproduce them.
+        # driver-level backends can reproduce them.
         for token, expected in (
             ("volume_up", (0x30, True)),
             ("volume_down", (0x2E, True)),
@@ -833,18 +1044,50 @@ class PhysicalScanCodeTests(unittest.TestCase):
 
 class BackendDispatchTests(unittest.TestCase):
     def test_backend_for_selects_by_mode(self):
-        self.assertIs(
-            injection_backend.backend_for(injection_backend.INJECT_MODE_SENDINPUT),
-            injection_backend._SENDINPUT_BACKEND,
-        )
-        self.assertIs(
-            injection_backend.backend_for(injection_backend.INJECT_MODE_INTERCEPTION),
-            injection_backend._INTERCEPTION_BACKEND,
-        )
-        self.assertIs(
-            injection_backend.backend_for("bogus"),
-            injection_backend._SENDINPUT_BACKEND,
-        )
+        with mock.patch.object(injection_backend, "winuhid_available", return_value=True), \
+                mock.patch.object(injection_backend, "interception_available", return_value=True):
+            self.assertIs(
+                injection_backend.backend_for(injection_backend.INJECT_MODE_SENDINPUT),
+                injection_backend._SENDINPUT_BACKEND,
+            )
+            self.assertIs(
+                injection_backend.backend_for(injection_backend.INJECT_MODE_WINUHID),
+                injection_backend._WINUHID_BACKEND,
+            )
+            self.assertIs(
+                injection_backend.backend_for(injection_backend.INJECT_MODE_INTERCEPTION),
+                injection_backend._INTERCEPTION_BACKEND,
+            )
+            self.assertIs(
+                injection_backend.backend_for("bogus"),
+                injection_backend._SENDINPUT_BACKEND,
+            )
+
+    def test_backend_for_borrows_the_driver_that_is_installed(self):
+        with mock.patch.object(injection_backend, "winuhid_available", return_value=True), \
+                mock.patch.object(injection_backend, "interception_available", return_value=False):
+            self.assertIs(
+                injection_backend.backend_for(injection_backend.INJECT_MODE_INTERCEPTION),
+                injection_backend._WINUHID_BACKEND,
+            )
+        with mock.patch.object(injection_backend, "winuhid_available", return_value=False), \
+                mock.patch.object(injection_backend, "interception_available", return_value=True):
+            self.assertIs(
+                injection_backend.backend_for(injection_backend.INJECT_MODE_WINUHID),
+                injection_backend._INTERCEPTION_BACKEND,
+            )
+
+    def test_backend_for_keeps_the_requested_driver_when_none_is_installed(self):
+        with mock.patch.object(injection_backend, "winuhid_available", return_value=False), \
+                mock.patch.object(injection_backend, "interception_available", return_value=False):
+            self.assertIs(
+                injection_backend.backend_for(injection_backend.INJECT_MODE_INTERCEPTION),
+                injection_backend._INTERCEPTION_BACKEND,
+            )
+            self.assertIs(
+                injection_backend.backend_for(injection_backend.INJECT_MODE_WINUHID),
+                injection_backend._WINUHID_BACKEND,
+            )
 
     def test_sendinput_backend_delegates_to_win32_input(self):
         backend = injection_backend.SendInputBackend()
@@ -865,6 +1108,50 @@ class BackendDispatchTests(unittest.TestCase):
         tap.assert_called_once_with(tokens)
         click.assert_called_once_with("left")
 
+    def test_winuhid_backend_delegates_to_the_host_request(self):
+        backend = injection_backend.WinUHidBackend()
+        host = mock.Mock()
+        with mock.patch.object(
+            injection_backend.winuhid_host_windows, "ensure_host", return_value=host
+        ), mock.patch.object(
+            injection_backend.winuhid_driver_install, "driver_installed", return_value=True
+        ):
+            backend.key_down(("a",))
+            backend.key_up(("a",))
+            backend.key_repeat(("a",))
+            backend.key_tap(("a",))
+            backend.mouse_click("left")
+        self.assertEqual(
+            host.request.call_args_list,
+            [
+                mock.call({"op": "key_down", "tokens": ["a"]}),
+                mock.call({"op": "key_up", "tokens": ["a"]}),
+                mock.call({"op": "key_repeat", "tokens": ["a"]}),
+                mock.call({"op": "key_tap", "tokens": ["a"]}),
+                mock.call({"op": "mouse_click", "button": "left"}),
+            ],
+        )
+
+    def test_winuhid_backend_never_launches_the_host_without_the_driver(self):
+        # A missing driver used to launch the elevated host on every press, so
+        # each key press raised another UAC prompt.
+        backend = injection_backend.WinUHidBackend()
+        with mock.patch.object(
+            injection_backend.winuhid_driver_install, "driver_installed", return_value=False
+        ), mock.patch.object(
+            injection_backend.winuhid_host_windows, "ensure_host"
+        ) as ensure_host:
+            for call in (
+                lambda: backend.key_down(("a",)),
+                lambda: backend.key_up(("a",)),
+                lambda: backend.key_tap(("a",)),
+                lambda: backend.mouse_click("left"),
+            ):
+                with self.subTest(call=call):
+                    with self.assertRaises(injection_backend.WinUHidUnavailableError):
+                        call()
+        ensure_host.assert_not_called()
+
     def test_interception_backend_delegates_to_driver_helpers(self):
         backend = injection_backend.InterceptionBackend()
         tokens = ("a",)
@@ -883,6 +1170,25 @@ class BackendDispatchTests(unittest.TestCase):
         repeat.assert_called_once_with(tokens)
         tap.assert_called_once_with(tokens)
         click.assert_called_once_with("left")
+
+
+class WinUHidHostResetTests(unittest.TestCase):
+    def test_reset_closes_the_cached_host_and_forgets_it(self):
+        # A host started before a driver reinstall keeps a handle to the old
+        # device, so every report is silently lost until it is dropped.
+        host = mock.Mock()
+        with mock.patch.object(
+            injection_backend.winuhid_host_windows, "_client", host
+        ):
+            injection_backend.winuhid_host_windows.reset_host()
+            self.assertIsNone(injection_backend.winuhid_host_windows._client)
+        host.close.assert_called_once_with()
+
+    def test_reset_without_host_is_a_no_op(self):
+        with mock.patch.object(
+            injection_backend.winuhid_host_windows, "_client", None
+        ):
+            injection_backend.winuhid_host_windows.reset_host()
 
 
 if __name__ == "__main__":

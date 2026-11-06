@@ -123,7 +123,7 @@ _SETUP = _BASE_SETUP.replace(
     "engine = QQmlApplicationEngine()",
 )
 _PROBE = _SETUP + r'''
-from ovb_rc003 import bridge_runtime_status, frida_compat, hid_elevation_windows
+from ovb_rc003 import bridge_runtime_status, frida_compat
 
 find(window, "bridgeStatusRefreshTimer").setProperty("running", False)
 tab_bar = find(window, "tabBar")
@@ -194,24 +194,6 @@ for state in ("authorization_cancelled", "authorization_failed"):
         restart.assert_called_once_with(automatic=False)
 controller._set_bridge_restart_recommended(False)
 input_state(frida_compat.HidTapState.RESTART_REQUIRED.value)
-
-# Ordinary-permission upgrades must replace the installed helper first.
-controller._hid_helper_frozen_distribution = True
-controller._hid_helper_process_elevated = False
-controller._hid_helper_portable_distribution = False
-controller._hid_helper_can_self_elevate = True
-controller._hid_helper_state = hid_elevation_windows.HidHelperState(
-    False, "protected_helper_outdated"
-)
-controller.hidHelperStateChanged.emit()
-assert controller.hidHelperRepairVisible
-assert device_page.buttonReceiverStateCode() == "permission"
-controller._hid_helper_portable_distribution = True
-controller.hidHelperStateChanged.emit()
-assert device_page.buttonReceiverStateCode() == "disabled"
-controller._hid_helper_state = hid_elevation_windows.HidHelperState(True, "ready")
-controller.hidHelperStateChanged.emit()
-assert device_page.buttonReceiverStateCode() == "restart_computer"
 
 # An unresolved source stays explicit without offering service/computer restart.
 input_state(frida_compat.HidTapState.SHARED_HOST.value)

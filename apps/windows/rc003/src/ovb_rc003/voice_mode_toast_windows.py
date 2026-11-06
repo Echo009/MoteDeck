@@ -135,6 +135,30 @@ _WNDPROC = ctypes.WINFUNCTYPE(
     wintypes.LPARAM,
 )
 
+# 窗口类名固定且进程内只注册一次，所以 lpfnWndProc 必须指向进程生命周期的
+# 同一个 trampoline。桥重启（切换遥控器）会换掉 VoiceModeToast 实例，如果类里
+# 存的是实例自己的闭包，旧闭包被回收后消息仍会跳进那块已释放的堆内存，
+# 表现为概率性闪退（0xc000001d / 0xc0000005，RIP 落在模块外）。
+# 这里用一个模块级共享 trampoline，把消息转发给当前实例。
+_active_target = None
+_shared_proc = None
+
+
+def _dispatch_window_proc(hwnd, message, wparam, lparam):  # noqa: ANN001 - ctypes
+    target = _active_target
+    if target is not None:
+        return target._wndproc(hwnd, message, wparam, lparam)
+    return ctypes.windll.user32.DefWindowProcW(  # type: ignore[attr-defined]
+        hwnd, message, wparam, lparam
+    )
+
+
+def _window_proc():
+    global _shared_proc
+    if _shared_proc is None:
+        _shared_proc = _WNDPROC(_dispatch_window_proc)
+    return _shared_proc
+
 
 class _WNDCLASSEXW(ctypes.Structure):
     _fields_ = [
@@ -212,7 +236,6 @@ class VoiceModeToast:
         self._level_visible = False
         self._stopped = False
         self._failed = False
-        self._proc_keepalive: Optional[_WNDPROC] = None
 
     def show(self, text: str, theme: str = "dark", offset: int = 0) -> None:
         """Request one bubble; never blocks and never raises.
@@ -423,11 +446,11 @@ class VoiceModeToast:
             pass
 
     def _run(self) -> None:
+        global _active_target
         hwnd = None
         try:
             user32, _gdi32, kernel32 = self._bind_win32()
-            proc = _WNDPROC(self._wndproc)
-            self._proc_keepalive = proc
+            proc = _window_proc()
             wnd_class = _WNDCLASSEXW()
             wnd_class.cbSize = ctypes.sizeof(_WNDCLASSEXW)
             wnd_class.style = CS_VREDRAW | CS_HREDRAW
@@ -435,7 +458,9 @@ class VoiceModeToast:
             wnd_class.hInstance = kernel32.GetModuleHandleW(None)
             wnd_class.lpszClassName = _TOAST_CLASS_NAME
             user32.RegisterClassExW(ctypes.byref(wnd_class))
-            # 类可能已经被同进程的其它实例注册过，这时继续建窗口即可。
+            # 类可能已经被同进程的其它实例注册过，这时继续建窗口即可；
+            # 消息由共享 trampoline 转发到当前实例。
+            _active_target = self
             hwnd = user32.CreateWindowExW(
                 WS_EX_LAYERED
                 | WS_EX_TOOLWINDOW
@@ -513,6 +538,8 @@ class VoiceModeToast:
                 self._failed = True
             self._ready_event.set()
         finally:
+            if _active_target is self:
+                _active_target = None
             if hwnd:
                 try:
                     ctypes.windll.user32.DestroyWindow(hwnd)  # type: ignore[attr-defined]

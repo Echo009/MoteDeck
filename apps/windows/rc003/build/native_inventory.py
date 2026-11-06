@@ -15,6 +15,18 @@ NAVIGATION_MODULES = (
 LEGACY_MODULES = (
     "ovb_rc003.hid_elevation_windows", "ovb_rc003.hid_helper_consumers",
 )
+# 智慧应用控制（SAC）只拦未签名的原生二进制（exe/dll/pyd），不碰纯字节码。
+# Frida HID 通道（小米遥控器返回键、音量键）依赖这些模块，把它们保留为
+# Python 源码后由 PyInstaller 打进 PYZ 变成 .pyc，SAC 就没有可拦截的 .pyd。
+PYTHON_ONLY_MODULES = (
+    "ovb_rc003.hid_host_reload_windows",
+    "ovb_rc003.frida_hid_tap_injector",
+    "ovb_rc003.frida_hid_tap_runtime",
+    "ovb_rc003.gadget_windows",
+    "ovb_rc003.frida_compat",
+    "ovb_rc003.hid_source_injector",
+    "ovb_rc003.hid_injection_diagnostics",
+)
 # CPython's -m loader needs a Python code object. Keep only this generated
 # bootstrap as Python; the complete original entrypoint is compiled.
 MAIN_BOOTSTRAP = """import sys
@@ -42,6 +54,12 @@ def module_sources(root: Path) -> dict[str, Path]:
             raise FileNotFoundError(source)
         result[name] = source
     return result
+
+
+def compiled_module_sources(root: Path) -> dict[str, Path]:
+    """module_sources() minus the modules shipped as bytecode instead of .pyd."""
+    return {name: source for name, source in module_sources(root).items()
+            if name not in PYTHON_ONLY_MODULES}
 
 
 def import_closure(root: Path, seeds: list[str] | None = None,

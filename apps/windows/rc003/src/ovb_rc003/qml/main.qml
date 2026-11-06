@@ -27,7 +27,6 @@ ApplicationWindow {
     property bool pendingExitPrompt: false
     property bool pendingExitAutoSave: false
     property bool applicationExitInProgress: false
-    property bool portableHidSetupPromptAttempted: false
 
     // 按键页拖拽导入的中间态：暗罩和提示卡分两层，
     // 卡片不跟着遮罩一起变透明，文字才清楚。
@@ -194,18 +193,6 @@ ApplicationWindow {
         unsavedExitDialog.exitCommitInProgress = true
         unsavedExitDialog.close()
         window.beginApplicationExit()
-    }
-
-    function openHidHelperSetupPrompt() {
-        if (!hidHelperSetupDialog.visible
-                && !window.applicationExitInProgress)
-            hidHelperSetupDialog.open()
-    }
-
-    function openHidHelperRemovalPrompt() {
-        if (!hidHelperRemovalDialog.visible
-                && !window.applicationExitInProgress)
-            hidHelperRemovalDialog.open()
     }
 
     Component.onCompleted: {
@@ -590,120 +577,6 @@ ApplicationWindow {
     }
 
     SettingsDialog {
-        id: hidHelperSetupDialog
-        tokens: window.tokens
-        objectName: "hidHelperSetupDialog"
-        anchors.centerIn: parent
-        modal: true
-        popupType: Popup.Item
-        title: SettingsController.hidHelperCleanupPending
-            ? qsTr("完成权限清理？")
-            : SettingsController.hidHelperSetupRequired
-                ? qsTr("建议打开管理员按键权限")
-                : qsTr("修复管理员按键权限？")
-        standardButtons: Dialog.NoButton
-        dismissalEnabled: !SettingsController.hidHelperRepairBusy
-        width: Math.min(390, window.width - 32)
-
-        contentItem: ColumnLayout {
-            spacing: window.tokens.spacingLarge
-
-            UiLabel {
-                objectName: "hidHelperSetupBody"
-                tokens: window.tokens
-                kind: bodyKind
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: SettingsController.hidHelperCleanupPending
-                    ? qsTr("自定义按键映射已可用。确认管理员权限，清理旧组件。")
-                    : SettingsController.hidHelperSetupRequired
-                        ? qsTr("用于自定义改键和遥控器语音键。\n\n打开时 Windows 会确认一次；成功后普通启动和自启动不再询问。现在不打开时，只保留 Windows 原始按键。")
-                        : qsTr("修复后恢复自定义改键和遥控器语音键。Windows 会请求一次管理员确认。")
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: window.tokens.spacingSmall
-                Item { Layout.fillWidth: true }
-                CompactButton {
-                    objectName: "cancelHidHelperSetupButton"
-                    tokens: window.tokens
-                    text: SettingsController.hidHelperCleanupPending
-                        ? qsTr("取消")
-                        : SettingsController.hidHelperSetupRequired
-                            ? qsTr("不打开") : qsTr("取消")
-                    flat: SettingsController.hidHelperSetupRequired
-                    enabled: !SettingsController.hidHelperRepairBusy
-                    onClicked: hidHelperSetupDialog.close()
-                }
-                CompactButton {
-                    objectName: "confirmHidHelperSetupButton"
-                    tokens: window.tokens
-                    text: SettingsController.hidHelperCleanupPending
-                        ? qsTr("清理")
-                        : SettingsController.hidHelperSetupRequired
-                            ? qsTr("打开") : qsTr("修复")
-                    highlighted: true
-                    enabled: !SettingsController.hidHelperRepairBusy
-                    onClicked: {
-                        hidHelperSetupDialog.close()
-                        SettingsController.repairHidHelper()
-                    }
-                }
-            }
-        }
-    }
-
-    SettingsDialog {
-        id: hidHelperRemovalDialog
-        tokens: window.tokens
-        objectName: "hidHelperRemovalDialog"
-        anchors.centerIn: parent
-        modal: true
-        popupType: Popup.Item
-        title: qsTr("移除按键映射权限？")
-        standardButtons: Dialog.NoButton
-        dismissalEnabled: !SettingsController.hidHelperRepairBusy
-        width: Math.min(390, window.width - 32)
-
-        contentItem: ColumnLayout {
-            spacing: window.tokens.spacingLarge
-
-            UiLabel {
-                tokens: window.tokens
-                kind: bodyKind
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                text: qsTr("移除后，本机所有MoteDeck版本都不能使用自定义按键映射。")
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: window.tokens.spacingSmall
-                Item { Layout.fillWidth: true }
-                CompactButton {
-                    objectName: "cancelHidHelperRemovalButton"
-                    tokens: window.tokens
-                    text: qsTr("取消")
-                    enabled: !SettingsController.hidHelperRepairBusy
-                    onClicked: hidHelperRemovalDialog.close()
-                }
-                CompactButton {
-                    objectName: "confirmHidHelperRemovalButton"
-                    tokens: window.tokens
-                    text: qsTr("移除")
-                    highlighted: true
-                    enabled: !SettingsController.hidHelperRepairBusy
-                    onClicked: {
-                        hidHelperRemovalDialog.close()
-                        SettingsController.removeHidHelper()
-                    }
-                }
-            }
-        }
-    }
-
-    SettingsDialog {
         id: unsavedExitDialog
         tokens: window.tokens
         objectName: "unsavedExitDialog"
@@ -829,11 +702,6 @@ ApplicationWindow {
         if (!initialDiagnosticsStarted) {
             initialDiagnosticsStarted = true
             DiagnosticsController.startInitialDiagnostics()
-        }
-        if (!portableHidSetupPromptAttempted && window.visible) {
-            portableHidSetupPromptAttempted = true
-            if (SettingsController.claimPortableHidSetupPrompt())
-                window.openHidHelperSetupPrompt()
         }
     }
     font.family: tokens.fontFamily
@@ -1284,8 +1152,6 @@ ApplicationWindow {
                             backTabTarget: voiceTabButton
                             tabTarget: deviceTabButton
                             onOpenButtonsRequested: window.requestPage(1)
-                            onEnableHidHelperRequested: window.openHidHelperSetupPrompt()
-                            onRemoveHidHelperRequested: window.openHidHelperRemovalPrompt()
                         }
                         Loader {
                             id: buttonsPageLoader

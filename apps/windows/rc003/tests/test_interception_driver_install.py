@@ -38,6 +38,7 @@ class DriverInstallerOutcomeTests(unittest.TestCase):
             ),
             mock.patch.object(install, "_verify_installer"),
             mock.patch.object(install, "_log_path", return_value=log_file),
+            mock.patch.object(install, "_remove_winuhid_driver"),
         ]
         for patch in patches:
             self.addCleanup(patch.stop)
@@ -123,7 +124,7 @@ class DriverInstallerOutcomeTests(unittest.TestCase):
             ],
         )
 
-    def test_elevated_parameters_wrap_only_the_pinned_installer(self):
+    def test_install_parameters_run_only_the_official_installer(self):
         parameters = install._elevated_parameters(
             "C:/fake/install-interception.exe", install.INSTALL_ARGUMENT, "C:/log.txt"
         )
@@ -131,6 +132,36 @@ class DriverInstallerOutcomeTests(unittest.TestCase):
             parameters,
             '/d /c ""C:/fake/install-interception.exe" /install >> "C:/log.txt" 2>&1"',
         )
+
+    def test_uninstall_parameters_run_only_the_official_installer(self):
+        parameters = install._elevated_parameters(
+            "C:/fake/install-interception.exe", install.UNINSTALL_ARGUMENT, "C:/log.txt"
+        )
+        self.assertEqual(
+            parameters,
+            '/d /c ""C:/fake/install-interception.exe" /uninstall >> "C:/log.txt" 2>&1"',
+        )
+
+
+class DriverExclusivityTests(unittest.TestCase):
+    """Only one virtual-input driver may be installed at a time."""
+
+    def test_installing_removes_the_winuhid_driver_first(self):
+        from ovb_rc003 import winuhid_driver_install as winuhid
+
+        with mock.patch.object(winuhid, "driver_installed", return_value=True):
+            with mock.patch.object(winuhid, "uninstall_driver") as uninstall:
+                install._remove_winuhid_driver()
+        uninstall.assert_called_once_with()
+
+    def test_failed_winuhid_uninstall_aborts_the_install(self):
+        from ovb_rc003 import winuhid_driver_install as winuhid
+
+        failure = winuhid.DriverInstallerError("boom")
+        with mock.patch.object(winuhid, "driver_installed", return_value=True):
+            with mock.patch.object(winuhid, "uninstall_driver", side_effect=failure):
+                with self.assertRaises(install.DriverInstallerError):
+                    install._remove_winuhid_driver()
 
 
 class InstallerDiscoveryTests(unittest.TestCase):

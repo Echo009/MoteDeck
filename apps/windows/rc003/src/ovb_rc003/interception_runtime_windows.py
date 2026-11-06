@@ -152,21 +152,24 @@ def _require_live_input_allowed() -> None:
 
 
 # Interception installs two kernel services (``keyboard.sys`` / ``mouse.sys``)
-# and registers itself in the device-class ``UpperFilters`` lists.  Both are
-# plain registry values, so they can be read without opening ``\\.\interceptionNN``
-# -- opening the device is exactly what latches the keyboard on Windows 11.
+# and registers itself in the device-class ``UpperFilters`` lists.  Both halves
+# are required: mouse clicks can be delivered through this backend too, and
+# ``interception_send`` fails when the matching class filter is missing, so a
+# keyboard-only install would make those buttons silently do nothing.
+# The registry values can be read without opening ``\\.\interceptionNN`` --
+# opening the device is exactly what latches the keyboard on Windows 11.
 _KEYBOARD_CLASS_GUID = "{4D36E96B-E325-11CE-BFC1-08002BE10318}"
 _MOUSE_CLASS_GUID = "{4D36E96F-E325-11CE-BFC1-08002BE10318}"
 _CLASS_ROOT = r"SYSTEM\CurrentControlSet\Control\Class"
 _SERVICES_ROOT = r"SYSTEM\CurrentControlSet\Services"
 
 DRIVER_NOT_INSTALLED_REASON = (
-    "driver_not_installed: the Interception keyboard filter is not registered; "
-    "install the Interception driver (keyboard.sys and mouse.sys) and reboot"
+    "driver_not_installed: the Interception keyboard or mouse filter is not "
+    "registered; install the Interception driver and reboot"
 )
 DRIVER_NOT_LOADED_REASON = (
     "driver_not_loaded: interception_create_context failed; install the "
-    "Interception driver (keyboard.sys and mouse.sys) and reboot"
+    "Interception driver and reboot"
 )
 DRIVER_PENDING_REBOOT_REASON = (
     "driver_pending_reboot: the Interception filter is registered but its "
@@ -196,7 +199,7 @@ def _resolve_image_path(raw: str) -> str:
 def _service_driver_file(name: str) -> Optional[str]:
     """Return the resolved driver file of ``Services\\<name>``, if it exists.
 
-    The official installer registers both kernel services without writing an
+    The official installer registers its kernel services without writing an
     ``ImagePath`` value; with no explicit value Windows infers
     ``System32\\drivers\\<name>.sys`` from the key name.  An absent value is
     therefore the normal shape of a successful install, not a broken one, so it
@@ -256,11 +259,13 @@ def _class_filter_registered(guid: str, name: str) -> bool:
 
 
 def driver_installed() -> bool:
-    r"""Whether the complete Interception filter is registered on this machine.
+    r"""Whether the Interception keyboard *and* mouse filters are registered.
 
-    Both kernel services must exist with their driver files on disk, and both
-    device classes must list their filter.  Any missing piece means the install
-    did not finish, so the answer is ``False``.
+    Both services must exist with their driver files on disk, and both device
+    classes must list the matching filter.  Requiring both is what keeps the
+    settings UI honest: this backend injects mouse clicks as well as keys, and
+    ``interception_send`` fails for a click when only the keyboard half is
+    installed, with no SendInput fallback.
 
     This is a *registry-only* probe.  It never opens ``\\.\interceptionNN``, so
     it cannot disturb the keyboard: on Windows 11 opening a context is what makes
@@ -270,11 +275,9 @@ def driver_installed() -> bool:
     services_ok = all(
         _service_driver_file(name) is not None for name in _DRIVER_SERVICE_NAMES
     )
-    return (
-        services_ok
-        and _class_filter_registered(_KEYBOARD_CLASS_GUID, "keyboard")
-        and _class_filter_registered(_MOUSE_CLASS_GUID, "mouse")
-    )
+    return services_ok and _class_filter_registered(
+        _KEYBOARD_CLASS_GUID, "keyboard"
+    ) and _class_filter_registered(_MOUSE_CLASS_GUID, "mouse")
 
 
 _SC_MANAGER_CONNECT = 0x0001
@@ -333,7 +336,7 @@ def _service_running(name: str) -> bool:
 
 
 def driver_running() -> bool:
-    """Whether both Interception kernel services are running right now.
+    """Whether the Interception keyboard and mouse services are running now.
 
     A registered driver only takes effect after a reboot, so a registered but
     not running driver is reported as "pending reboot", not as usable.

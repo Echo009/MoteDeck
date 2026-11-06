@@ -235,6 +235,10 @@ try {
     & powershell -ExecutionPolicy Bypass -File (Join-Path "build" "fetch-interception.ps1")
     Assert-LastExitCode "fetch-interception.ps1"
 
+    Write-Host "-- fetch + verify WinUHid driver package --"
+    & powershell -ExecutionPolicy Bypass -File (Join-Path "build" "fetch-winuhid.ps1")
+    Assert-LastExitCode "fetch-winuhid.ps1"
+
     $inputStateBeforeBuild = Get-RC003BuildInputState `
         -RC003Root $RC003Root `
         -RepoRoot $RepoRoot

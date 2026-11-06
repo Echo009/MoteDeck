@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Callable, Dict, Iterable, Optional, Sequence, Tuple
 
-from . import key_mapping
+from . import key_mapping, running_apps_windows
 
 
 Command = Tuple[str, ...]
@@ -191,6 +191,38 @@ def _packaged_desktop_command(kind: key_mapping.ActionKind) -> Optional[Command]
     return None
 
 
+def _resolve_generic_application_command(
+    target: str,
+    *,
+    executable_exists: Callable[[Path], bool],
+) -> Optional[Command]:
+    """Resolve the program the user picked for a generic 「启动应用」 action.
+
+    ``target`` is either a process name (``chrome.exe``) or a full executable
+    path chosen through the file browser.
+    """
+
+    try:
+        text = key_mapping.normalize_application_target(target)
+    except (TypeError, ValueError):
+        return None
+    path = Path(text)
+    if path.is_absolute():
+        return (str(path),) if executable_exists(path) else None
+    resolved = running_apps_windows.executable_for_process(text)
+    if resolved:
+        return (resolved,)
+    executable_names = (text,) if path.suffix else (text + ".exe", text)
+    for candidate in _candidate_paths(executable_names):
+        if executable_exists(candidate):
+            return (str(candidate),)
+    shortcut_name = path.stem if path.suffix else text
+    for shortcut in _start_menu_shortcuts((shortcut_name,)):
+        if executable_exists(shortcut):
+            return (str(shortcut),)
+    return None
+
+
 def _resolve_application_command_uncached(
     action: key_mapping.ButtonAction,
     *,
@@ -198,7 +230,8 @@ def _resolve_application_command_uncached(
 ) -> Optional[Command]:
     """Resolve an application action to an executable command.
 
-    ``open_remote_mic`` reuses this EXE and opens the settings window.  Other
+    ``open_remote_mic`` reuses this EXE and opens the settings window.
+    ``open_application`` launches whatever program the user picked.  Other
     actions are resolved by executable name.  No path or device identity is
     persisted in the config file.
     """
@@ -208,6 +241,12 @@ def _resolve_application_command_uncached(
         if getattr(sys, "frozen", False) and executable_exists(executable):
             return (str(executable), "--settings")
         return None
+
+    if action.kind == key_mapping.ActionKind.OPEN_APPLICATION:
+        return _resolve_generic_application_command(
+            action.target,
+            executable_exists=executable_exists,
+        )
 
     names = _APPLICATION_EXECUTABLES.get(action.kind)
     if not names:
@@ -256,6 +295,15 @@ def resolve_application_command(
         return _resolve_application_command_uncached(
             action,
             executable_exists=executable_exists,
+        )
+
+    # A generic 启动应用 action carries its own target, so the kind-keyed
+    # install cache would hand one program's command to another. Resolve it
+    # every time instead.
+    if action.kind == key_mapping.ActionKind.OPEN_APPLICATION:
+        return _resolve_application_command_uncached(
+            action,
+            executable_exists=_path_is_file,
         )
 
     now = time.monotonic()

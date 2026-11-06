@@ -264,7 +264,7 @@ class Channel:
             if (not self.ready or type(message.get("attempt")) is not int
                     or not 0 <= message["attempt"] <= 2**31
                     or not _finite_time(message.get("time"))
-                    or message.get("event") not in ("host_start", "host_stop", "state", "control", "audio", "available", "mic", "probe", "lifecycle")
+                    or message.get("event") not in ("host_start", "host_stop", "state", "control", "audio", "available", "mic", "tap", "probe", "lifecycle")
                     or not isinstance(message.get("data"), str) or len(message["data"]) > 1024):
                 raise ChannelError("invalid_voice_event")
             if message["event"] in ("control", "audio"):
@@ -287,6 +287,8 @@ class Channel:
                     raise ChannelError("invalid_voice_lifecycle") from exc
             elif message["event"] == "mic" and (message["attempt"] != 0 or message["data"] != "pressed"):
                 raise ChannelError("invalid_mic_detection")
+            elif message["event"] == "tap" and (message["attempt"] != 0 or message["data"] != "tap"):
+                raise ChannelError("invalid_voice_tap")
             elif message["event"] == "probe" and (message["attempt"] != 0 or not re.fullmatch(
                     r"layout/[0-9a-f]{4}/[0-9a-f]{4}|notify/[0-9a-f]{4}/[0-9]{1,4}"
                     r"|start_fields/[0-9]{1,3}/[0-9]{1,3}/[0-9]{1,3}"

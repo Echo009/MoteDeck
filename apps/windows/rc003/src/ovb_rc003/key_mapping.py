@@ -41,8 +41,13 @@ from typing import Dict, Optional, Tuple
 # here because ``ButtonAction`` persists the value, and a module-level import
 # of ``injection_backend`` from here would be circular.
 DEFAULT_INJECT_MODE = "sendinput"
+INJECT_MODE_WINUHID = "winuhid"
 INJECT_MODE_INTERCEPTION = "interception"
-INJECT_MODES = (DEFAULT_INJECT_MODE, INJECT_MODE_INTERCEPTION)
+INJECT_MODES = (
+    DEFAULT_INJECT_MODE,
+    INJECT_MODE_WINUHID,
+    INJECT_MODE_INTERCEPTION,
+)
 
 
 def normalize_stored_inject_mode(value: object) -> str:
@@ -106,6 +111,8 @@ class ActionKind(str, Enum):
     # 任意按键的单击/双击/长按；是否可用由「使用其他按键切换模式」开关决定。
     VOICE_MODE_CYCLE = "voice_mode_cycle"
     OPEN_REMOTE_MIC = "open_remote_mic"
+    # 通用「启动应用」：启动用户在界面上选中的任意程序，目标存在 target 里。
+    OPEN_APPLICATION = "open_application"
     OPEN_CODEX = "open_codex"
     OPEN_CLAUDE = "open_claude"
     OPEN_CMUX = "open_cmux"
@@ -304,6 +311,7 @@ LEGACY_SEMANTIC_ACTIONS = {
 APPLICATION_ACTIONS = frozenset(
     {
         ActionKind.OPEN_REMOTE_MIC,
+        ActionKind.OPEN_APPLICATION,
         ActionKind.OPEN_CODEX,
         ActionKind.OPEN_CLAUDE,
         ActionKind.OPEN_CMUX,
@@ -401,6 +409,28 @@ def validate_openmexia_label(value: object) -> str:
     return _normalize_openmexia_field(value, "label")
 
 
+MAX_APPLICATION_TARGET_LENGTH = 260
+
+
+def normalize_application_target(value: object) -> str:
+    """Normalize the program a generic 启动应用 action launches.
+
+    The stored target is either a process name (``chrome.exe``) or a full
+    executable path chosen through the file browser.
+    """
+
+    if not isinstance(value, str):
+        raise TypeError("application target must be text")
+    text = value.strip().strip('"').strip()
+    if not text:
+        raise ValueError("application target must not be empty")
+    if len(text) > MAX_APPLICATION_TARGET_LENGTH:
+        raise ValueError("application target is too long")
+    if any(character in text for character in ("\x00", "\r", "\n")):
+        raise ValueError("application target must stay on one line")
+    return text
+
+
 @dataclass(frozen=True)
 class ButtonAction:
     kind: ActionKind
@@ -411,6 +441,8 @@ class ButtonAction:
     device: str = ""
     op: str = ""
     label: str = ""
+    # 只有 OPEN_APPLICATION 会带：要启动的进程名或可执行文件路径。
+    target: str = ""
 
     def to_dict(self) -> dict:
         if self.kind in (ActionKind.MOUSE_WHEEL_UP, ActionKind.MOUSE_WHEEL_DOWN):
@@ -424,6 +456,8 @@ class ButtonAction:
                 data["device"] = validate_openmexia_device(self.device)
                 data["op"] = validate_openmexia_op(self.op)
                 data["label"] = validate_openmexia_label(self.label)
+            elif self.kind == ActionKind.OPEN_APPLICATION:
+                data["target"] = normalize_application_target(self.target)
         # Only written when the button opted out of the default backend, so
         # every file written before per-button injection modes existed keeps
         # its exact previous bytes.
@@ -464,6 +498,11 @@ class ButtonAction:
             label = validate_openmexia_label(data.get("label"))
         elif any(key in data for key in ("device", "op", "label")):
             raise ValueError("non-OpenMexia action must not contain a device")
+        target = ""
+        if kind == ActionKind.OPEN_APPLICATION:
+            target = normalize_application_target(data.get("target"))
+        elif "target" in data:
+            raise ValueError("non-application action must not contain a target")
         if kind in (ActionKind.MOUSE_WHEEL_UP, ActionKind.MOUSE_WHEEL_DOWN):
             page_key = "pageup" if kind == ActionKind.MOUSE_WHEEL_UP else "pagedown"
             return cls(
@@ -477,6 +516,7 @@ class ButtonAction:
             device=device,
             op=op,
             label=label,
+            target=target,
         )
 
 

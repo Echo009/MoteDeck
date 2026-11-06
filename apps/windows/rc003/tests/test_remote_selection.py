@@ -7,10 +7,19 @@ import os
 import sys
 import contextlib
 import unittest
+import uuid
 from types import SimpleNamespace
 from unittest import mock
 
-from ovb_rc003 import ble_transport_winrt, config, hid_identity, identity, remote_selection as selection
+from ovb_rc003 import (
+    audio_output,
+    ble_transport_winrt,
+    config,
+    device_catalog,
+    hid_identity,
+    identity,
+    remote_selection as selection,
+)
 
 A = selection.container_key("11111111-1111-4111-8111-111111111111")
 B = selection.container_key("22222222-2222-4222-8222-222222222222")
@@ -73,6 +82,64 @@ class SelectionContractTests(unittest.TestCase):
         dropped = selection.normalize(dict(
             saved_selection(), devices=[{"key": A, "profile": "unsupported"}]))
         self.assertEqual(dropped, {"schema": 1, "devices": [], "active": ""})
+
+    def test_scan_reads_model_number_so_shared_bluetooth_name_is_not_shown_as_pro(self):
+        # 两台小米遥控器广播名相同，列表必须靠设备信息里的型号串分辨，
+        # 不能等连过一次再靠配置记住。
+        containers = ("11111111-1111-4111-8111-111111111111",
+                      "22222222-2222-4222-8222-222222222222")
+        devices = [SimpleNamespace(name="MI RC", id=f"device-{index}",
+                                   properties={"System.Devices.Aep.ContainerId": value})
+                   for index, value in enumerate(containers)]
+
+        def gatt(model):
+            characteristic = SimpleNamespace(
+                uuid=uuid.UUID("00002a24-0000-1000-8000-00805f9b34fb"),
+                read_value_with_cache_mode_async=mock.AsyncMock(
+                    return_value=SimpleNamespace(status=0, value=bytearray(model.encode()))))
+            service = SimpleNamespace(
+                get_characteristics_with_cache_mode_async=mock.AsyncMock(
+                    return_value=SimpleNamespace(status=0, characteristics=[characteristic])))
+            return SimpleNamespace(
+                get_gatt_services_for_uuid_with_cache_mode_async=mock.AsyncMock(
+                    return_value=SimpleNamespace(status=0, services=[service])),
+                close=mock.Mock())
+
+        opened = {"device-0": gatt("RC001"), "device-1": gatt("RC003")}
+        winrt = SimpleNamespace(
+            bluetooth_le_device=SimpleNamespace(
+                get_device_selector_from_pairing_state=mock.Mock(return_value="paired"),
+                from_id_async=mock.AsyncMock(side_effect=lambda device_id: opened[device_id])),
+            bluetooth_cache_mode=SimpleNamespace(CACHED="cached"),
+            gatt_communication_status=SimpleNamespace(SUCCESS=0),
+            device_information=SimpleNamespace(
+                find_all_async_aqs_filter_and_additional_properties=mock.AsyncMock(
+                    return_value=devices)))
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(ble_transport_winrt, "_import_winrt", return_value=winrt):
+            path = Path(directory) / "scan.json"
+            self.assertEqual(selection.scan_main([str(path)]), 0)
+            rows = {row["key"]: row for row in selection._read_scan_result(str(path), 0)}
+        self.assertEqual(rows[A]["profile"], selection.RC001_PROFILE)
+        self.assertEqual(rows[B]["profile"], selection.RC003_PROFILE)
+        self.assertTrue(rows[A]["label"].startswith(
+            device_catalog.profile_for(selection.RC001_PROFILE).display_name + " ·"))
+        self.assertTrue(rows[B]["label"].startswith(
+            device_catalog.profile_for(selection.RC003_PROFILE).display_name + " ·"))
+        self.assertTrue(all(item.close.called for item in opened.values()))
+
+    def test_saved_profile_guessed_from_bluetooth_name_is_corrected_by_scan(self):
+        saved = {"schema": 1, "active": A,
+                 "devices": [{"key": A, "profile": selection.RC003_PROFILE}]}
+        result, _ = selection.select_paired_device(
+            saved, A, [{"key": A, "profile": selection.RC001_PROFILE}])
+        self.assertEqual(result["devices"], [{"key": A, "profile": selection.RC001_PROFILE}])
+        self.assertEqual(result["active"], A)
+        self.assertFalse(selection.profiles_compatible(
+            selection.CHROMECAST_PROFILE, selection.RC003_PROFILE))
+        with self.assertRaises(selection.SelectionError):
+            selection.select_paired_device(
+                saved, A, [{"key": A, "profile": selection.CHROMECAST_PROFILE}])
 
     def test_add_does_not_activate_and_remove_current_clears_selection(self):
         result = selection.add_device(selection.empty_selection(), {"key": A, "profile": "xiaomi-rc003"})
@@ -552,6 +619,26 @@ class SelectionControllerTests(unittest.TestCase):
         self.assertNotEqual(rows[0]["label"], rows[1]["label"])
         self.assertEqual([r["key"] for r in rows if r["isActive"]], [A])
 
+    def test_scan_result_labels_both_xiaomi_remotes_correctly_on_first_use(self):
+        controller = self.seed()
+        controller._on_remote_devices_ready((
+            [{"key": A, "profile": selection.RC003_PROFILE},
+             {"key": B, "profile": selection.RC001_PROFILE}], ""))
+        labels = {row["key"]: row["label"] for row in controller.remoteDeviceChoices}
+        self.assertTrue(labels[A].startswith(
+            device_catalog.profile_for(selection.RC003_PROFILE).display_name + " ·"))
+        self.assertTrue(labels[B].startswith(
+            device_catalog.profile_for(selection.RC001_PROFILE).display_name + " ·"))
+
+    def test_connected_model_does_not_write_anything_to_config(self):
+        controller = self.seed()
+        with mock.patch.object(config, "save_config") as save:
+            controller._set_bridge_input_states(SimpleNamespace(
+                raw_input_state="ok", hid_tap_state="ok", voice_key_physicalizer_state="ok",
+                battery_level=None, remote_model="RC001"))
+        self.assertEqual(controller._selected_device_id(), selection.RC001_PROFILE)
+        save.assert_not_called()
+
     def test_multiple_paired_xiaomi_pass_no_legacy_binding_to_transaction(self):
         controller, _ = self._make_controller()
         controller._on_remote_devices_ready((saved_selection()["devices"], ""))
@@ -613,6 +700,29 @@ class SelectionControllerTests(unittest.TestCase):
             self.assertEqual(selection.saved_active_key(), B)
             restart.assert_called_once_with(0, controller._start_bridge_process)
 
+    def test_running_switch_to_xiaomi2_still_restarts_the_service(self):
+        # 小米遥控器2 没有应用方案库：读不到库只能清空列表，不能让切换中断，
+        # 否则界面会停在“正在结束旧设备”，新服务也永远不会启动。
+        settings = config.default_config()
+        settings[selection.KEY] = {
+            "schema": 1, "active": A,
+            "devices": [{"key": A, "profile": selection.RC003_PROFILE},
+                        {"key": B, "profile": selection.RC001_PROFILE}]}
+        config.save_config(config.config_path(config.config_root()), settings)
+        controller = self._make_controller()[0]
+        controller._on_remote_devices_ready((
+            [{"key": A, "profile": selection.RC003_PROFILE},
+             {"key": B, "profile": selection.RC001_PROFILE}], ""))
+        with mock.patch.object(controller, "_refresh_bridge_status", return_value=True), \
+             mock.patch.object(controller, "_start_background_task"), \
+             mock.patch("PySide6.QtCore.QTimer.singleShot") as restart:
+            controller.useRemoteDevice(B)
+            controller._on_remote_switch_ready((True, ""))
+        self.assertEqual(selection.saved_active_key(), B)
+        self.assertFalse(controller.remoteSelectionBusy)
+        restart.assert_called_once_with(0, controller._start_bridge_process)
+        self.assertTrue(controller.mappingPresets)
+
     def test_failed_save_rollback_does_not_restart_from_uncertain_settings(self):
         controller = self.seed()
         with mock.patch.object(controller, "_refresh_bridge_status", return_value=True), \
@@ -653,6 +763,27 @@ class SelectionControllerTests(unittest.TestCase):
         controller.useRemoteDevice(B)
         self.assertEqual(controller.activeRemoteKey, A)
         self.assertIn("先保存", controller.remoteSelectionMessage)
+
+    def test_switching_to_device_without_endpoint_adopts_recommended_endpoint(self):
+        controller = self.seed()
+        with mock.patch.object(controller, "_refresh_bridge_status", return_value=False), \
+             mock.patch.object(controller, "_request_endpoint_options_refresh"), \
+             mock.patch.object(controller, "_start_bridge_process"):
+            controller.useRemoteDevice(B)
+        self.assertEqual(controller.activeRemoteKey, B)
+        self.assertTrue(controller._pending_recommended_endpoint_apply)
+        speakers = audio_output.AudioEndpoint("Speakers", "Windows WASAPI")
+        cable = audio_output.AudioEndpoint("CABLE Input (VB-Audio Virtual Cable)", "Windows WASAPI")
+        with mock.patch.object(controller, "_select_and_persist_output_endpoint") as persist:
+            controller._apply_endpoint_options_payload({
+                "options": ["Speakers | Windows WASAPI", "CABLE Input | Windows WASAPI"],
+                "values": [speakers, cable],
+                "recommended_index": 1,
+                "selected_index": -1,
+                "migration_message": "",
+            })
+        persist.assert_called_once_with(cable.name, cable.host_api)
+        self.assertFalse(controller._pending_recommended_endpoint_apply)
 
     def test_old_endpoint_enumeration_cannot_replace_current_device_selection(self):
         controller = self.seed()

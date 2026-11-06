@@ -69,9 +69,16 @@ VB-CABLE 是 VB-Audio 的独立第三方软件，不属于本项目的 GPL 代�
 应用只会在用户明确确认后调用 Windows 的 `runas`/UAC 流程启动厂商安装器，
 自身进程不会提权。
 
+WinUHid 同样是独立第三方软件（cgutman/WinUHid，MIT 许可）。构建脚本从本地的
+驱动包目录取用并校验 `WinUHid.dll` 与驱动包（`WinUHidDriver.inf`/`WinUHidDriver.cat`/
+`WinUHidDriver.dll`/`WinUHidCertificate.cer`），原样随包附带、不做任何修改。按键映射里的
+“驱动管理”弹窗只在用户显式点击后，经 Windows 自身的 UAC 提权流程运行随包的
+`install-winuhid.ps1`（注册 `Root\WinUHid` 设备并安装驱动，或反向卸载），MoteDeck
+自身进程不会提权，也绝不会静默安装驱动；未安装驱动时保持 SendInput 后端。
+
 Interception 同样是独立第三方软件（oblitum/Interception）。构建脚本固定哈希地
 获取官方发布包，并随包附带官方命令行安装程序 `install-interception.exe`（未修改）。
-按键映射里的“安装驱动/卸载驱动”按钮只在用户显式点击后，经 Windows 自身的 UAC
+按键映射里的“驱动管理”弹窗只在用户显式点击后，经 Windows 自身的 UAC
 提权流程启动该安装程序（`/install` 或 `/uninstall`），MoteDeck自身进程不会提权，
 也绝不会静默安装驱动；未安装驱动时保持 SendInput 后端。
 

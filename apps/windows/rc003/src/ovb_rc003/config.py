@@ -184,76 +184,6 @@ def key_bindings_path(root: Path = None) -> Path:  # type: ignore[assignment]
     return (root or config_root()) / KEY_BINDINGS_FILENAME
 
 
-# 返回键/音量键补充通道（HID tap）的降级记录，单独一份文件，不混进
-# config.json：授权取消、授权失败或按键组件不可校验时写一条，下一次启动
-# 直接跳过 tap，不再反复弹授权；用户手动关掉补充通道也记在同一份文件里
-# （state=disabled）。文件里只有状态和原因，不含任何设备标识。
-HID_TAP_DEGRADED_FILENAME = "hid-tap-degraded.json"
-HID_TAP_STATE_DEGRADED = "degraded"
-HID_TAP_STATE_DISABLED = "disabled"
-_HID_TAP_STATES = frozenset({HID_TAP_STATE_DEGRADED, HID_TAP_STATE_DISABLED})
-
-
-def hid_tap_degraded_path(root: Path = None) -> Path:  # type: ignore[assignment]
-    return (root or config_root()) / HID_TAP_DEGRADED_FILENAME
-
-
-def read_hid_tap_degraded(root: Path = None) -> Optional[Dict[str, str]]:  # type: ignore[assignment]
-    """Return ``{"state", "reason"}`` when the tap was degraded or disabled.
-
-    A missing, unreadable or unrecognised file means "no record": the tap is
-    allowed to start normally.
-    """
-
-    try:
-        with open(hid_tap_degraded_path(root), "r", encoding="utf-8") as handle:
-            document = json.load(handle)
-    except (OSError, ValueError):
-        return None
-    if not isinstance(document, dict):
-        return None
-    state = str(document.get("state", "")).strip().lower()
-    if state not in _HID_TAP_STATES:
-        return None
-    return {
-        "state": state,
-        "reason": str(document.get("reason", "")).strip()[:64],
-    }
-
-
-def save_hid_tap_degraded(
-    root: Path = None, *, state: str, reason: str = ""  # type: ignore[assignment]
-) -> bool:
-    """Persist one degradation/disable record.
-
-    Returns False when the folder is not writable; a read-only config folder
-    must never break the button path, it only means the record cannot stick.
-    """
-
-    if state not in _HID_TAP_STATES:
-        raise ValueError("hid tap state 不受支持。")
-    document = {
-        "version": 1,
-        "state": state,
-        "reason": str(reason)[:64],
-        "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
-    }
-    try:
-        _save_json_atomic(hid_tap_degraded_path(root), document)
-    except OSError:
-        return False
-    return True
-
-
-def clear_hid_tap_degraded(root: Path = None) -> None:  # type: ignore[assignment]
-    """Drop the record so the next service start retries the tap once."""
-
-    try:
-        hid_tap_degraded_path(root).unlink()
-    except OSError:
-        pass
-
-
 # 外部插件（Vokie）下发的语音键统一打这个标记：它们自带快捷键，只能排序、
 # 开关，不能改快捷键，也不能在插件仍然连接时删除。
 VOICE_KEY_PLUGIN_VOKIE = "vokie"
@@ -293,7 +223,12 @@ def _default_voice_key_config(
     short_press_resend: bool = False,
     gain_steps: int = 0,
     gain_auto: bool = False,
+    tsf_switch: bool = False,
+    tsf_profile: str = "",
 ) -> Dict[str, Any]:
+    plugin_id = _normalize_plugin_id(plugin)
+    # 插件键的快捷键由插件接管，TSF 切换同理，插件项永远不保存这两个字段。
+    tsf_enabled = bool(tsf_switch) and not is_locked_plugin_id(plugin_id)
     return {
         "id": int(slot),
         "name": name,
@@ -304,7 +239,7 @@ def _default_voice_key_config(
         # 直接作用在列表顺序上，所以 id 不能再按大小重排。
         "enabled": bool(enabled),
         # 非空表示这条语音键由外部插件提供（当前只有 Vokie）。
-        "plugin": _normalize_plugin_id(plugin),
+        "plugin": plugin_id,
         # 短按延迟发送：只对这一条非插件语音键生效。按下后把这唯一一次
         # 快捷键推迟一小段时间再注入（松手不再补发第二次），避开同时支持
         # 短按/长按的输入法；插件键的快捷键由插件自己接管，这里保持 False。
@@ -313,7 +248,28 @@ def _default_voice_key_config(
         "gain_steps": _clamp_gain_steps(gain_steps),
         # 自动增益：按峰值把整段录音归一化到 70%，与手动档二选一。
         "gain_auto": bool(gain_auto),
+        # TSF 切换：按下这条语音键时先把系统输入法切到 tsf_profile 指定的
+        # 那一项，再注入快捷键。部分输入法只有成为当前 TSF 才响应语音。
+        # 插件键不参与，见上面的 tsf_enabled。
+        "tsf_switch": tsf_enabled,
+        "tsf_profile": (
+            _normalize_tsf_profile(tsf_profile) if tsf_enabled else ""
+        ),
     }
+
+
+def _normalize_tsf_profile(value: object) -> str:
+    """Return a stored ``langid:clsid:guid`` TSF profile id, or ""."""
+
+    if not isinstance(value, str):
+        return ""
+    text = value.strip()
+    if not text or len(text) > 120:
+        return ""
+    parts = text.split(":")
+    if len(parts) != 3 or not all(part for part in parts):
+        return ""
+    return text
 
 
 def _clamp_gain_steps(value: object) -> int:
@@ -434,6 +390,7 @@ def _normalize_loaded_config(stored: dict) -> Dict[str, Any]:
         # the old value that is actually present in the file.
         _normalize_voice_hotkey(stored)
         _normalize_voice_input_source(stored)
+        stored.pop(remote_selection.RETIRED_MODEL_HINTS_KEY, None)
         if "voice_key_configs" not in stored:
             # 旧文件还没有语音键列表：用旧的两个槽位和全局麦克风设置迁移，
             # 迁移后旧字段只作为镜像保留。
@@ -787,6 +744,8 @@ def _normalize_voice_key_configs(config: Dict[str, Any]) -> None:
                 is not False,
                 gain_steps=raw_entry.get("gain_steps", 0),
                 gain_auto=raw_entry.get("gain_auto", False) is not False,
+                tsf_switch=raw_entry.get("tsf_switch", False) is not False,
+                tsf_profile=raw_entry.get("tsf_profile", ""),
             )
         )
     if not normalized:
@@ -852,6 +811,8 @@ def voice_key_configs(config_data: Dict[str, Any]) -> List[Dict[str, Any]]:
                 is not False,
                 gain_steps=raw_entry.get("gain_steps", 0),
                 gain_auto=raw_entry.get("gain_auto", False) is not False,
+                tsf_switch=raw_entry.get("tsf_switch", False) is not False,
+                tsf_profile=raw_entry.get("tsf_profile", ""),
             )
         )
     if not entries:
@@ -1004,6 +965,26 @@ def voice_key_short_press_resend(config_data: Dict[str, Any], slot: int) -> bool
     return bool(entry.get("short_press_resend", False))
 
 
+def voice_key_tsf_switch(config_data: Dict[str, Any], slot: int) -> bool:
+    """Return whether one voice key switches the TSF input method on press."""
+
+    return bool(voice_key_tsf_profile(config_data, slot))
+
+
+def voice_key_tsf_profile(config_data: Dict[str, Any], slot: int) -> str:
+    """Return the ``langid:clsid:guid`` profile one voice key switches to.
+
+    Empty means the switch is off. Plugin-provided keys always return "".
+    """
+
+    entry = voice_key_config(config_data, slot)
+    if entry is None or _normalize_plugin_id(entry.get("plugin")):
+        return ""
+    if not entry.get("tsf_switch", False):
+        return ""
+    return _normalize_tsf_profile(entry.get("tsf_profile", ""))
+
+
 def voice_cycle_short_press(config_data: Dict[str, Any]) -> bool:
     """Return whether a short press cycles through the configured voice keys."""
 
@@ -1063,6 +1044,8 @@ def update_voice_key_config(
     short_press_resend: object = _VOICE_KEY_FIELD_UNSET,
     gain_steps: object = _VOICE_KEY_FIELD_UNSET,
     gain_auto: object = _VOICE_KEY_FIELD_UNSET,
+    tsf_switch: object = _VOICE_KEY_FIELD_UNSET,
+    tsf_profile: object = _VOICE_KEY_FIELD_UNSET,
     force: bool = False,
 ) -> Dict[str, Any]:
     """Return a copy with one voice key's fields replaced.
@@ -1098,6 +1081,15 @@ def update_voice_key_config(
         target["gain_steps"] = _clamp_gain_steps(gain_steps)
     if gain_auto is not _VOICE_KEY_FIELD_UNSET:
         target["gain_auto"] = bool(gain_auto)
+    # TSF 切换和延迟发送一样只对非插件语音键有意义：插件项一律不写入。
+    if tsf_switch is not _VOICE_KEY_FIELD_UNSET and not is_locked_plugin_id(
+        target.get("plugin")
+    ):
+        target["tsf_switch"] = bool(tsf_switch)
+    if tsf_profile is not _VOICE_KEY_FIELD_UNSET and not is_locked_plugin_id(
+        target.get("plugin")
+    ):
+        target["tsf_profile"] = _normalize_tsf_profile(tsf_profile)
     if source is not _VOICE_KEY_FIELD_UNSET:
         target["source"] = _normalize_voice_source(source)
         if target["source"] == VOICE_INPUT_SOURCE_REMOTE:
@@ -1208,6 +1200,30 @@ def move_voice_key_config(
     return _with_voice_key_configs(config_data, entries)
 
 
+def move_voice_key_config_to(
+    config_data: Dict[str, Any], slot: int, target_index: int
+) -> Dict[str, Any]:
+    """Return a copy with one voice key moved to an absolute list position.
+
+    Used by the drag handle in the settings list: the dragged row lands where
+    the user dropped it, and every other row keeps its relative order.
+    """
+
+    entries = voice_key_configs(config_data)
+    ids = [entry["id"] for entry in entries]
+    try:
+        index = ids.index(int(slot))
+        target = int(target_index)
+    except (TypeError, ValueError):
+        return dict(config_data)
+    target = max(0, min(len(entries) - 1, target))
+    if target == index:
+        return dict(config_data)
+    entry = entries.pop(index)
+    entries.insert(target, entry)
+    return _with_voice_key_configs(config_data, entries)
+
+
 def set_voice_key_config_enabled(
     config_data: Dict[str, Any], slot: int, enabled: bool
 ) -> Dict[str, Any]:
@@ -1223,6 +1239,21 @@ def set_voice_key_config_short_press_resend(
 
     return update_voice_key_config(
         config_data, int(slot), short_press_resend=bool(enabled)
+    )
+
+
+def set_voice_key_config_tsf(
+    config_data: Dict[str, Any], slot: int, profile: str
+) -> Dict[str, Any]:
+    """Return a copy with one voice key's TSF switch/profile replaced.
+
+    An empty profile turns the switch off. Plugin-provided keys ignore both
+    fields, exactly like the short-press delay.
+    """
+
+    text = _normalize_tsf_profile(profile)
+    return update_voice_key_config(
+        config_data, int(slot), tsf_switch=bool(text), tsf_profile=text
     )
 
 

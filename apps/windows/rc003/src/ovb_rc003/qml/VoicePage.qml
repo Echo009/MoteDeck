@@ -24,6 +24,14 @@ Item {
     // 录音增益弹窗当前编辑的那条语音键。
     property int voiceGainSlot: 0
     property string voiceGainKeyName: ""
+    // TSF 切换弹窗当前编辑的那条语音键。
+    property int voiceTsfSlot: 0
+    // 拖动排序：正在拖的那条、它原来的位置、松手后要落到的位置，
+    // 以及它占的高度（其它行让位时按这个高度腾空）。
+    property int dragVoiceSlot: -1
+    property int dragVoiceFromIndex: -1
+    property int dragVoiceTargetIndex: -1
+    property real dragVoiceRowHeight: 0
     // 弹窗自己的「自动」状态：开关只改这里，再写回配置，避免绑定被点击打断。
     property bool voiceGainAuto: false
     // Status line of the saved-profile list; the C++ actions return {ok,message}.
@@ -114,6 +122,16 @@ Item {
                 return String(rows[i].name || "")
         }
         return ""
+    }
+
+    // 拖动排序用：一条语音键在列表里的位置。
+    function voiceKeyConfigIndex(slotId) {
+        const rows = SettingsController.voiceKeyConfigs
+        for (var i = 0; i < rows.length; i++) {
+            if (Number(rows[i].id) === Number(slotId))
+                return i
+        }
+        return -1
     }
 
     SettingsDialog {
@@ -519,6 +537,15 @@ Item {
         }
     }
 
+    // TSF 切换的输入法选择窗口：选中后写回当前编辑的那条语音键。
+    TsfInputMethodDialog {
+        id: tsfInputMethodDialog
+        tokens: root.tokens
+        onProfileSelected: function(profile) {
+            SettingsController.setVoiceKeyConfigTsf(root.voiceTsfSlot, profile)
+        }
+    }
+
     // 语音键列表：默认一条，可继续添加。每条都有自己的名称、快捷键和
     // 麦克风来源；命名会同步到按键页的动作列表。
     SettingsDialog {
@@ -528,7 +555,7 @@ Item {
         preferredWidth: 880
         title: qsTr("语音键配置")
         titleNote: qsTr("可调整顺序、单独停用；插件提供的语音键只能改名")
-        helpText: qsTr("录音增益：为当前语音键设置录音增益，仅对当前语音键生效，不同语音键需分别设置。\n\n延迟发送：延迟0.18s触发，用于屏蔽部分输入法（如chatterfly）的短按触发，以实现短按切换模式；可以直接在输入法设置中取消短按触发的输入法（豆包输入法等），无需开启此项。")
+        helpText: qsTr("录音增益：为当前语音键设置录音增益，仅对当前语音键生效，不同语音键需分别设置。\n\n延迟发送：延迟0.18s触发，用于屏蔽部分输入法（如chatterfly）的短按触发，以实现短按切换模式；可以直接在输入法设置中取消短按触发的输入法（豆包输入法等），无需开启此项。\n\nTSF 切换：按下这条语音键前先切换到所选输入法，用于必须成为当前 TSF 才响应语音的输入法；如果能在输入法自己的设置里把语音设为全局触发，则不需要开启此项。")
         closeButtonObjectName: "voiceKeyManagerCloseButton"
         dismissalEnabled: !root.configurationWriteBusy
 
@@ -546,16 +573,22 @@ Item {
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                 ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
-                ColumnLayout {
-                    id: voiceKeyList
-                    objectName: "voiceKeyList"
+                Item {
+                    id: voiceKeyHost
                     width: voiceKeyScroll.availableWidth
-                    spacing: 0
+                    implicitHeight: voiceKeyList.implicitHeight
+                    height: implicitHeight
 
-                    Repeater {
-                        id: voiceSlotRepeater
-                        objectName: "voiceSlotHotkeyRepeater"
-                        model: SettingsController.voiceKeyConfigs
+                    ColumnLayout {
+                        id: voiceKeyList
+                        objectName: "voiceKeyList"
+                        width: voiceKeyHost.width
+                        spacing: 0
+
+                        Repeater {
+                            id: voiceSlotRepeater
+                            objectName: "voiceSlotHotkeyRepeater"
+                            model: SettingsController.voiceKeyConfigs
 
                         Rectangle {
                             id: keyCard
@@ -574,6 +607,28 @@ Item {
                                 String(modelData.plugin || "") === "openmexia"
                             readonly property bool shortPressResend:
                                 modelData.shortPressResend === true
+                            readonly property bool tsfSwitch:
+                                modelData.tsfSwitch === true
+                            // 拖动时整行跟着指针走，松手后由后端重排列表。
+                            property real dragOffset: 0
+                            readonly property bool dragging:
+                                root.dragVoiceSlot === slot
+                            readonly property int listIndex:
+                                root.voiceKeyConfigIndex(slot)
+                            // 拖动时其它行实时让位，落点那一格空出来当占位符。
+                            readonly property real shiftOffset: {
+                                if (root.dragVoiceSlot < 0 || dragging)
+                                    return 0
+                                const from = root.dragVoiceFromIndex
+                                const to = root.dragVoiceTargetIndex
+                                if (from < 0 || to < 0 || listIndex < 0)
+                                    return 0
+                                if (from < to && listIndex > from && listIndex <= to)
+                                    return -root.dragVoiceRowHeight
+                                if (from > to && listIndex >= to && listIndex < from)
+                                    return root.dragVoiceRowHeight
+                                return 0
+                            }
                             readonly property string slotHotkey: {
                                 const entries = SettingsController.voiceSlotHotkeys
                                 const value = entries[slot]
@@ -586,6 +641,15 @@ Item {
                             radius: root.tokens.cornerRadiusControl
                             // 底色跟随主题：不写就是默认纯白，深色模式下会亮成白块。
                             color: root.tokens.surface
+                            // 拖动中的那一行浮到其它行上面。
+                            z: keyCard.dragging ? 1 : 0
+                            transform: Translate {
+                                y: keyCard.dragging ? keyCard.dragOffset : keyCard.shiftOffset
+                                Behavior on y {
+                                    enabled: !keyCard.dragging
+                                    NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                                }
+                            }
 
                             ColumnLayout {
                                 id: keyCardColumn
@@ -822,29 +886,134 @@ Item {
                                         }
                                     }
 
-                                    IconButton {
-                                        id: keyMoveUpButton
-                                        objectName: "voiceKeyMoveUpButton"
+                                    // TSF 切换：按下这条语音键前先切到指定输入法。
+                                    // 插件语音键不提供这个按钮（快捷键和输入法都由插件接管）。
+                                    CompactButton {
+                                        objectName: "voiceKeyTsfSwitchButton"
                                         tokens: root.tokens
-                                        compact: true
-                                        iconName: "chevronUp"
-                                        enabled: keyCard.modelData.first !== true
+                                        // 插件语音键不提供这个按钮；保留占位，
+                                        // 名称框才和其它行一样长、左边对齐。
+                                        opacity: keyCard.pluginLocked ? 0 : 1
+                                        // 固定小方块：激活与否尺寸不变，整行不会位移。
+                                        implicitWidth: 32
+                                        Layout.preferredWidth: 32
+                                        compactMinimumWidth: 32
+                                        leftPadding: 4
+                                        rightPadding: 4
+                                        flat: !keyCard.tsfSwitch
+                                        highlighted: keyCard.tsfSwitch
+                                        enabled: !keyCard.pluginLocked
                                             && !root.configurationWriteBusy
-                                        Accessible.name: qsTr("上移")
-                                        onClicked: SettingsController.moveVoiceKeyConfig(
-                                            keyCard.slot, -1)
+                                            && !root.voiceHotkeyBusy
+                                        Accessible.name: qsTr("TSF 切换")
+                                        onClicked: {
+                                            root.voiceTsfSlot = keyCard.slot
+                                            tsfInputMethodDialog.selectedProfile =
+                                                String(keyCard.modelData.tsfProfile || "")
+                                            tsfInputMethodDialog.open()
+                                        }
+
+                                        contentItem: Label {
+                                            text: "TSF\n切换"
+                                            textFormat: Text.PlainText
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                            color: keyCard.tsfSwitch
+                                                ? root.tokens.accentText
+                                                : root.tokens.textSecondary
+                                            font.family: root.tokens.fontFamily
+                                            font.pixelSize: root.tokens.fontSizeTiny
+                                            font.weight: Font.Medium
+                                        }
                                     }
 
-                                    IconButton {
-                                        objectName: "voiceKeyMoveDownButton"
-                                        tokens: root.tokens
-                                        compact: true
-                                        iconName: "chevron"
-                                        enabled: keyCard.modelData.last !== true
-                                            && !root.configurationWriteBusy
-                                        Accessible.name: qsTr("下移")
-                                        onClicked: SettingsController.moveVoiceKeyConfig(
-                                            keyCard.slot, 1)
+                                    // 拖动排序手柄：按住上下拖，松手按落点重排。
+                                    Item {
+                                        objectName: "voiceKeyDragHandle"
+                                        implicitWidth: 24
+                                        implicitHeight: 24
+                                        Layout.alignment: Qt.AlignVCenter
+                                        enabled: !root.configurationWriteBusy
+                                        opacity: enabled ? 1 : 0.4
+                                        Accessible.name: qsTr("拖动排序")
+
+                                        // 悬停就变手型，按住拖动时握拳。
+                                        HoverHandler {
+                                            id: keyDragHandleHover
+                                            enabled: parent.enabled
+                                            cursorShape: keyDragHandler.active
+                                                ? Qt.ClosedHandCursor
+                                                : Qt.OpenHandCursor
+                                        }
+
+                                        // 悬停时给一块底色，让手柄的热区可见。
+                                        Rectangle {
+                                            anchors.fill: parent
+                                            radius: root.tokens.cornerRadiusControl
+                                            color: keyDragHandleHover.hovered
+                                                ? root.tokens.buttonHover : "transparent"
+                                        }
+
+                                        SvgIcon {
+                                            anchors.centerIn: parent
+                                            name: "dragHandle"
+                                            size: 16
+                                            strokeWidth: 2
+                                            color: keyCard.dragging
+                                                || keyDragHandleHover.hovered
+                                                ? root.tokens.textPrimary
+                                                : root.tokens.textSecondary
+                                        }
+
+                                        DragHandler {
+                                            id: keyDragHandler
+                                            target: null
+                                            xAxis.enabled: false
+                                            cursorShape: Qt.OpenHandCursor
+                                            onActiveChanged: {
+                                                if (active) {
+                                                    root.dragVoiceFromIndex =
+                                                        root.voiceKeyConfigIndex(keyCard.slot)
+                                                    root.dragVoiceRowHeight = keyCard.height
+                                                    root.dragVoiceSlot = keyCard.slot
+                                                    root.dragVoiceTargetIndex =
+                                                        root.dragVoiceFromIndex
+                                                    keyCard.dragOffset = 0
+                                                    return
+                                                }
+                                                const target = root.dragVoiceTargetIndex
+                                                keyCard.dragOffset = 0
+                                                root.dragVoiceSlot = -1
+                                                root.dragVoiceFromIndex = -1
+                                                root.dragVoiceTargetIndex = -1
+                                                if (target >= 0)
+                                                    SettingsController.moveVoiceKeyConfigTo(
+                                                        keyCard.slot, target)
+                                            }
+                                            onTranslationChanged: {
+                                                if (!active)
+                                                    return
+                                                keyCard.dragOffset = translation.y
+                                                // 落点取中心点最近的兄弟行。
+                                                const center = keyCard.y
+                                                    + keyCard.height / 2 + translation.y
+                                                let best = -1
+                                                let bestDistance = Infinity
+                                                for (let i = 0; i < voiceSlotRepeater.count; ++i) {
+                                                    const item = voiceSlotRepeater.itemAt(i)
+                                                    if (!item)
+                                                        continue
+                                                    const distance = Math.abs(
+                                                        center - (item.y + item.height / 2))
+                                                    if (distance < bestDistance) {
+                                                        bestDistance = distance
+                                                        best = i
+                                                    }
+                                                }
+                                                if (best >= 0)
+                                                    root.dragVoiceTargetIndex = best
+                                            }
+                                        }
                                     }
                                 }
 
@@ -898,6 +1067,50 @@ Item {
                             SettingsRowDivider {
                                 tokens: root.tokens
                             }
+
+                            // 抬起时描一圈深色边框。单独一层盖在最上面，
+                            // 否则底边会被卡片里的分割线压住。
+                            Rectangle {
+                                anchors.fill: parent
+                                visible: keyCard.dragging
+                                radius: keyCard.radius
+                                color: "transparent"
+                                border.width: 1
+                                border.color: root.tokens.textPrimary
+                                z: 100
+                            }
+                        }
+                    }
+                    }
+
+                    // 拖动落点的占位符：其它行让开的位置画一块浅色空位，
+                    // 松手就落在这一格，拖动过程中能马上看到结果。
+                    Rectangle {
+                        objectName: "voiceKeyDropPlaceholder"
+                        visible: root.dragVoiceSlot >= 0
+                        readonly property var fromRow: voiceSlotRepeater.itemAt(
+                            Math.max(0, root.dragVoiceFromIndex))
+                        readonly property var toRow: voiceSlotRepeater.itemAt(
+                            Math.max(0, root.dragVoiceTargetIndex))
+                        z: -1
+                        x: 0
+                        width: parent ? parent.width : 0
+                        height: fromRow ? fromRow.height : 0
+                        radius: root.tokens.cornerRadiusControl
+                        color: root.tokens.surfaceMuted
+                        border.width: 1
+                        border.color: root.tokens.borderStrong
+                        opacity: 0.6
+                        // 往下拖时落点在目标行的下方，往上拖时在目标行的上方。
+                        y: {
+                            if (!toRow)
+                                return 0
+                            if (root.dragVoiceFromIndex < root.dragVoiceTargetIndex)
+                                return toRow.y + toRow.height - height
+                            return toRow.y
+                        }
+                        Behavior on y {
+                            NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
                         }
                     }
                 }

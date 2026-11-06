@@ -217,6 +217,31 @@ successful merely because a process was launched. Users may obtain the same
 package directly from VB-Audio and are encouraged to support the vendor through
 its Donationware model.
 
+### WinUHid
+
+- Project: WinUHid (cgutman/WinUHid)
+- Source: <https://github.com/cgutman/WinUHid>
+- License: MIT, Copyright (c) 2025 Cameron Gutman
+- Bundled client library: `WinUHid.dll` (x64)
+- Bundled driver package: `WinUHidDriver.inf`, `WinUHidDriver.cat`,
+  `WinUHidDriver.dll`, `WinUHidCertificate.cer`
+
+WinUHid is distributed as source; upstream publishes no prebuilt binary. The
+driver package is built once from the unmodified upstream sources on a machine
+with the Windows Driver Kit and copied into the ignored third-party directory by
+`build/fetch-winuhid.ps1`, which only verifies and copies the files - it never
+downloads or compiles anything and the files are shipped unmodified.
+
+The WinUHid device is a user-mode (UMDF) driver bound to a root-enumerated
+`Root\WinUHid` device. Installing it is a separate one-time, machine-wide
+administrator action: the settings window's driver manager only offers an
+explicit "安装/卸载" button that launches the bundled `install-winuhid.ps1`
+through Windows' own administrator-elevation verb, and the user confirms the
+UAC prompt. Nothing is installed or removed without that click, the application
+never elevates its own process, and it never reports a driver install as
+successful merely because a process was launched. When the driver is absent the
+WinUHid backend stays disabled and the application falls back to `SendInput`.
+
 ### Interception
 
 - Project: Interception (oblitum/Interception)
@@ -236,11 +261,11 @@ The `fetch-interception.ps1` build helper downloads the official unmodified
 release archive and verifies its pinned SHA-256 before extracting the x64
 client library and the official command-line installer. The Interception kernel
 driver is a separate one-time, machine-wide administrator install with a reboot.
-The application never installs it silently: the driver page only offers an
-explicit "安装驱动/卸载驱动" button that launches the bundled, hash-verified
-official installer (`/install` or `/uninstall`) through Windows' own
-administrator-elevation verb, and the user confirms the UAC prompt. Nothing is
-installed or removed without that click, and the application never reports a
+The application never installs it silently: the settings window's driver manager
+only offers an explicit "安装/卸载" button that launches the bundled,
+hash-verified official installer (`/install` or `/uninstall`) through Windows'
+own administrator-elevation verb, and the user confirms the UAC prompt. Nothing
+is installed or removed without that click, and the application never reports a
 driver install as successful merely because a process was launched. When the
 driver is absent the optional Interception backend stays disabled and the
 application falls back to `SendInput`.

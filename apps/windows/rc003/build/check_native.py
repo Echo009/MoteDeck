@@ -14,7 +14,8 @@ import sys
 import tempfile
 import unittest
 
-from native_inventory import module_sources, NAVIGATION_MODULES, MAIN_BOOTSTRAP, LEGACY_MODULES
+from native_inventory import (module_sources, NAVIGATION_MODULES, MAIN_BOOTSTRAP,
+                              LEGACY_MODULES, PYTHON_ONLY_MODULES)
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -26,7 +27,8 @@ def verify_stage(stage: Path, *, require_full: bool = True) -> dict:
     records = receipt["modules"]
     if receipt["python"] != sys.version:
         raise RuntimeError("native stage belongs to a different Python interpreter")
-    if require_full and (receipt["scope"] != "full" or set(records) != set(sources)):
+    if require_full and (receipt["scope"] != "full"
+                         or set(records) != set(sources) - set(PYTHON_ONLY_MODULES)):
         raise RuntimeError("native inventory does not match current business modules")
     if require_full and (stage / "src/ovb_rc003/__main__.py").read_text(encoding="utf-8") != MAIN_BOOTSTRAP:
         raise RuntimeError("native entrypoint bootstrap is missing or changed")
@@ -56,6 +58,13 @@ def verify_stage(stage: Path, *, require_full: bool = True) -> dict:
             raise RuntimeError(f"native output retains Python business code: {name}")
         if list((directory / "__pycache__").glob(f"{stem}.*.pyc")):
             raise RuntimeError(f"native output retains cached business code: {name}")
+    if require_full:
+        # 未编译模块必须以当前源码的 .py 形式留在 stage 里，PyInstaller 才会
+        # 把它们打成 .pyc 进包；缺失或过期等于悄悄丢掉 Frida HID 通道。
+        for name in set(sources) - set(records):
+            staged = stage / "src" / Path(*name.split(".")).with_suffix(".py")
+            if not staged.is_file() or staged.read_bytes() != sources[name].read_bytes():
+                raise RuntimeError(f"bytecode module missing from native stage: {name}")
     return receipt
 
 
@@ -84,6 +93,7 @@ def verify_artifact(directory: Path, receipt: dict) -> None:
         for file in parent.rglob("*"):
             if file.suffix in (".py", ".pyc", ".pyo", ".c", ".cpp", ".h", ".pdb"):
                 raise RuntimeError(f"business source/debug artifact leaked: {file}")
+    frozen_bytecode = set()
     for executable in (*executables, helper):
         archive = CArchiveReader(str(executable))
         for entry, value in archive.toc.items():
@@ -92,6 +102,8 @@ def verify_artifact(directory: Path, receipt: dict) -> None:
                 forbidden = set(pyz.toc) & set(receipt["modules"])
                 if forbidden:
                     raise RuntimeError(f"Python business bytecode leaked in {executable.name}: {sorted(forbidden)}")
+                if executable in executables:
+                    frozen_bytecode |= set(pyz.toc)
         if executable == helper:
             names = [entry.replace("\\", "/") for entry in archive.toc]
             for stem in ("hid_elevation_windows",):
@@ -107,6 +119,9 @@ def verify_artifact(directory: Path, receipt: dict) -> None:
                             hashlib.sha256(archive.extract(entry)).hexdigest()
                             != receipt["modules"][name]["sha256"]):
                         raise RuntimeError(f"helper native module changed: {name}")
+    missing_bytecode = set(PYTHON_ONLY_MODULES) - frozen_bytecode
+    if missing_bytecode:
+        raise RuntimeError(f"frozen bytecode modules missing: {sorted(missing_bytecode)}")
     print(f"verified frozen native modules and both EXE archives: {len(receipt['modules'])}", flush=True)
 
 

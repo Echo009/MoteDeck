@@ -18,6 +18,9 @@ START_TIMEOUT = 10.0
 STOP_TIMEOUT = 5.0
 QUIET_SECONDS = .3
 EXTEND_SECONDS = 20.0  # Internal protocol maintenance, never a UI preference.
+# 谷歌遥控器经 BLE 转发后，主机看到的按下→松开比小米实体键长，短按窗口单独放宽。
+# 与主程序"延迟发送"窗口共用同一个值，两边判定不会打架。
+TAP_MAX_SECONDS = .35
 
 # Google initialization is explicit on every receiver connection. The runtime
 # below implements v1.0, 16-kHz ADPCM and physical hold-to-talk streams only.

@@ -40,6 +40,7 @@ CHROMECAST_PHOTO = REPO_ROOT / "Resources" / "Chromecast-remote-photo.png"
 QML_SOURCE_DIR = SRC_ROOT / "ovb_rc003" / "qml"
 APP_ICON_DIR = SRC_ROOT / "ovb_rc003" / "assets" / "icons"
 APP_ICON = APP_ICON_DIR / "remote-mic.ico"
+APP_SCRIPT_DIR = SRC_ROOT / "ovb_rc003" / "scripts"
 ELEMENT_NAVIGATION_SOURCE_DIR = RC003_ROOT / "scripts"
 sys.path.insert(0, str(RC003_ROOT / "build"))
 from native_inventory import NAVIGATION_MODULES, import_closure
@@ -77,6 +78,18 @@ DEVICE_PROFILES_DIR = REPO_ROOT / "device-profiles"
 # extraction) so the frozen build's optional driver-helper page works fully
 # offline on the end-user machine.
 VB_CABLE_BUNDLE_ZIP = RC003_ROOT / "build" / "third_party" / "VBCABLE_Driver_Pack45.zip"
+# WinUHid's user-mode API DLL.  The driver is a separate one-time machine-wide
+# administrator install; this DLL is only the client the frozen app loads (and
+# the elevated host process uses to submit reports).  build/fetch-winuhid.ps1
+# (run by build-candidate.ps1 before this spec) writes the hash-verified x64
+# copy here.
+WINUHID_DLL = RC003_ROOT / "build" / "third_party" / "winuhid" / "WinUHid.dll"
+# The driver package (INF/CAT/DLL/CER) and the elevated install script are
+# bundled ONLY so the settings window can offer an explicit, user-clicked,
+# UAC-elevated install/uninstall (see winuhid_driver_install.py); the app never
+# runs them on its own and never treats a launched process as a completed
+# install.
+WINUHID_PACKAGE_DIR = RC003_ROOT / "build" / "third_party" / "winuhid"
 # Interception's user-mode shim (interception.dll).  The kernel driver is a
 # separate one-time machine-wide administrator install; this DLL is only the
 # client the frozen app loads when a user switches a button to the optional
@@ -221,6 +234,11 @@ if QML_SOURCE_DIR.is_dir():
     datas.append((str(QML_SOURCE_DIR), "ovb_rc003_qml"))
 if APP_ICON_DIR.is_dir():
     datas.append((str(APP_ICON_DIR), "app_icons"))
+if APP_SCRIPT_DIR.is_dir():
+    # The elevated WinUHid installer script is a real file on disk, never a
+    # Python module, and winuhid_driver_install.py looks for it under
+    # sys._MEIPASS/scripts in a frozen build.
+    datas.append((str(APP_SCRIPT_DIR), "scripts"))
 for source_name in ELEMENT_NAVIGATION_SOURCE_FILES:
     if NATIVE_STAGE:
         stem = Path(source_name).stem
@@ -252,6 +270,20 @@ if VB_CABLE_BUNDLE_ZIP.is_file():
     # this spec ever runs for a real candidate build; this spec itself stays
     # defensive/optional, matching the existing photo/qml pattern above.
     datas.append((str(VB_CABLE_BUNDLE_ZIP), "vb_cable_bundle"))
+if WINUHID_DLL.is_file():
+    # Placed at the payload root so winuhid_windows.py finds it under
+    # sys._MEIPASS/WinUHid.dll.  Optional here for the same reason as the
+    # VB-CABLE bundle above: fetch-winuhid.ps1 in build-candidate.ps1 is the
+    # gate for a real candidate build, while a bare `pyinstaller` invocation
+    # simply yields a build without the WinUHid backend (SendInput stays
+    # available).
+    datas.append((str(WINUHID_DLL), "."))
+if WINUHID_PACKAGE_DIR.is_dir():
+    # winuhid_driver_install.py looks for the package under
+    # sys._MEIPASS/winuhid as well, so the optional install button can work
+    # offline.  Only the driver files are collected; the client DLL above is
+    # already at the payload root.
+    datas.append((str(WINUHID_PACKAGE_DIR), "winuhid"))
 if INTERCEPTION_DLL.is_file():
     # Placed at the payload root so interception_runtime_windows.py finds it
     # under sys._MEIPASS/interception.dll.  Optional here for exactly the same
@@ -299,6 +331,11 @@ hiddenimports = [
     "ovb_rc003.element_navigation_control_windows",
     "ovb_rc003.element_navigation_runtime",
     "ovb_rc003.qt_settings_app",  # XRBM-030
+    "ovb_rc003.winuhid_driver_install",  # lazily imported by the settings window
+    "ovb_rc003.interception_driver_install",  # lazily imported by the settings window
+    "ovb_rc003.interception_runtime_windows",
+    "ovb_rc003.winuhid_host_windows",
+    "ovb_rc003.winuhid_windows",
     "ovb_rc003.windows_diagnostics",  # XRBM-031
     "ovb_rc003.vb_cable_bundle",  # XRBM-031
     "ovb_rc003.ble_transport_winrt",

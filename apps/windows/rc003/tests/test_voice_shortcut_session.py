@@ -87,21 +87,21 @@ class ApplyTests(unittest.TestCase):
 
     def test_key_up_reuses_the_press_injection_mode(self):
         session, _ = make_session()
+        backend = mock.Mock()
         with mock.patch.object(
-            shortcut.injection_backend, "send_hold_tokens_down"
-        ) as down, mock.patch.object(
-            shortcut.injection_backend, "send_hold_tokens_up"
-        ) as up:
+            shortcut.injection_backend, "backend_for", return_value=backend
+        ) as backend_for:
             session.apply(
                 voice_controller.VoiceHostAction.KEY_DOWN,
-                inject_mode=injection_backend.INJECT_MODE_INTERCEPTION,
+                inject_mode=injection_backend.INJECT_MODE_WINUHID,
             )
             self.assertEqual(
-                session.pending_inject_mode, injection_backend.INJECT_MODE_INTERCEPTION
+                session.pending_inject_mode, injection_backend.INJECT_MODE_WINUHID
             )
             session.apply(voice_controller.VoiceHostAction.KEY_UP)
-        down.assert_called_once_with(("ctrl", "win"))
-        up.assert_called_once_with(("ctrl", "win"))
+        backend_for.assert_any_call(injection_backend.INJECT_MODE_WINUHID)
+        backend.key_down.assert_called_once_with(("ctrl", "win"))
+        backend.key_up.assert_called_once_with(("ctrl", "win"))
 
     def test_overrides_replace_the_configured_backend_and_tokens(self):
         session, services = make_session()

@@ -81,6 +81,13 @@ built from the standalone ``src/launcher.py`` entry point - see XRBM-021):
                 the verified HID tap injector. It validates the current
                 RC003 WUDFHost target and returns a stable exit code; it never
                  falls through to settings or bridge startup.
+- ``--inject-host <generation> <pid> <born> <sid> <session>``  HIDDEN
+                elevated child-process entry point for the WinUHid virtual
+                keyboard/mouse host. It creates the two virtual HID devices and
+                replays reports over the parent's pipe until the parent goes
+                away; it opens no window, loads no QML and touches no
+                BLE/audio resource, and it never falls through to desktop or
+                bridge startup.
 - ``--element-navigation``  HIDDEN compatibility entry point for older
                    standalone navigator launches. Normal product navigation
                    is hosted by the desktop Qt process; this branch never
@@ -91,7 +98,7 @@ built from the standalone ``src/launcher.py`` entry point - see XRBM-021):
 
 ``--settings``, ``--bridge``, ``--request-exit``, ``--dry-run``, ``--qt-runtime-check``,
 ``--diagnose-ble-candidates``, ``--diagnose-vb-cable-loopback``,
-``--preflight-output-endpoint`` and
+``--preflight-output-endpoint``, ``--inject-host`` and
 ``--version``/``--help``/``-h`` are all checked and dispatched before desktop startup.
 Dry-run, diagnostics and help touch neither application nor bridge ownership.
 """
@@ -932,6 +939,15 @@ def main() -> None:
 
         flag_index = args.index("--rc003-hid-injector")
         raise SystemExit(frida_compat.injector_main(args[flag_index + 1 :]))
+    if "--inject-host" in args:
+        # Hidden elevated host that owns the WinUHid virtual keyboard and
+        # mouse. It runs in its own process and must never fall through to
+        # desktop or bridge startup.
+        from . import winuhid_host_windows
+
+        if args[0] != winuhid_host_windows.HOST_FLAG:
+            raise SystemExit(INVALID_ARGUMENTS_EXIT_CODE)
+        raise SystemExit(winuhid_host_windows.host_main(args[1:]))
     if "--element-navigation" in args:
         from . import element_navigation_runtime
 

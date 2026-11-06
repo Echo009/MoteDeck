@@ -18,7 +18,7 @@ from Cython.Build import cythonize
 from setuptools import Distribution, Extension
 from setuptools.command.build_ext import build_ext
 from setuptools._distutils.ccompiler import new_compiler
-from native_inventory import LEGACY_MODULES, MAIN_BOOTSTRAP, module_sources
+from native_inventory import LEGACY_MODULES, MAIN_BOOTSTRAP, PYTHON_ONLY_MODULES, module_sources
 
 RC003_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = RC003_ROOT / "src"
@@ -102,6 +102,10 @@ def main() -> int:
         shutil.copytree(RC003_ROOT.parents[2] / resource_name,
                         stage / resource_name, dirs_exist_ok=True)
     names = list(sources) if args.scope == "full" else list(LEGACY_MODULES)
+    if args.scope == "full":
+        # 这些模块刻意不编译：SAC 会拦未签名 .pyd，保留 .py 让 PyInstaller
+        # 打包成 .pyc，返回键/音量键的 Frida HID 通道才能在被管控的机器上跑。
+        names = [name for name in names if name not in PYTHON_ONLY_MODULES]
     navigation = stage / "scripts"
     navigation.mkdir(parents=True, exist_ok=True)
     for name, source in sources.items():

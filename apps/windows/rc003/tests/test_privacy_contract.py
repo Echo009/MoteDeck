@@ -69,11 +69,19 @@ _ELEVATION_MARKER_EXEMPT_FILENAMES = frozenset(
         "hid_source_injector.py",
         "chromecast_pipe_windows.py",
         "vb_cable_bundle.py",
-        # Runs the bundled, SHA-256-pinned official Interception installer with
-        # Windows' own "runas"/UAC verb, only from an explicit user click in
-        # the button editor - never on startup, never silently, and only after
-        # the installer binary's hash matches the pinned constant.
+        # Runs the bundled WinUHid install script with Windows' own
+        # "runas"/UAC verb, only from an explicit user click in the button
+        # editor - never on startup, never silently, and never with a
+        # caller-supplied command or any user input.
+        "winuhid_driver_install.py",
+        # Runs the bundled, SHA-256-pinned third-party Interception installer
+        # with Windows' own "runas"/UAC verb, only from an explicit user click
+        # in the driver manager dialog - never on startup, never silently.
         "interception_driver_install.py",
+        # Starts the hidden, elevated host that owns the virtual HID devices,
+        # again only through Windows' own "runas"/UAC verb - never on startup,
+        # and never with a caller-supplied executable or command.
+        "winuhid_host_windows.py",
     }
 )
 
@@ -163,24 +171,36 @@ class NoElevationOrAutoDriverTests(unittest.TestCase):
         self.assertNotIn("RequireAdministrator", text)
         self.assertIn('os.startfile(path, "runas"', text)
 
-    def test_interception_driver_install_elevation_is_scoped_to_the_pinned_installer(self):
+    def test_winuhid_driver_install_elevation_is_scoped_to_the_bundled_script(self):
         # Proves the exemption above is not a blank check: the file must
         # actually contain the elevation verb, must never reference an Inno
         # Setup admin manifest or a self-elevation API, and must launch only
-        # the SHA-256-pinned bundled installer under an explicit /install or
-        # /uninstall argument - never this application's own executable or an
-        # arbitrary caller-supplied command.  cmd.exe is only the console-output
-        # redirect around that same pinned installer, with the same fixed argument.
-        path = _PACKAGE_ROOT / "interception_driver_install.py"
+        # the bundled install-winuhid.ps1 with fixed arguments - never this
+        # application's own executable, never a caller-supplied command, and
+        # never any user input.
+        path = _PACKAGE_ROOT / "winuhid_driver_install.py"
         text = path.read_text(encoding="utf-8")
         self.assertIn('"runas"', text)
         self.assertIn("ShellExecuteExW", text)
-        self.assertIn("INSTALLER_SHA256", text)
-        self.assertIn('INSTALL_ARGUMENT = "/install"', text)
-        self.assertIn('UNINSTALL_ARGUMENT = "/uninstall"', text)
         self.assertIn('info.lpVerb = "runas"', text)
-        self.assertIn("cmd.exe", text)
-        self.assertIn("_launch(path, argument, log_path)", text)
+        self.assertIn('"-ExecutionPolicy"', text)
+        self.assertIn('"-Action"', text)
+        self.assertIn("script_path()", text)
+        self.assertNotIn("RequireAdministrator", text)
+        self.assertNotIn("PrivilegesRequired=admin", text)
+        self.assertNotIn("input(", text)
+        self.assertNotIn("sys.argv", text)
+
+    def test_winuhid_host_elevation_is_scoped_to_the_apps_own_executable(self):
+        # Same rule as above for the second WinUHid elevation boundary: the
+        # host is this application's own executable plus the fixed
+        # --inject-host arguments, never a caller-supplied command.
+        path = _PACKAGE_ROOT / "winuhid_host_windows.py"
+        text = path.read_text(encoding="utf-8")
+        self.assertIn('info.lpVerb = "runas"', text)
+        self.assertIn("ShellExecuteExW", text)
+        self.assertIn('info.lpFile = sys.executable', text)
+        self.assertIn('HOST_FLAG = "--inject-host"', text)
         self.assertNotIn("RequireAdministrator", text)
         self.assertNotIn("PrivilegesRequired=admin", text)
 

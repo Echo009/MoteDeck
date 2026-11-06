@@ -19,6 +19,7 @@ _CORE_MARKERS = (
     "RC003 product photo",
     "VB-CABLE",
     "Interception",
+    "WinUHid",
 )
 
 

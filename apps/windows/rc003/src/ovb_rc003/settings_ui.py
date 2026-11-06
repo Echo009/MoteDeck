@@ -47,6 +47,42 @@ from . import (
 
 _OPEN_APPLICATION_DISPLAY = f"打开{product_identity.DISPLAY_NAME}"
 
+# 通用「启动应用」动作的显示文本：没选程序时就是「启动应用」，选好之后
+# 追加程序名，这样同一个动作能区分出启动的是哪个程序。
+_LAUNCH_APPLICATION_DISPLAY = "启动应用"
+_LAUNCH_APPLICATION_PREFIX = _LAUNCH_APPLICATION_DISPLAY + "："
+
+
+def application_launch_text(target: object) -> str:
+    """返回「启动应用」动作在界面上显示、并在存档里往返的文本。"""
+
+    text = str(target or "").strip()
+    return (
+        f"{_LAUNCH_APPLICATION_PREFIX}{text}"
+        if text
+        else _LAUNCH_APPLICATION_DISPLAY
+    )
+
+
+def is_application_launch_text(text: object) -> bool:
+    """判断一行动作文本是不是通用「启动应用」动作。"""
+
+    value = str(text or "").strip()
+    return (
+        value == _LAUNCH_APPLICATION_DISPLAY
+        or value.startswith(_LAUNCH_APPLICATION_PREFIX)
+    )
+
+
+def application_target_for_launch_text(text: object) -> str:
+    """从「启动应用：xxx」里取出要启动的程序，未选择时返回空串。"""
+
+    value = str(text or "").strip()
+    if not value.startswith(_LAUNCH_APPLICATION_PREFIX):
+        return ""
+    return value[len(_LAUNCH_APPLICATION_PREFIX):].strip()
+
+
 # Reference action names map to semantic values.  The Windows implementation
 # is intentionally behind these values; the dropdown must never turn
 # ``方向上`` back into a generic ``key_combo`` just because the platform uses
@@ -74,6 +110,7 @@ _REFERENCE_ACTION_LABELS: Dict[key_mapping.ActionKind, str] = {
     key_mapping.ActionKind.VOICE_MODE_CYCLE: "语音模式切换",
     key_mapping.ActionKind.ELEMENT_NAVIGATION_TOGGLE: "元素导航开关",
     key_mapping.ActionKind.OPEN_REMOTE_MIC: _OPEN_APPLICATION_DISPLAY,
+    key_mapping.ActionKind.OPEN_APPLICATION: _LAUNCH_APPLICATION_DISPLAY,
     key_mapping.ActionKind.OPEN_CODEX: "打开 Codex",
     key_mapping.ActionKind.OPEN_CLAUDE: "打开 Claude",
     key_mapping.ActionKind.OPEN_CMUX: "打开 cmux 终端",
@@ -139,14 +176,8 @@ ACTION_OPTION_GROUPS: Tuple[Tuple[str, Tuple[str, ...]], ...] = (
         ),
     ),
     ("语音", ("语音模式切换",)),
-    (
-        "启动应用",
-        (
-            _OPEN_APPLICATION_DISPLAY, "打开 Claude", "打开 cmux 终端",
-            "打开 Cursor", "打开 Slack", "打开企业微信", "打开网易云音乐",
-            "打开 Chrome", "打开 Edge", "打开 Zed",
-        ),
-    ),
+    # 只有一个通用入口：具体启动哪个程序在按键弹窗里用「选择应用」指定。
+    ("应用", (_LAUNCH_APPLICATION_DISPLAY,)),
     ("其他", ("禁用",)),
 )
 
@@ -379,6 +410,8 @@ def _action_to_display(action: key_mapping.ButtonAction) -> str:
             if target == (action.device, action.op):
                 return label
         return " · ".join(part for part in (action.device, action.op) if part)
+    if action.kind == key_mapping.ActionKind.OPEN_APPLICATION:
+        return application_launch_text(action.target)
     reference_label = _REFERENCE_ACTION_LABELS.get(action.kind)
     if reference_label is not None:
         return reference_label
@@ -436,6 +469,11 @@ def _display_to_action(text: str) -> key_mapping.ButtonAction:
             device=device,
             op=op,
             label=text,
+        )
+    if is_application_launch_text(text):
+        return key_mapping.ButtonAction(
+            key_mapping.ActionKind.OPEN_APPLICATION,
+            target=application_target_for_launch_text(text),
         )
     reference_kind = _REFERENCE_ACTION_KINDS_BY_LABEL.get(text)
     if reference_kind is None:
@@ -532,7 +570,7 @@ def _validated_button_action(
     """Parse one editor field using the same rules as the final save.
 
     ``inject_mode`` is the per-button backend the editor picked (SendInput or
-    Interception). It is stamped onto the parsed action so an unchanged text
+    WinUHid). It is stamped onto the parsed action so an unchanged text
     field still remembers the user's choice instead of silently reverting to
     the default backend.
     """
@@ -566,6 +604,7 @@ def _validated_button_action(
             if action_text_matches_original(clean_text, original_text):
                 # Retain untouched legacy values, including keys no longer
                 # accepted for new input. The sender still rejects unsafe VKs.
+                _ensure_winuhid_supports(button_id, trigger_label, original, mode)
                 _ensure_interception_supports(button_id, trigger_label, original, mode)
                 return replace(original, inject_mode=mode)
 
@@ -578,14 +617,62 @@ def _validated_button_action(
 
     if action.kind in key_mapping.MOUSE_HOLD_BUTTONS and trigger != "long_press":
         raise SettingsValidationError(button_id, "鼠标长按只能用于长按映射。")
+    if (
+        action.kind == key_mapping.ActionKind.OPEN_APPLICATION
+        and not action.target
+    ):
+        raise SettingsValidationError(
+            button_id, f"{trigger_label}：请先选择要启动的应用程序"
+        )
     if key_mapping.is_voice_action(action):
         if trigger != key_mapping.ButtonTrigger.SINGLE_CLICK.value:
             raise SettingsValidationError(
                 button_id,
                 f"{trigger_label}：语音动作只能用于主映射，请选择普通动作或快捷键",
             )
+    _ensure_winuhid_supports(button_id, trigger_label, action, mode)
     _ensure_interception_supports(button_id, trigger_label, action, mode)
     return replace(action, inject_mode=mode)
+
+
+def _ensure_winuhid_supports(
+    button_id: str,
+    trigger_label: str,
+    action: key_mapping.ButtonAction,
+    mode: str,
+) -> None:
+    """Reject WinUHid for an action it cannot reproduce.
+
+    Only actions that inject a key or a mouse button go through the backend.
+    Voice and "no action" are delivered by their own paths and keep whatever
+    backend is stored, but an action that has a dedicated host path of its own
+    (element navigation, quick links, open-app, mouse hold) has no WinUHid
+    equivalent at all, so the mode must not be selectable for it.
+    """
+
+    if mode != key_mapping.INJECT_MODE_WINUHID:
+        return
+    if key_mapping.is_voice_action(action):
+        return
+    if action.kind == key_mapping.ActionKind.DISABLED:
+        return
+    if action.kind == key_mapping.ActionKind.VOICE_MODE_CYCLE:
+        # 语音模式切换由应用自己处理，不经过任何注入后端。
+        return
+    if injection_backend.action_supported_by_winuhid(action):
+        return
+    if (
+        injection_backend.key_tokens_for_action(action) is None
+        and injection_backend.mouse_button_for_action(action) is None
+    ):
+        raise SettingsValidationError(
+            button_id,
+            f"{trigger_label}：该动作不是普通按键动作，无法使用 WinUHid（虚拟键盘），请改用 SendInput",
+        )
+    raise SettingsValidationError(
+        button_id,
+        f"{trigger_label}：该按键无法通过 WinUHid 注入，请改用 SendInput",
+    )
 
 
 def _ensure_interception_supports(

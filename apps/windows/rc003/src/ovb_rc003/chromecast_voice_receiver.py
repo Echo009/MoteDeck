@@ -8,7 +8,7 @@ import asyncio
 from collections import deque
 import time
 from . import config
-from .chromecast_voice import Recording, GET_CAPABILITIES, CAPABILITIES_TIMEOUT, supported_capabilities
+from .chromecast_voice import Recording, GET_CAPABILITIES, CAPABILITIES_TIMEOUT, TAP_MAX_SECONDS, supported_capabilities
 
 
 class VoiceReceiver:
@@ -26,6 +26,7 @@ class VoiceReceiver:
         self.detect_only = detect_only
         self.direct_notifications = direct_notifications
         self.mic_down = False
+        self.tap_started = None
         self.seen_attributes = set()
         self.seen_decisions = set()
         self.recording_elapsed_ms = 0
@@ -185,6 +186,7 @@ class VoiceReceiver:
                 self._probe_decision(f"audio/{len(value)}/idle/no_stream/detect", now)
             return  # Detection never decodes, opens, extends or closes a mic.
         if kind == "control":
+            self._track_tap(value, now)
             if self.gate.state == "idle" and value[:1] == b"\x04" and not self.stopping:
                 settings = config.load_config(config.config_path())
                 gate = Recording(settings.get("remote_recording_mode", "hold"),
@@ -205,6 +207,29 @@ class VoiceReceiver:
             decision = "accepted" if effects else "ignored"
             self._probe_decision(f"audio/{len(value)}/{self.gate.state}/{stream}/{decision}", now)
             self.effects(effects)
+
+    def _track_tap(self, value, now):
+        """吃掉的那次按下按小米的方式本地判短按，直接切模式。
+
+        gate 在 stopping/blocked 期间会丢弃新的开麦通知（不进 attempt、也不发
+        host_start），主程序根本看不到这次按键。这里按小米的做法在本地测量
+        按下→松开的时长：只要这次按下本来就会被丢掉，且松手落在短按窗口内，
+        就补发一个 tap 事件切模式，不必等上一轮会话回到 idle。
+        """
+        if not value:
+            return
+        if value == b"\x08" or (len(value) == 4 and value[:3] == b"\x04\x03\x02"
+                                and 1 <= value[3] <= 128):
+            if self.tap_started is None:
+                self.tap_started = (now, self.gate.state in ("stopping", "blocked"))
+            return
+        if len(value) in (1, 2) and value[0] == 0:
+            started, self.tap_started = self.tap_started, None
+            if started is None:
+                return
+            pressed_at, dropped = started
+            if dropped and not self.stopping and now - pressed_at <= TAP_MAX_SECONDS:
+                self.emit("tap", 0, "tap", now)
 
     def _probe_decision(self, data, now):
         # Log distinct decisions/lengths, not just the first packet per handle.

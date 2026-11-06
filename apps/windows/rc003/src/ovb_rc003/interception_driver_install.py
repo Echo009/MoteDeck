@@ -20,8 +20,8 @@ Contract (mirrors :mod:`vb_cable_bundle`'s vendor-launch contract):
   a swapped or tampered file fails closed instead of running elevated.
 - The elevated installer is awaited, so a failed install is reported instead of
   looking like a success.  A zero exit code is then cross-checked against the
-  registry: every piece of the driver (both services with their files, and both
-  device-class filters) must be present, or the call fails loudly.
+  registry: the keyboard and mouse services with their driver files, and both
+  device-class filters, must be present, or the call fails loudly.
 - The driver only takes effect after a reboot, so success still asks the user to
   reboot; it is never reported as "usable right now".
 - Installing while Memory Integrity (HVCI) is on is refused outright: the 2018
@@ -212,7 +212,8 @@ def _elevated_parameters(path: str, arguments: str, log_path: str) -> str:
     documented constants, so nothing caller-supplied reaches the command line.
     """
 
-    return f'/d /c ""{path}" {arguments} >> "{log_path}" 2>&1"'
+    command = f'""{path}" {arguments} >> "{log_path}" 2>&1'
+    return f'/d /c {command}"'
 
 
 def _default_launch_elevated(path: str, arguments: str, log_path: str) -> int:
@@ -369,11 +370,35 @@ def _run(
         # memory integrity can stop the filter from registering, and that must
         # not be reported as a successful install.
         raise DriverInstallerError(
-            "安装程序已结束（退出码 0），但注册表中仍未发现完整的 Interception "
-            "键盘/鼠标过滤驱动（需要 keyboard、mouse 两个服务及对应设备类过滤器）。"
+            "安装程序已结束（退出码 0），但注册表中仍未发现 Interception "
+            "键盘/鼠标过滤驱动（需要 keyboard、mouse 服务及对应设备类的过滤器）。"
             f"{_hvci_text(state['hvci'])}。详细记录：{log_path}"
         )
     return exit_code
+
+
+def _remove_winuhid_driver() -> None:
+    """Uninstall WinUHid before installing Interception.
+
+    Only one virtual-input driver may be installed at a time: two of them would
+    both try to own the same keystrokes.  A refused or failed uninstall aborts
+    this install instead of leaving both registered.
+    """
+
+    from . import winuhid_driver_install
+
+    if winuhid_driver_install.driver_installed() is not True:
+        return
+    try:
+        winuhid_driver_install.uninstall_driver()
+    except winuhid_driver_install.DriverInstallCancelledError as exc:
+        raise DriverInstallCancelledError(
+            "需要先卸载 WinUHid 驱动，但管理员授权被取消，Interception 未安装"
+        ) from exc
+    except winuhid_driver_install.DriverInstallerError as exc:
+        raise DriverInstallerError(
+            f"卸载 WinUHid 驱动失败，Interception 未安装：{exc}"
+        ) from exc
 
 
 def install_driver(
@@ -381,6 +406,7 @@ def install_driver(
 ) -> int:
     """Install the kernel driver through the official elevated installer."""
 
+    _remove_winuhid_driver()
     return _run(INSTALL_ARGUMENT, _launch=_launch)
 
 
