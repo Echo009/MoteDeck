@@ -646,10 +646,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#装卸-interception-驱动后键盘异常" class="md-nav__link">
+  <a href="#装卸-winuhid-驱动后键盘异常" class="md-nav__link">
     <span class="md-ellipsis">
       
-        装／卸 Interception 驱动后键盘异常
+        装／卸 WinUHid 驱动后键盘异常
       
     </span>
   </a>
@@ -845,10 +845,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#装卸-interception-驱动后键盘异常" class="md-nav__link">
+  <a href="#装卸-winuhid-驱动后键盘异常" class="md-nav__link">
     <span class="md-ellipsis">
       
-        装／卸 Interception 驱动后键盘异常
+        装／卸 WinUHid 驱动后键盘异常
       
     </span>
   </a>
@@ -921,7 +921,7 @@
 <li>实体键盘也无法唤起 → 先处理输入法设置或快捷键冲突。</li>
 <li>实体键盘正常、遥控器失败 → 核对 MoteDeck 保存的语音键快捷键是否与输入法一致，必要时重新录制。</li>
 </ol>
-<p>使用 Chatterfly 等会拦截 <code>SendInput</code> 的输入法时，需要把该语音键的注入方式改为 Interception 并安装驱动，见<a href="../buttons/#注入方式">按键映射</a>。</p>
+<p>使用 Chatterfly 等会拦截 <code>SendInput</code> 的输入法时，需要把该语音键的注入方式改为 WinUHid 并安装驱动，见<a href="../buttons/#注入方式">按键映射</a>。</p>
 <h2 id="微信提示已收到声音未确认微信开麦">微信提示「已收到声音，未确认微信开麦」<a class="headerlink" href="#微信提示已收到声音未确认微信开麦" title="Permanent link">&para;</a></h2>
 <p>这条提示表示 MoteDeck 收到了遥控器声音，但未能确认微信本轮开始录音，不代表微信一定启动失败。</p>
 <ul>
@@ -949,8 +949,8 @@
 <p>详见<a href="../openmexia/">米家设备联动</a>。</p>
 <h2 id="语音识别模型安装失败或很慢">语音识别模型安装失败或很慢<a class="headerlink" href="#语音识别模型安装失败或很慢" title="Permanent link">&para;</a></h2>
 <p>「语音识别」模型的下载会依次尝试多个下载源，网络中断时可直接重试。模型约 228 MB，仅需下载一次；安装完成后识别在本机运行，不联网。</p>
-<h2 id="装卸-interception-驱动后键盘异常">装／卸 Interception 驱动后键盘异常<a class="headerlink" href="#装卸-interception-驱动后键盘异常" title="Permanent link">&para;</a></h2>
-<p>Windows 11 开启「内存完整性（HVCI）」时，Interception 这类上层过滤驱动可能无法加载。MoteDeck 会在安装前直接拒绝并给出提示；需要回退时，卸载驱动始终允许，卸载后一般无需重启即可恢复键盘。</p>
+<h2 id="装卸-winuhid-驱动后键盘异常">装／卸 WinUHid 驱动后键盘异常<a class="headerlink" href="#装卸-winuhid-驱动后键盘异常" title="Permanent link">&para;</a></h2>
+<p>WinUHid 不接管物理键盘，安装和卸载都不会改变物理键盘的输入路径。安装需要管理员权限，通常无需重启（系统提示时重启一次即可）；卸载始终允许。如果安装或卸载后键盘确实异常，先重启电脑一次再判断。</p>
 <h2 id="服务掉线了">服务掉线了<a class="headerlink" href="#服务掉线了" title="Permanent link">&para;</a></h2>
 <p>设备页会给出「重新连接」或「重启服务」入口，点一次即可，不需要重复启动多个程序。</p>
 <h2 id="仍然无法定位">仍然无法定位<a class="headerlink" href="#仍然无法定位" title="Permanent link">&para;</a></h2>
