@@ -718,6 +718,10 @@
 <li>首次启动可能弹出 Windows SmartScreen 提示，选择「更多信息」→「仍要运行」。</li>
 </ol>
 <p>安装到当前用户目录，不需要管理员权限；系统要求为 64 位 Windows 10 1809 或更高版本。</p>
+<div class="admonition note">
+<p class="admonition-title">按键与语音需要一次管理员授权</p>
+<p>安装本身不需要管理员权限，但按键映射与语音依赖一次管理员授权（UAC），并且要求<strong>当前登录账号属于管理员组</strong>。普通账号可以安装并打开程序，但自定义映射与语音不会生效。详见<a href="../connect/#按键接收需要授权时">连接遥控器</a>。</p>
+</div>
 <h2 id="核对校验值">核对校验值<a class="headerlink" href="#核对校验值" title="Permanent link">&para;</a></h2>
 <p>下载后可以用 PowerShell 核对安装包是否完整：</p>
 <div class="highlight"><pre><span></span><code><span class="nb">Get-FileHash</span> <span class="n">-Algorithm</span> <span class="n">SHA256</span> <span class="p">.\</span><span class="n">MoteDeckSetup</span><span class="p">-</span><span class="n">0</span><span class="p">.</span><span class="n">2</span><span class="p">.</span><span class="n">0-unsigned</span><span class="p">.</span><span class="n">exe</span>
