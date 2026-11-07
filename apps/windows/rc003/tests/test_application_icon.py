@@ -99,30 +99,13 @@ class ApplicationIconTests(unittest.TestCase):
         self.assertEqual(resources.find_tray_icon("connected").name, "remote-mic-tray.png")
         self.assertEqual(resources.find_app_icon("connected").name, "remote-mic.png")
 
-    def test_navigation_icon_uses_theme_specific_svg_resources(self):
-        import xml.etree.ElementTree as ET
-
+    def test_navigation_icon_uses_the_approved_application_png(self):
         qml_dir = _RC003_ROOT / "src" / "ovb_rc003" / "qml"
-        light = ET.parse(qml_dir / "assets" / "brand-mark.svg").getroot()
-        dark = ET.parse(qml_dir / "assets" / "brand-mark-dark.svg").getroot()
-        self.assertEqual(len(list(light.iter())), len(list(dark.iter())) + 1)
-        light_shapes = {
-            node.attrib["id"]: node.attrib for node in light.iter()
-            if "id" in node.attrib and node.attrib["id"] != "tile"
-        }
-        dark_shapes = {
-            node.attrib["id"]: node.attrib for node in dark.iter()
-            if "id" in node.attrib
-        }
-        self.assertNotIn("tile", dark_shapes)
-        self.assertEqual(dark_shapes, light_shapes)
         main = (qml_dir / "main.qml").read_text(encoding="utf-8")
         logo = main.split('id: appLogo', 1)[1].split('Column {', 1)[0]
-        self.assertIn(
-            'window.tokens.darkMode\n'
-            '                    ? "assets/brand-mark-dark.svg" : "assets/brand-mark.svg"',
-            logo,
-        )
+        self.assertIn('source: "../assets/icons/remote-mic.png"', logo)
+        self.assertNotIn("brand-mark", logo)
+        self.assertTrue((qml_dir / "../assets/icons/remote-mic.png").is_file())
         self.assertIn('MoteDeckWordmark {\n                    objectName: "titleWordmark"', main)
 
     def test_qt_icon_is_applied_to_the_application_and_native_window(self):
