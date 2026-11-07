@@ -60,7 +60,7 @@ class RawInputCheckTests(unittest.TestCase):
     def test_exactly_one_match_passes(self):
         result = diag.check_raw_input(enumerate_paths=lambda: ["\\\\?\\HID#VID_2717&PID_32B8#..."])
         self.assertEqual(result.status, diag.CheckStatus.PASS)
-        self.assertEqual(result.detail, "小米遥控器2 Pro 按键设备已找到")
+        self.assertEqual(result.detail, "小米蓝牙遥控器 2 Pro 按键设备已找到")
         self.assertEqual(result.result_code, "ready")
 
     def test_ambiguous_matches_fails(self):
@@ -2225,7 +2225,7 @@ class RunDiagnosticsStopsAfterCancellationTests(unittest.TestCase):
             cancel_event.set()
             return diag.CheckResult(
                 "ble_candidate",
-                "小米遥控器2 Pro 蓝牙配对",
+                "小米蓝牙遥控器 2 Pro 蓝牙配对",
                 diag.CheckGroup.VOICE_BRIDGE,
                 diag.CheckStatus.FAIL,
                 "cancelled",

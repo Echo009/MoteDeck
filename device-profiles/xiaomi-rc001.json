@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
   "id": "xiaomi-rc001",
-  "displayName": "小米遥控器2",
+  "displayName": "小米蓝牙遥控器 2",
   "vendor": "Xiaomi",
   "model": "RC001",
   "support": {
     "status": "research",
-    "notes": "按键集合与 HID usage 同小米遥控器2 Pro 一致；Windows 客户端沿用同一条配对、按键与语音链路，真机配对与语音链路仍需验收。"
+    "notes": "按键集合与 HID usage 同小米蓝牙遥控器 2 Pro 一致；Windows 客户端沿用同一条配对、按键与语音链路，真机配对与语音链路仍需验收。"
   },
   "identity": {
     "bluetoothNames": [

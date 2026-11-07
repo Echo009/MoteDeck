@@ -1,6 +1,6 @@
 # MoteDeck Windows 使用说明
 
-MoteDeck把小米蓝牙语音遥控器 2 Pro（RC003）变成
+MoteDeck把小米蓝牙遥控器 2 Pro（RC003）变成
 Windows 的远程按键和语音输入设备。
 
 **[下载页面与最新版说明](https://github.com/HZDavy/MoteDeck)**
@@ -33,7 +33,7 @@ Get-FileHash -Algorithm SHA256 .\MoteDeckSetup-<版本号>-unsigned.exe
 
 先打开 Windows“设置 → 蓝牙和设备”，让遥控器进入配对状态并完成配对。
 
-小米遥控器 2 Pro 可同时长按“主页键 + 菜单键”进入配对状态。
+小米蓝牙遥控器 2 Pro 可同时长按“主页键 + 菜单键”进入配对状态。
 
 ### 2. 在MoteDeck中选择设备
 
@@ -109,7 +109,7 @@ Get-FileHash -Algorithm SHA256 .\MoteDeckSetup-<版本号>-unsigned.exe
 `CABLE Input` 是MoteDeck写入声音的一侧，`CABLE Output` 是输入法读取麦克风的一侧，
 方向不能互换。不要选择 `Windows WDM-KS`。
 
-小米遥控器使用按住型：按住说话，松开结束。
+小米蓝牙遥控器使用按住型：按住说话，松开结束。
 
 Chatterfly 走的是它已有的录音开始／结束入口，小米按住操作保持原样，已有录音时不重复
 开启。气泡出现后才转发遥控声音，结束后气泡应消失。语音快捷键仍可读取和录入供键盘对照，

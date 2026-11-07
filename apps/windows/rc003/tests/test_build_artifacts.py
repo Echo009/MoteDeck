@@ -3027,7 +3027,7 @@ class RootDocumentConsistencyTests(unittest.TestCase):
         self.notices_text = _THIRD_PARTY_NOTICES_PATH.read_text(encoding="utf-8")
 
     def test_root_readme_does_not_lump_windows_in_with_planned_research(self):
-        self.assertIn("小米蓝牙语音遥控器 2 Pro", self.root_readme_text)
+        self.assertIn("小米蓝牙遥控器 2 Pro", self.root_readme_text)
         self.assertIn("[开发者文档](apps/windows/rc003/README.md)", self.root_readme_text)
 
     def test_root_readme_places_the_admin_workaround_in_usage_limits(self):

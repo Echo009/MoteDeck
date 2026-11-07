@@ -346,7 +346,7 @@ DEVICE_PROFILE_BY_ID = {profile.device_id: profile for profile in DEVICE_PROFILE
 RC003_DISPLAY_NAME = (
     DEVICE_PROFILE_BY_ID[RC003_ID].display_name
     if RC003_ID in DEVICE_PROFILE_BY_ID
-    else "小米遥控器2 Pro"
+    else "小米蓝牙遥控器 2 Pro"
 )
 
 

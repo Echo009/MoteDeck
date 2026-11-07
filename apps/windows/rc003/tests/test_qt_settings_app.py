@@ -2336,7 +2336,7 @@ class SettingsControllerTests(unittest.TestCase):
         self.assertTrue(controller.bridgeRunning)
         self.assertTrue(controller.bridgeConnected)
         self.assertEqual(controller.bridgeLaunchPhase, "connected")
-        self.assertIn("小米遥控器2 Pro 已连接", controller.launchStatusText)
+        self.assertIn("小米蓝牙遥控器 2 Pro 已连接", controller.launchStatusText)
 
     def test_retry_wait_status_is_exposed_as_a_connection_failure(self):
         self._bridge_status_patch.stop()
@@ -11974,17 +11974,17 @@ class OffscreenQmlLoadTests(unittest.TestCase):
                 )
                 self.assertFalse(data["connection"]["save_highlighted"])
                 self.assertTrue(data["connection"]["launch_highlighted"])
-                self.assertNotIn("小米遥控器2 Pro 已连接", data["connection"]["launch_status"])
+                self.assertNotIn("小米蓝牙遥控器 2 Pro 已连接", data["connection"]["launch_status"])
                 waiting_progress = data["connection"]["waiting_progress"]
                 self.assertTrue(waiting_progress["visible"])
                 self.assertTrue(waiting_progress["indicator_running"])
-                self.assertIn("等待小米遥控器2 Pro 连接", waiting_progress["stage_text"])
+                self.assertIn("等待小米蓝牙遥控器 2 Pro 连接", waiting_progress["stage_text"])
                 self.assertTrue(waiting_progress["elapsed_visible"])
                 self.assertEqual(waiting_progress["elapsed_text"], "12 秒")
                 connected_progress = data["connection"]["connected_progress"]
                 self.assertTrue(connected_progress["visible"])
                 self.assertFalse(connected_progress["indicator_running"])
-                self.assertIn("小米遥控器2 Pro 已连接", connected_progress["stage_text"])
+                self.assertIn("小米蓝牙遥控器 2 Pro 已连接", connected_progress["stage_text"])
 
                 permission_items = data["permissions"]["items"]
                 self.assertTrue(permission_items["requiredPermissionsSection"]["visible"])

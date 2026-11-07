@@ -15,7 +15,7 @@
 > [!NOTE]
 > 本项目自身代码几乎全部由 AI 协助开发，可能存在疏漏，由此给您带来的不便敬请谅解。
 
-MoteDeck 是一个以遥控器语音控制电脑为核心的 Windows 工具，支持**小米蓝牙语音遥控器 2 Pro**（RC003）、**小米遥控器2**（RC001）与 Google TV 款的**谷歌遥控器**（Chromecast；谷歌 TV 遥控器均为第三方生产，存在多个版本，不能保证所有版本都可以使用），通过按键映射与语音输入，把遥控器变成电脑的快捷键和麦克风；连接 OpenMexia 后还可用语音控制米家设备。
+MoteDeck 是一个以遥控器语音控制电脑为核心的 Windows 工具，支持**小米蓝牙遥控器 2 Pro**（RC003）、**小米蓝牙遥控器 2**（RC001）与 Google TV 款的**谷歌遥控器**（Chromecast；谷歌 TV 遥控器均为第三方生产，存在多个版本，不能保证所有版本都可以使用），通过按键映射与语音输入，把遥控器变成电脑的快捷键和麦克风；连接 OpenMexia 后还可用语音控制米家设备。
 
 按键可以映射成键盘快捷键（可选驱动级注入）、鼠标操作或打开应用，同一按键的单击、双击、长按可以各设一个动作；语音键能触发输入法的语音快捷键，也能用本地 SenseVoice 模型离线识别成文字；连接 OpenMexia 后还能用一句语音开关整屋设备。
 
@@ -27,11 +27,11 @@ MoteDeck 是一个以遥控器语音控制电脑为核心的 Windows 工具，�
 
 ---
 
-## 新增：支持小米遥控器2 与谷歌 TV 遥控器
+## 新增：支持小米蓝牙遥控器 2 与谷歌 TV 遥控器
 
-<img src="./assets/readme/chromecast-support.svg" width="100%" alt="新增支持小米遥控器2 与谷歌 TV 遥控器：MoteDeck 0.1.9 起按键与语音都能用，欢迎测试">
+<img src="./assets/readme/chromecast-support.svg" width="100%" alt="新增支持小米蓝牙遥控器 2 与谷歌 TV 遥控器：MoteDeck 0.1.9 起按键与语音都能用，欢迎测试">
 
-0.1.9 起同时支持**小米遥控器2**（RC001）与 Google TV 款的**谷歌遥控器**（Chromecast）：设备页可以扫描、添加并选择它们，按键页与设备页会切换成对应遥控器的实物图和键位。小米遥控器2 与 2 Pro 的按键一致，语音按住话筒键录音、松手发送。
+0.1.9 起同时支持**小米蓝牙遥控器 2**（RC001）与 Google TV 款的**谷歌遥控器**（Chromecast）：设备页可以扫描、添加并选择它们，按键页与设备页会切换成对应遥控器的实物图和键位。小米蓝牙遥控器 2 与 2 Pro 的按键一致，语音按住话筒键录音、松手发送。
 
 谷歌 TV 遥控器均为第三方生产，存在多个版本，不能保证所有版本都可以使用；遇到无法识别或按键对不上的版本，欢迎反馈到 [Issues](https://github.com/HZDavy/MoteDeck/issues)。
 
@@ -39,7 +39,7 @@ MoteDeck 是一个以遥控器语音控制电脑为核心的 Windows 工具，�
 
 ## 界面预览
 
-<img src="docs/screenshots/device-overview.png" width="100%" alt="MoteDeck 设备页：已连接小米遥控器 2 Pro，显示按键接收、遥控器服务与检查更新">
+<img src="docs/screenshots/device-overview.png" width="100%" alt="MoteDeck 设备页：已连接小米蓝牙遥控器 2 Pro，显示按键接收、遥控器服务与检查更新">
 
 <p align="center">
   <img src="docs/screenshots/buttons-mapping.png" width="49%" alt="按键盘：遥控器实物图与每个按键的单击、双击、长按动作">
@@ -238,7 +238,7 @@ MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成。
 
 Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](https://github.com/nijez/open-voice-bridge) 改造，Windows 实现的历史仓库为 [`ZSTDJan/windows-remote-mic-app`](https://github.com/ZSTDJan/windows-remote-mic-app)。感谢原作者的贡献，完整归属说明见 [ATTRIBUTION.md](apps/windows/rc003/ATTRIBUTION.md)。
 
-小米遥控器2（RC001）的实现，以及小米遥控器 2 / 2 Pro 的型号判断（先按蓝牙名匹配，再读 GATT `0x2A24`），参考了 [`GetSayAll/remote-mic-app-windows`](https://github.com/GetSayAll/remote-mic-app-windows)（SayAll Windows 版），由 [Echo](https://github.com/HD838A) 提交（PR #7）。感谢他的公开实现。
+小米蓝牙遥控器 2（RC001）的实现，以及小米蓝牙遥控器 2 / 2 Pro 的型号判断（先按蓝牙名匹配，再读 GATT `0x2A24`），参考了 [`GetSayAll/remote-mic-app-windows`](https://github.com/GetSayAll/remote-mic-app-windows)（SayAll Windows 版），由 [Echo](https://github.com/HD838A) 提交（PR #7）。感谢他的公开实现。
 
 驱动级注入用的内核驱动是第三方项目 [Interception](https://github.com/oblitum/Interception)（作者 [oblitum / Francisco Lopes](https://github.com/oblitum)）：使用的是官方发布包里未修改的 `interception.dll` 与 `install-interception.exe`（由官方安装程序安装原版驱动），按 LGPL-3.0 用于非商业用途，许可与校验信息见 [第三方说明](THIRD_PARTY_NOTICES.md)。
 

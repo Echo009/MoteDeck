@@ -171,7 +171,7 @@ def _make_console_encoding_safe() -> None:
 def _print_help() -> None:
     _make_console_encoding_safe()
     print(
-        f"{product_identity.DISPLAY_NAME} - 小米遥控器2 Pro Windows 客户端 "
+        f"{product_identity.DISPLAY_NAME} - 小米蓝牙遥控器 2 Pro Windows 客户端 "
         f"{__version__}"
     )
     print("Partially real-device verified - see this package's README.md and TESTING.md.")

@@ -152,7 +152,7 @@ class ProductIdentityTests(unittest.TestCase):
         tooltip_default = inspect.signature(
             bridge_tray_windows.BridgeTray
         ).parameters["tooltip"].default
-        self.assertEqual(tooltip_default, "MoteDeck · 小米遥控器2 Pro")
+        self.assertEqual(tooltip_default, "MoteDeck · 小米蓝牙遥控器 2 Pro")
 
     def test_qml_reads_the_controller_identity_instead_of_copying_the_name(self):
         qml_dir = _RC003_ROOT / "src" / "ovb_rc003" / "qml"

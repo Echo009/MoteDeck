@@ -32,7 +32,7 @@
 
     <!-- 设备与两条支线 -->
     <rect class="box" x="180" y="14" width="240" height="54" rx="12"/>
-    <text class="t" x="300" y="34" text-anchor="middle">小米蓝牙语音遥控器 2 Pro</text>
+    <text class="t" x="300" y="34" text-anchor="middle">小米蓝牙遥控器 2 Pro</text>
     <text class="s" x="300" y="51" text-anchor="middle">麦克风 + 按键</text>
 
     <path class="ln" d="M300,68 V84"/>
