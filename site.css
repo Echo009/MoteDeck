@@ -269,7 +269,7 @@ h2{font-family:var(--display);font-size:44px;line-height:1.25;font-weight:700;le
   .band-in{flex-wrap:wrap;gap:16px;padding:20px}
   .band-link{margin-left:0}
   .seg{display:flex;overflow-x:auto}
-  .seg button{padding:0 12px;font-size:14px}
+  .seg button{flex:none;white-space:nowrap;padding:0 12px;font-size:14px}
   .drop{height:520px}
   .jfile{left:20px;top:20px;width:calc(100% - 40px)}
   .dlg{left:20px;right:20px;width:auto;bottom:64px}
