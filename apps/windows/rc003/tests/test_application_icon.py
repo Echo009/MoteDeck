@@ -1,3 +1,4 @@
+import hashlib
 import struct
 import subprocess
 import sys
@@ -5,12 +6,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ovb_rc003 import qt_settings_app
+from ovb_rc003 import qt_settings_app, resources
 
 
 _RC003_ROOT = Path(__file__).resolve().parents[1]
 _ICON_DIR = _RC003_ROOT / "src" / "ovb_rc003" / "assets" / "icons"
 _GENERATOR = _RC003_ROOT / "build" / "generate-app-icon.py"
+_APP_ICON_SHA256 = "62e057c9e830c83d627b2c5f9550af9b5d5506245982754703cfce915302212a"
+_TRAY_ICON_SHA256 = "8d3242f8e9a2cc26f8d7916306b736a82a8ff60c279abc2aeeea267aec449e95"
 
 
 class ApplicationIconTests(unittest.TestCase):
@@ -21,19 +24,80 @@ class ApplicationIconTests(unittest.TestCase):
         self.assertFalse(image.isNull())
         self.assertEqual(image.width(), image.height())
 
-    def test_application_and_installer_pngs_match_the_brand_svg(self):
+    def test_application_png_matches_the_approved_high_resolution_source(self):
+        path = _ICON_DIR / "remote-mic.png"
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), _APP_ICON_SHA256)
+
+    def test_tray_png_matches_the_approved_source(self):
+        path = _ICON_DIR / "remote-mic-tray.png"
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), _TRAY_ICON_SHA256)
+
+    def test_wizard_png_is_scaled_from_the_application_png(self):
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QImage
+
+        source = QImage(str(_ICON_DIR / "remote-mic.png"))
+        expected = source.scaled(55, 55, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        actual = QImage(str(_RC003_ROOT / "installer" / "wizard-small.png"))
+        self.assertEqual((actual.width(), actual.height()), (55, 55))
+        self.assertEqual(
+            actual.convertToFormat(QImage.Format_ARGB32),
+            expected.convertToFormat(QImage.Format_ARGB32),
+        )
+
+    def test_tray_ico_is_derived_from_the_independent_png(self):
         import runpy
+        from PySide6.QtGui import QImage
 
         generator = runpy.run_path(str(_GENERATOR))
-        svg_path = _RC003_ROOT / "src" / "ovb_rc003" / "qml" / "assets" / "brand-mark.svg"
-        for path, size in (
-            (_ICON_DIR / "remote-mic.png", 1024),
-            (_RC003_ROOT / "installer" / "wizard-small.png", 55),
-        ):
-            with self.subTest(path=path):
-                self.assertEqual(
-                    path.read_bytes(), generator["render_brand_png"](svg_path, size)
-                )
+        content = (_ICON_DIR / "remote-mic-tray.ico").read_bytes()
+        self.assertEqual(content, generator["build_ico"](_ICON_DIR / "remote-mic-tray.png"))
+        for index, size in enumerate(generator["ICON_SIZES"]):
+            entry = struct.unpack_from("<BBBBHHII", content, 6 + 16 * index)
+            image = QImage.fromData(content[entry[7]:entry[7] + entry[6]], "PNG")
+            self.assertEqual((image.width(), image.height()), (size, size))
+
+    def test_icon_generator_is_idempotent_and_preserves_png_sources(self):
+        application_png = _ICON_DIR / "remote-mic.png"
+        tray_png = _ICON_DIR / "remote-mic-tray.png"
+        before = application_png.read_bytes(), tray_png.read_bytes()
+        result = subprocess.run(
+            [sys.executable, str(_GENERATOR)],
+            cwd=_RC003_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        after = application_png.read_bytes(), tray_png.read_bytes()
+        self.assertEqual(after, before)
+        first_generated = (
+            (_ICON_DIR / "remote-mic.ico").read_bytes(),
+            (_ICON_DIR / "remote-mic-tray.ico").read_bytes(),
+            (_RC003_ROOT / "installer" / "wizard-small.png").read_bytes(),
+        )
+        result = subprocess.run(
+            [sys.executable, str(_GENERATOR)],
+            cwd=_RC003_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(
+            first_generated,
+            (
+                (_ICON_DIR / "remote-mic.ico").read_bytes(),
+                (_ICON_DIR / "remote-mic-tray.ico").read_bytes(),
+                (_RC003_ROOT / "installer" / "wizard-small.png").read_bytes(),
+            ),
+        )
+
+    def test_find_tray_icon_keeps_stopped_state_and_uses_separate_running_source(self):
+        self.assertEqual(resources.find_tray_icon("off").name, "remote-mic-stopped.png")
+        self.assertEqual(resources.find_tray_icon("waiting").name, "remote-mic-tray.png")
+        self.assertEqual(resources.find_tray_icon("connected").name, "remote-mic-tray.png")
+        self.assertEqual(resources.find_app_icon("connected").name, "remote-mic.png")
 
     def test_navigation_icon_uses_theme_specific_svg_resources(self):
         import xml.etree.ElementTree as ET

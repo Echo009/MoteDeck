@@ -2829,8 +2829,8 @@ def _load_qt_classes() -> dict:
             return "waiting"
 
         def _tray_icon_source(self) -> str:
-            path = resources.find_app_icon(self._tray_icon_state())
-            return QUrl.fromLocalFile(str(path.with_suffix(".ico"))).toString() if path else ""
+            path = resources.find_tray_icon(self._tray_icon_state())
+            return QUrl.fromLocalFile(str(path)).toString() if path else ""
 
         def _brand_icon_source(self) -> str:
             path = resources.find_app_icon("connected")

@@ -15,7 +15,7 @@ import sys
 import threading
 from typing import Callable
 
-from . import device_catalog, product_identity
+from . import device_catalog, product_identity, resources
 
 
 WM_DESTROY = 0x0002
@@ -43,6 +43,8 @@ TPM_RETURNCMD = 0x0100
 MENU_OPEN_SETTINGS = 1001
 MENU_EXIT_BRIDGE = 1002
 BRIDGE_TRAY_WINDOW_TITLE = "Remote Mic RC003 bridge tray"
+IMAGE_ICON = 1
+LR_LOADFROMFILE = 0x0010
 
 
 def dispatch_menu_command(
@@ -280,6 +282,15 @@ class BridgeTray:
         user32.PostQuitMessage.restype = None
         user32.DestroyIcon.argtypes = (wintypes.HICON,)
         user32.DestroyIcon.restype = wintypes.BOOL
+        user32.LoadImageW.argtypes = (
+            wintypes.HINSTANCE,
+            wintypes.LPCWSTR,
+            wintypes.UINT,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.UINT,
+        )
+        user32.LoadImageW.restype = wintypes.HANDLE
         user32.LoadIconW.argtypes = (wintypes.HINSTANCE, ctypes.c_void_p)
         user32.LoadIconW.restype = wintypes.HICON
         shell32.Shell_NotifyIconW.argtypes = (
@@ -392,6 +403,16 @@ class BridgeTray:
             user32.UnregisterClassW(class_name, instance)
 
     def _load_icon(self, user32, shell32) -> int:
+        tray_png = resources.find_tray_icon()
+        if tray_png is not None:
+            tray_ico = tray_png.with_suffix(".ico")
+            if tray_ico.is_file():
+                handle = user32.LoadImageW(
+                    None, str(tray_ico), IMAGE_ICON, 16, 16, LR_LOADFROMFILE
+                )
+                if handle:
+                    self._owned_icons.append(int(handle))
+                    return int(handle)
         large = wintypes.HICON()
         small = wintypes.HICON()
         extracted = shell32.ExtractIconExW(

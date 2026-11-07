@@ -60,6 +60,13 @@ class FindRemotePhotoFrozenBundleTests(unittest.TestCase):
 
         self.assertEqual(resources.find_app_icon("connected"), expected)
 
+        tray = icon_dir / "remote-mic-tray.png"
+        tray.write_bytes(b"bundled tray png marker")
+        self.assertEqual(resources.find_tray_icon("connected"), tray)
+        stopped = icon_dir / "remote-mic-stopped.png"
+        stopped.write_bytes(b"bundled stopped png marker")
+        self.assertEqual(resources.find_tray_icon("off"), stopped)
+
 
 class FindRemotePhotoTests(unittest.TestCase):
     def test_finds_the_repository_root_photo_during_source_checkout(self):
@@ -86,6 +93,15 @@ class FindRemotePhotoTests(unittest.TestCase):
             icon = resources.find_app_icon(state)
             self.assertIsNotNone(icon)
             self.assertTrue(icon.is_file())
+
+    def test_tray_states_use_independent_png_except_when_stopped(self):
+        waiting = resources.find_tray_icon("waiting")
+        self.assertIsNotNone(waiting)
+        self.assertEqual(waiting.name, "remote-mic-tray.png")
+        self.assertEqual(resources.find_tray_icon("connected"), waiting)
+        self.assertEqual(resources.find_tray_icon("unknown"), waiting)
+        self.assertEqual(resources.find_tray_icon("off"), resources.find_app_icon("off"))
+        self.assertNotEqual(waiting, resources.find_app_icon("waiting"))
 
     def test_stopped_state_uses_separate_icon_and_running_states_keep_brand_png(self):
         off = resources.find_app_icon("off")

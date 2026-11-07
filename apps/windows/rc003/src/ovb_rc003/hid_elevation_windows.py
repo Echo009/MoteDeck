@@ -73,7 +73,7 @@ HELPER_PROTOCOL_VERSION = 1
 # added protected script reload and the exclusive-device legacy migration.
 # Protocol 4, the administrator-only helper and LocalService runtime ACLs are
 # unchanged.
-HELPER_GENERATION = 16
+HELPER_GENERATION = 17
 TASK_CONTRACT_VERSION = 5
 MANIFEST_FILENAME = "helper-manifest.json"
 INJECTION_RESULT_FILENAME = "hid-injection-result.json"

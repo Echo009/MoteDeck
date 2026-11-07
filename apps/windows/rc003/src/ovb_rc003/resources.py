@@ -122,6 +122,17 @@ def _app_icon_directory_candidates() -> Iterator[Path]:
     yield Path(__file__).resolve().parent / "assets" / "icons"
 
 
+def find_tray_icon(state: str = "waiting") -> Optional[Path]:
+    filename = (
+        "remote-mic-stopped.png" if str(state) == "off" else "remote-mic-tray.png"
+    )
+    for directory in _app_icon_directory_candidates():
+        candidate = directory / filename
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def find_app_icon(state: str = "waiting") -> Optional[Path]:
     filename = _APP_ICON_FILENAMES.get(str(state), _APP_ICON_FILENAMES["waiting"])
     for directory in _app_icon_directory_candidates():

@@ -637,6 +637,7 @@ class SettingsControllerTests(unittest.TestCase):
         self.assertFalse(controller.launchBridgeOnAppStart)
         self.assertFalse(controller.diagnosticTraceEnabled)
         self.assertEqual(controller.closeBehavior, "hide_to_tray")
+        self.assertTrue(controller.brandIconSource.endswith("remote-mic.png"))
         self.assertEqual(controller.applicationVersion, qt_settings_app.__version__)
         self.assertEqual(
             controller.applicationPresentationLabel,
@@ -645,7 +646,7 @@ class SettingsControllerTests(unittest.TestCase):
             ),
         )
         self.assertTrue(
-            controller.trayIconSource.endswith("remote-mic.ico")
+            controller.trayIconSource.endswith("remote-mic-stopped.png")
         )
 
     def test_per_button_inject_mode_round_trips_through_the_controller(self):
@@ -800,7 +801,7 @@ class SettingsControllerTests(unittest.TestCase):
 
         self.assertTrue(controller.buttonReceiverUsable)
         self.assertTrue(
-            controller.trayIconSource.endswith("remote-mic.ico")
+            controller.trayIconSource.endswith("remote-mic-tray.png")
         )
         self.assertIn(device_catalog.RC003_DISPLAY_NAME, controller.trayTooltip)
         self.assertIn("正常", controller.trayTooltip)
@@ -808,7 +809,7 @@ class SettingsControllerTests(unittest.TestCase):
         controller._set_bridge_connected(False)
         self.assertTrue(controller.buttonReceiverUsable)
         self.assertTrue(
-            controller.trayIconSource.endswith("remote-mic.ico")
+            controller.trayIconSource.endswith("remote-mic-tray.png")
         )
         self.assertIn("未连接", controller.trayTooltip)
 
@@ -826,12 +827,12 @@ class SettingsControllerTests(unittest.TestCase):
         )
         self.assertFalse(controller.buttonReceiverUsable)
         self.assertTrue(
-            controller.trayIconSource.endswith("remote-mic.ico")
+            controller.trayIconSource.endswith("remote-mic-tray.png")
         )
         self.assertIn("按键接收异常", controller.trayTooltip)
         controller._set_bridge_running(False)
         self.assertEqual(controller._tray_icon_state(), "off")
-        self.assertTrue(controller.trayIconSource.endswith("remote-mic-stopped.ico"))
+        self.assertTrue(controller.trayIconSource.endswith("remote-mic-stopped.png"))
         self.assertGreaterEqual(len(changes), 5)
 
     def test_remote_battery_exposes_valid_level_and_clears_when_status_disappears(self):

@@ -1,8 +1,64 @@
 import asyncio
+import tempfile
 import unittest
+from pathlib import Path
+from unittest import mock
 
 from ovb_rc003 import app as app_module
 from ovb_rc003 import bridge_launcher, bridge_tray_windows
+
+
+class TrayIconLoadingTests(unittest.TestCase):
+    def test_native_api_loads_png_derived_tray_ico_and_releases_handle(self):
+        tray = bridge_tray_windows.BridgeTray(
+            on_open_settings=lambda: None,
+            on_exit_requested=lambda: None,
+        )
+        user32, shell32, _kernel32 = tray._configure_apis()
+        self.assertEqual(user32.LoadImageW.restype, bridge_tray_windows.wintypes.HANDLE)
+        try:
+            handle = tray._load_icon(user32, shell32)
+            self.assertTrue(handle)
+            self.assertIn(handle, tray._owned_icons)
+        finally:
+            for owned in tray._owned_icons:
+                self.assertTrue(user32.DestroyIcon(owned))
+            tray._owned_icons.clear()
+
+    def test_loads_bundled_ico_before_executable_icon(self):
+        tray = bridge_tray_windows.BridgeTray(
+            on_open_settings=lambda: None,
+            on_exit_requested=lambda: None,
+        )
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ico = Path(tmpdir) / "remote-mic-tray.ico"
+            ico.write_bytes(b"ico")
+            with mock.patch.object(
+                bridge_tray_windows.resources, "find_tray_icon", return_value=ico.with_suffix(".png")
+            ):
+                user32 = mock.Mock()
+                user32.LoadImageW.return_value = 456
+                shell32 = mock.Mock()
+                self.assertEqual(tray._load_icon(user32, shell32), 456)
+                user32.LoadImageW.assert_called_once_with(
+                    None, str(ico), 1, 16, 16, 0x0010
+                )
+                shell32.ExtractIconExW.assert_not_called()
+                self.assertEqual(tray._owned_icons, [456])
+
+    def test_falls_back_to_system_icon_when_tray_ico_is_missing(self):
+        tray = bridge_tray_windows.BridgeTray(
+            on_open_settings=lambda: None,
+            on_exit_requested=lambda: None,
+        )
+        user32 = mock.Mock()
+        user32.LoadIconW.return_value = 123
+        shell32 = mock.Mock()
+        with mock.patch.object(
+            bridge_tray_windows.resources, "find_tray_icon", return_value=None
+        ):
+            self.assertEqual(tray._load_icon(user32, shell32), 123)
+        shell32.ExtractIconExW.assert_called_once()
 
 
 class TrayMenuDispatchTests(unittest.TestCase):
