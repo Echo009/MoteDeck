@@ -63,6 +63,7 @@ _PRIVATE_HISTORY_PATH_PATTERNS = (
 # additional public-history commits listed below without rewriting history.
 # This remains an email-only exception; subjects and content checks still run.
 _APPROVED_PUBLIC_CONTRIBUTOR_COMMITS = frozenset({
+    "8b08a0ffbd2f223524cd51522d2626f8b4959c27",
     "016f09158952049e8505cf6bc9a7898cc1d900da",
     "031e3730bf2eff6d9308963658378ddf1f528004",
     "0d1572f6b587f6483ed239e8865cc8d78731eab3",
