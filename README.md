@@ -238,6 +238,8 @@ Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](h
 
 驱动级注入用的内核驱动是第三方项目 [Interception](https://github.com/oblitum/Interception)（作者 [oblitum / Francisco Lopes](https://github.com/oblitum)）：使用的是官方发布包里未修改的 `interception.dll` 与 `install-interception.exe`（由官方安装程序安装原版驱动），按 LGPL-3.0 用于非商业用途，许可与校验信息见 [第三方说明](THIRD_PARTY_NOTICES.md)。
 
+另一个可选的驱动级注入后端是第三方的虚拟 HID 驱动 [WinUHid](https://github.com/cgutman/WinUHid)（作者 [cgutman / Cameron Gutman](https://github.com/cgutman)，MIT 许可）：它把上报的按键变成真实的 HID 设备，长按、组合键和部分不认 `SendInput` 的程序都能用。上游只发布源码，构建脚本在装有 Windows Driver Kit 的机器上按原样编译一次，随包附带的 `WinUHid.dll` 与驱动包未做任何修改；驱动绑定 `Root\WinUHid` 设备，安装与卸载只在设置页由你手动点击并确认 UAC，没装驱动时自动回落到 `SendInput`。
+
 离线语音识别用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（Apache-2.0，随包附带并内置 ONNX Runtime）跑 [SenseVoice](https://github.com/QwenAudio/SenseVoice)（MIT，阿里通义实验室）的模型；模型不随包分发，只在用户点击安装时下载，转换后的模型文件由 [csukuangfj](https://github.com/csukuangfj) 提供。
 
 <table>
@@ -246,6 +248,7 @@ Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](h
     <td width="116" align="center"><a href="https://github.com/ZSTDJan"><img src="https://avatars.githubusercontent.com/u/166355097?v=4" width="64px;" alt="ZSTDJan"/><br /><sub><b>ZSTDJan</b></sub></a><br /><sub>windows-remote-mic-app</sub></td>
     <td width="116" align="center"><a href="https://github.com/HD838A"><img src="https://avatars.githubusercontent.com/u/126734171?v=4" width="64px;" alt="Echo"/><br /><sub><b>Echo</b></sub></a><br /><sub>remote-mic-app-windows</sub></td>
     <td width="116" align="center"><a href="https://github.com/oblitum"><img src="https://avatars.githubusercontent.com/u/1269815?v=4" width="64px;" alt="oblitum"/><br /><sub><b>oblitum</b></sub></a><br /><sub>Interception</sub></td>
+    <td width="116" align="center"><a href="https://github.com/cgutman"><img src="https://avatars.githubusercontent.com/u/2695644?v=4" width="64px;" alt="cgutman"/><br /><sub><b>cgutman</b></sub></a><br /><sub>WinUHid</sub></td>
     <td width="116" align="center"><a href="https://github.com/k2-fsa"><img src="https://avatars.githubusercontent.com/u/71431748?v=4" width="64px;" alt="k2-fsa"/><br /><sub><b>k2-fsa</b></sub></a><br /><sub>sherpa-onnx</sub></td>
     <td width="116" align="center"><a href="https://github.com/QwenAudio"><img src="https://avatars.githubusercontent.com/u/167062371?v=4" width="64px;" alt="QwenAudio"/><br /><sub><b>QwenAudio</b></sub></a><br /><sub>SenseVoice</sub></td>
     <td width="116" align="center"><a href="https://github.com/csukuangfj"><img src="https://avatars.githubusercontent.com/u/5284924?v=4" width="64px;" alt="csukuangfj"/><br /><sub><b>csukuangfj</b></sub></a><br /><sub>SenseVoice 模型</sub></td>
