@@ -953,32 +953,26 @@ def _write_request(
     session_id: int | None = None,
 ) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        payload = {
-            "schema": schema,
-            "action": action,
-            "created_at": float(now()),
-        }
-        if request_id is not None:
-            normalized_request_id = _normalized_request_id(request_id)
-            payload["request_id"] = normalized_request_id
-        if session_id is not None:
-            payload["session_id"] = int(session_id)
-        temporary.write_text(
-            json.dumps(
-                payload,
-                ensure_ascii=True,
-                sort_keys=True,
-            ),
-            encoding="utf-8",
-        )
-        os.replace(temporary, path)
-    finally:
-        try:
-            temporary.unlink()
-        except FileNotFoundError:
-            pass
+    payload = {
+        "schema": schema,
+        "action": action,
+        "created_at": float(now()),
+    }
+    if request_id is not None:
+        normalized_request_id = _normalized_request_id(request_id)
+        payload["request_id"] = normalized_request_id
+    if session_id is not None:
+        payload["session_id"] = int(session_id)
+    from . import atomic_files
+
+    atomic_files.write_text_atomic(
+        path,
+        json.dumps(
+            payload,
+            ensure_ascii=True,
+            sort_keys=True,
+        ),
+    )
     return path
 
 

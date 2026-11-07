@@ -26,6 +26,7 @@ class RuntimeServices:
     cancel_mappings: Callable
     release_inputs: Callable
     route_edge: Callable
+    start_battery_monitor: Callable | None = None
 
 
 class ChromecastRuntime:
@@ -34,6 +35,7 @@ class ChromecastRuntime:
         self.client = None
         self.voice_host = None
         self.stopping = threading.Event()
+        self._battery_monitor = None
 
     async def stop(self):
         self.stopping.set()
@@ -70,6 +72,15 @@ class ChromecastRuntime:
             await asyncio.to_thread(self.client.start, cancel_event=self.stopping)
             self.services.set_input_state(raw_input_state="chromecast_ready", hid_tap_state="ready")
             self.services.publish_status(bridge_runtime_status.BridgeConnectionState.CONNECTED)
+            # 电量是可选遥测：读不到不影响遥控器本身的连接。
+            if self.services.start_battery_monitor is not None:
+                try:
+                    self._battery_monitor = await self.services.start_battery_monitor()
+                except Exception as exc:
+                    self.services.logger.warning(
+                        "Chromecast battery monitor unavailable: error_type=%s",
+                        type(exc).__name__,
+                    )
             while not self.stopping.is_set() and not self.client.finished.is_set():
                 await asyncio.sleep(.05)
             if self.client.finished.is_set() and not self.stopping.is_set():
@@ -92,6 +103,9 @@ class ChromecastRuntime:
             self.services.logger.info("Chromecast shutdown: stage=cancel_input state=begin")
             self.cancel_input()
             self.services.logger.info("Chromecast shutdown: stage=cancel_input state=done")
+            if self._battery_monitor is not None:
+                self._battery_monitor.stop()
+                self._battery_monitor = None
             cleanup_last_log = {}
             while True:
                 try:

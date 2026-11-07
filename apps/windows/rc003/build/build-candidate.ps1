@@ -37,7 +37,8 @@
 #>
 
 param(
-    [string]$PythonExecutable = ""
+    [string]$PythonExecutable = "",
+    [string[]]$TestModules = @()
 )
 
 $ErrorActionPreference = "Stop"
@@ -251,6 +252,10 @@ try {
     & powershell -ExecutionPolicy Bypass -File (Join-Path "build" "check-public-boundary.ps1")
     Assert-LastExitCode "check-public-boundary.ps1"
 
+    Write-Host "-- HID helper generation guard --"
+    & $venvPython (Join-Path "build" "check-helper-generation.py")
+    Assert-LastExitCode "check-helper-generation.py"
+
     Write-Host "-- compile first-party business modules with Cython --"
     & $venvPython (Join-Path "build" "prepare-cython-core.py")
     Assert-LastExitCode "prepare-cython-core.py"
@@ -268,7 +273,11 @@ try {
         $previousErrorActionPreference = $ErrorActionPreference
         try {
             $ErrorActionPreference = "Continue"
-            & $venvPython -u -W error::ResourceWarning (Join-Path "build" "check_native.py") --stage (Split-Path $cythonSourceRoot -Parent) --tests 2>&1 |
+            $selectedTestArguments = @()
+            foreach ($testModule in $TestModules) {
+                $selectedTestArguments += @("--test-module", $testModule)
+            }
+            & $venvPython -u -W error::ResourceWarning (Join-Path "build" "check_native.py") --stage (Split-Path $cythonSourceRoot -Parent) --tests @selectedTestArguments 2>&1 |
                 Tee-Object -FilePath $testLogPath
             $testExitCode = $LASTEXITCODE
         } finally {

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <title>微笑人物 · 黑白分层版</title>
+  <desc>依据彩色原图重绘。黑色圆角底板，白色人物；双手通过黑色轮廓与头部分隔，均为独立可编辑矢量路径。</desc>
+  <g id="character">
+    <path id="head" fill="white" d="M239 671 C225 628 219 586 220 543 C220 376 342 246 507 246 C683 246 778 361 806 566 C811 602 814 639 815 676 L780 777 H270 Z" />
+    <g id="face" fill="black">
+      <ellipse id="open-eye" cx="380" cy="531" rx="47" ry="48" />
+      <path id="wink" d="M550 485 C572 450 612 434 649 456" fill="none" stroke="black" stroke-width="36" stroke-linecap="round" />
+      <path id="smile" d="M448 626 C495 653 555 633 578 585" fill="none" stroke="black" stroke-width="36" stroke-linecap="round" />
+    </g>
+    <path id="left-hand" fill="white" stroke="black" stroke-width="14" stroke-linejoin="round" d="M147 778 C141 747 155 718 181 696 C207 674 235 667 259 671 C307 675 353 711 375 754 C393 789 383 823 358 846 C335 867 303 869 275 859 C247 850 231 831 212 809 C195 789 176 777 147 778 Z" />
+    <path id="right-hand" fill="white" stroke="black" stroke-width="14" stroke-linejoin="round" d="M884 778 C891 744 876 714 850 692 C826 673 797 668 774 671 C725 676 683 706 659 749 C637 788 644 825 668 848 C690 868 722 868 750 857 C777 846 794 827 813 807 C831 787 853 777 884 778 Z" />
+  </g>
+</svg>

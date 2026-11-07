@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence
 
-from . import dev_session, product_identity
+from . import atomic_files, dev_session, product_identity
 from . import hid_injection_diagnostics as injection_diagnostics
 
 
@@ -73,7 +73,7 @@ HELPER_PROTOCOL_VERSION = 1
 # added protected script reload and the exclusive-device legacy migration.
 # Protocol 4, the administrator-only helper and LocalService runtime ACLs are
 # unchanged.
-HELPER_GENERATION = 15
+HELPER_GENERATION = 16
 TASK_CONTRACT_VERSION = 5
 MANIFEST_FILENAME = "helper-manifest.json"
 INJECTION_RESULT_FILENAME = "hid-injection-result.json"
@@ -1041,30 +1041,21 @@ def _build_manifest(user_sid: str, helper_sha256: str) -> HidHelperManifest:
 def _write_manifest_atomic(
     path: Path,
     manifest: HidHelperManifest,
-    *,
-    _replace: Callable[[object, object], None] = os.replace,
 ) -> None:
-    temporary = path.with_name(
-        f".{path.name}.{os.getpid()}.{time.time_ns()}.tmp"
-    )
     try:
-        temporary.write_text(
-            json.dumps(manifest.as_dict(), indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
+        atomic_files.write_bytes_atomic(
+            path,
+            (json.dumps(manifest.as_dict(), indent=2, sort_keys=True) + "\n").encode(
+                "utf-8"
+            ),
+            prepare=lambda target: _apply_path_security(
+                target,
+                user_sid=manifest.owner_sid,
+                directory=False,
+            ),
         )
-        _apply_path_security(
-            temporary,
-            user_sid=manifest.owner_sid,
-            directory=False,
-        )
-        _replace(temporary, path)
     except (HidElevationError, OSError, ValueError) as exc:
         raise HidElevationError("helper_manifest_write_failed") from exc
-    finally:
-        try:
-            temporary.unlink(missing_ok=True)
-        except OSError:
-            pass
 
 
 def _read_optional_file_bytes(path: Path) -> Optional[bytes]:
@@ -1091,20 +1082,16 @@ def _restore_optional_file_bytes(
             raise HidElevationError("helper_manifest_restore_failed") from exc
         return
 
-    temporary = path.with_name(
-        f".{path.name}.{os.getpid()}.{time.time_ns()}.restore.tmp"
-    )
     try:
-        temporary.write_bytes(contents)
-        _apply_path_security(temporary, user_sid=user_sid, directory=False)
-        os.replace(temporary, path)
+        atomic_files.write_bytes_atomic(
+            path,
+            contents,
+            prepare=lambda target: _apply_path_security(
+                target, user_sid=user_sid, directory=False
+            ),
+        )
     except OSError as exc:
         raise HidElevationError("helper_manifest_restore_failed") from exc
-    finally:
-        try:
-            temporary.unlink(missing_ok=True)
-        except OSError:
-            pass
 
 
 def current_user_sid() -> str:
@@ -2323,7 +2310,7 @@ def _copy_verified_helper(
         if _sha256(source) != _sha256(temporary):
             raise HidElevationError("helper_copy_hash_mismatch")
         _apply_path_security(temporary, user_sid=user_sid, directory=False)
-        os.replace(temporary, destination)
+        atomic_files.replace_existing(temporary, destination)
     except HidElevationError:
         raise
     except (OSError, ValueError) as exc:

@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import os
-import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -1899,22 +1898,9 @@ def _assert_settings_writable(data: dict) -> None:
 
 
 def _save_bytes_atomic(path: Path, content: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    file_descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
-    )
-    try:
-        with os.fdopen(file_descriptor, "wb") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary_name, path)
-    except Exception:
-        try:
-            os.unlink(temporary_name)
-        except OSError:
-            pass
-        raise
+    from . import atomic_files
+
+    atomic_files.write_bytes_atomic(path, content)
 
 
 def _restore_file_snapshot(path: Path, content: bytes | None) -> None:

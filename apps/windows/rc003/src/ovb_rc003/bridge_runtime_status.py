@@ -313,44 +313,38 @@ def publish_status(
     )
     path = status_path(config_root, session_id=session_id)
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        temporary.write_text(
-            json.dumps(
-                {
-                    "schema": SCHEMA_VERSION,
-                    "state": status.state.value,
-                    "pid": status.pid,
-                    "updated_at": status.updated_at,
-                    "app_version": status.app_version,
-                    "runtime_kind": status.runtime_kind,
-                    "package_name": status.package_name,
-                    "runtime_id": status.runtime_id,
-                    "raw_input_state": status.raw_input_state,
-                    "hid_tap_state": status.hid_tap_state,
-                    "voice_key_physicalizer_state": (
-                        status.voice_key_physicalizer_state
-                    ),
-                    "last_button_at": status.last_button_at,
-                    "last_button_source": status.last_button_source,
-                    "voice_active": status.voice_active,
-                    "voice_runtime_state": status.voice_runtime_state,
-                    "voice_runtime_provider": status.voice_runtime_provider,
-                    "voice_runtime_updated_at": status.voice_runtime_updated_at,
-                    "battery_level": status.battery_level,
-                    "remote_model": status.remote_model,
-                },
-                ensure_ascii=True,
-                sort_keys=True,
-            ),
-            encoding="utf-8",
-        )
-        os.replace(temporary, path)
-    finally:
-        try:
-            temporary.unlink()
-        except FileNotFoundError:
-            pass
+    from . import atomic_files
+
+    atomic_files.write_text_atomic(
+        path,
+        json.dumps(
+            {
+                "schema": SCHEMA_VERSION,
+                "state": status.state.value,
+                "pid": status.pid,
+                "updated_at": status.updated_at,
+                "app_version": status.app_version,
+                "runtime_kind": status.runtime_kind,
+                "package_name": status.package_name,
+                "runtime_id": status.runtime_id,
+                "raw_input_state": status.raw_input_state,
+                "hid_tap_state": status.hid_tap_state,
+                "voice_key_physicalizer_state": (
+                    status.voice_key_physicalizer_state
+                ),
+                "last_button_at": status.last_button_at,
+                "last_button_source": status.last_button_source,
+                "voice_active": status.voice_active,
+                "voice_runtime_state": status.voice_runtime_state,
+                "voice_runtime_provider": status.voice_runtime_provider,
+                "voice_runtime_updated_at": status.voice_runtime_updated_at,
+                "battery_level": status.battery_level,
+                "remote_model": status.remote_model,
+            },
+            ensure_ascii=True,
+            sort_keys=True,
+        ),
+    )
     return status
 
 

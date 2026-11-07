@@ -558,18 +558,9 @@ def _write_verdict_atomically(result_path: str, payload: dict) -> None:
     partially-written file even under an unlucky signal/kill timing.
     """
 
-    directory = os.path.dirname(result_path) or "."
-    fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".ble-verdict-", suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(payload, handle)
-        os.replace(tmp_path, result_path)
-    except BaseException:
-        try:
-            os.remove(tmp_path)
-        except FileNotFoundError:
-            pass
-        raise
+    from . import atomic_files
+
+    atomic_files.write_text_atomic(result_path, json.dumps(payload))
 
 
 def run_ble_diagnostics_subprocess_entrypoint(result_path: Optional[str]) -> int:

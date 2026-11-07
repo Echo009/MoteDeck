@@ -17,6 +17,27 @@ from typing import Callable, List, Optional, Sequence
 CAPTURE_SAMPLE_RATE_HZ = 16000
 # 30 ms 一块：小到延迟可忽略，大到大多数声卡都能接受。
 _FRAME_SAMPLES = 480
+# 驱动卡住时 open/close 会无限期不返回。这两步跑在按键分发线程上，
+# 所以只等这么久；超时就把这条流当作废弃，下一轮重新建。
+_OPEN_TIMEOUT_SECONDS = 3.0
+_CLOSE_TIMEOUT_SECONDS = 1.5
+
+
+def _discard_stream(stream) -> None:
+    """丢弃一条流：先 abort 不等缓冲排空，再 close 释放句柄。"""
+
+    abort = getattr(stream, "abort", None)
+    try:
+        if callable(abort):
+            abort()
+        else:
+            stream.stop()
+    except BaseException:  # noqa: BLE001 - 驱动已失效，只能放弃
+        pass
+    try:
+        stream.close()
+    except BaseException:  # noqa: BLE001
+        pass
 
 
 class LocalMicrophoneUnavailableError(RuntimeError):
@@ -134,23 +155,54 @@ class LocalMicrophoneCapture:
         with self._lock:
             if self._stream is not None:
                 return True
-        try:
-            sd = _sounddevice()
-            index = resolve_input_device_index(self._device_name)
-            stream = sd.RawInputStream(
-                samplerate=self._sample_rate,
-                blocksize=_FRAME_SAMPLES,
-                device=index,
-                channels=1,
-                dtype="int16",
-                callback=self._handle_indata,
+
+        # 打开设备可能卡在驱动里，不能占着按键分发线程一直等。
+        opened: dict = {}
+        finished = threading.Event()
+        abandoned = threading.Event()
+
+        def open_device() -> None:
+            try:
+                sd = _sounddevice()
+                index = resolve_input_device_index(self._device_name)
+                stream = sd.RawInputStream(
+                    samplerate=self._sample_rate,
+                    blocksize=_FRAME_SAMPLES,
+                    device=index,
+                    channels=1,
+                    dtype="int16",
+                    callback=self._handle_indata,
+                )
+                opened["stream"] = stream
+                if abandoned.is_set():
+                    _discard_stream(opened.pop("stream"))
+                    return
+                stream.start()
+            except BaseException as exc:  # noqa: BLE001 - 打不开就是"模式2 静默"
+                opened["error"] = exc
+            finally:
+                finished.set()
+                if abandoned.is_set():
+                    _discard_stream(opened.pop("stream", None))
+
+        threading.Thread(target=open_device, name="local-mic-open", daemon=True).start()
+        if not finished.wait(_OPEN_TIMEOUT_SECONDS):
+            abandoned.set()
+            if finished.is_set():
+                _discard_stream(opened.pop("stream", None))
+            self._logger.warning(
+                "local voice microphone open did not return within %.1fs: device=%s",
+                _OPEN_TIMEOUT_SECONDS,
+                self._device_name,
             )
-            stream.start()
-        except Exception as exc:  # noqa: BLE001 - 打不开就是"模式2 静默"
+            return False
+        stream = opened.get("stream")
+        error = opened.get("error")
+        if error is not None or stream is None:
             self._logger.warning(
                 "local voice microphone open failed: device=%s error=%s",
                 self._device_name,
-                exc,
+                error,
             )
             return False
         with self._lock:
@@ -192,14 +244,23 @@ class LocalMicrophoneCapture:
             self._stream = None
         if stream is None:
             return
-        try:
-            stream.stop()
-            stream.close()
-        except BaseException as exc:  # noqa: BLE001 - 关闭失败不再重试
+        # close 同样可能卡在驱动里：放到辅助线程上等固定时间，超时就放弃句柄。
+        finished = threading.Event()
+
+        def close_device() -> None:
+            try:
+                _discard_stream(stream)
+            finally:
+                finished.set()
+
+        threading.Thread(target=close_device, name="local-mic-close", daemon=True).start()
+        if not finished.wait(_CLOSE_TIMEOUT_SECONDS):
             self._logger.warning(
-                "local voice microphone close failed: error_type=%s",
-                type(exc).__name__,
+                "local voice microphone close did not return within %.1fs: device=%s",
+                _CLOSE_TIMEOUT_SECONDS,
+                self._device_name,
             )
+            return
         self._logger.info("local voice microphone closed")
 
 

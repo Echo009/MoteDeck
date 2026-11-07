@@ -139,6 +139,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--stage", type=Path, required=True)
     parser.add_argument("--tests", action="store_true")
+    parser.add_argument("--test-module", action="append", default=[])
     parser.add_argument("--artifact", type=Path)
     args = parser.parse_args()
     stage = args.stage.resolve()
@@ -156,7 +157,9 @@ def main() -> int:
     sys.path.insert(0, str(ROOT))
     with tempfile.TemporaryDirectory(prefix="remote-mic-native-tests-") as temporary:
         os.environ["LOCALAPPDATA"] = temporary
-        suite = unittest.defaultTestLoader.discover(str(ROOT / "tests"), top_level_dir=str(ROOT))
+        suite = (unittest.defaultTestLoader.loadTestsFromNames(args.test_module)
+                 if args.test_module else
+                 unittest.defaultTestLoader.discover(str(ROOT / "tests"), top_level_dir=str(ROOT)))
         result = unittest.TextTestRunner(verbosity=2).run(suite)
         return 0 if result.wasSuccessful() else 1
 

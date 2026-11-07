@@ -43,7 +43,9 @@ APP_ICON = APP_ICON_DIR / "remote-mic.ico"
 APP_SCRIPT_DIR = SRC_ROOT / "ovb_rc003" / "scripts"
 ELEMENT_NAVIGATION_SOURCE_DIR = RC003_ROOT / "scripts"
 sys.path.insert(0, str(RC003_ROOT / "build"))
-from native_inventory import NAVIGATION_MODULES, import_closure
+from native_inventory import (
+    NAVIGATION_MODULES, HELPER_SEEDS, HELPER_EXCLUDES, import_closure,
+)
 ELEMENT_NAVIGATION_SOURCE_FILES = tuple(name + ".py" for name in NAVIGATION_MODULES)
 
 LEGACY_COMPARISON = os.environ.get("RC003_BUILD_LEGACY_COMPARISON") == "1"
@@ -434,6 +436,9 @@ a = Analysis(
         "bridges.hanvon",
         "licensing",
         "customer_license",
+        "PySide6.QtWebEngineCore",
+        "PySide6.QtWebEngineQuick",
+        "PySide6.QtWebEngineWidgets",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -492,6 +497,15 @@ a.binaries = [
     and not _is_unneeded_sounddevice_asio(binary_entry)
 ]
 
+# QtQml's hook collects optional QML plugins, including the unused browser.
+# Remove its plugins, runtime and resources together; settings uses QtQuick only.
+def _is_unused_webengine(entry):
+    return "webengine" in entry[0].replace("\\", "/").casefold()
+
+
+a.binaries = [entry for entry in a.binaries if not _is_unused_webengine(entry)]
+a.datas = [entry for entry in a.datas if not _is_unused_webengine(entry)]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
@@ -516,14 +530,8 @@ exe = EXE(
 # lifecycle, WUDFHost validation/injection code, and the pinned Gadget asset;
 # It reads only the validated remote-selection digest from user configuration;
 # UI, BLE scans, audio and configuration normalization dependencies are excluded.
-HELPER_EXCLUDES = (
-    "PySide6", "numpy", "sounddevice", "winrt", "uiautomation",
-    "ovb_rc003.app", "ovb_rc003.qt_settings_app", "ovb_rc003.ble_transport_winrt",
-    "ovb_rc003.audio_playback", "ovb_rc003.windows_diagnostics",
-    "ovb_rc003.settings_ui", "ovb_rc003.key_mapping",
-)
 helper_native_imports = import_closure(
-    RC003_ROOT, ["ovb_rc003.hid_elevation_windows", "ovb_rc003.frida_hid_tap_injector"],
+    RC003_ROOT, list(HELPER_SEEDS),
     excludes=HELPER_EXCLUDES,
 ) if NATIVE_STAGE else []
 helper_a = Analysis(

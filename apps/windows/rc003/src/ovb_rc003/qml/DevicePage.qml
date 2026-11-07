@@ -56,6 +56,8 @@ Item {
             return "unselected"
         if (!SettingsController.activeRemoteReady)
             return "pending"
+        if (!SettingsController.bridgeRunning && !SettingsController.bridgeLaunchBusy)
+            return "service_stopped"
         if (!SettingsController.isRc003Device) {
             if (SettingsController.bridgeConnected)
                 return "paired"
@@ -92,7 +94,7 @@ Item {
         case "checking": return qsTr("正在检查")
         case "paired": return qsTr("已连接")
         case "waiting": return qsTr("正在确认")
-        case "service_stopped": return qsTr("等待服务启动")
+        case "service_stopped": return qsTr("待启动服务")
         case "receiver_failed": return qsTr("接收失败")
         case "conflict": return qsTr("设备识别异常")
         case "unpaired": return qsTr("点击“蓝牙设置”")
@@ -111,7 +113,9 @@ Item {
             return tokens.successColor
         if (code === "checking" || code === "waiting")
             return tokens.voiceAccent
-        if (code === "unchecked" || code === "pending" || code === "service_stopped")
+        if (code === "service_stopped")
+            return tokens.darkMode ? "#facc15" : "#ca8a04"
+        if (code === "unchecked" || code === "pending")
             return tokens.disabledText
         return tokens.errorColor
     }
@@ -260,7 +264,7 @@ Item {
         case "unpaired": return qsTr("请先配对遥控器")
         case "conflict": return qsTr("设备识别异常")
         case "ready": return qsTr("正常")
-        case "service_stopped": return qsTr("等待服务启动")
+        case "service_stopped": return qsTr("待启动服务")
         case "custom_only": return qsTr("点击“重启服务”")
         case "original_only": return qsTr("点击“重启服务”")
         case "voice_error": return qsTr("点击“重启服务”")
@@ -296,6 +300,8 @@ Item {
             return qsTr("正在停止")
         if (SettingsController.bridgeLaunchBusy)
             return qsTr("启动中")
+        if (!SettingsController.bridgeRunning)
+            return qsTr("待启动服务")
         if (bridgeNeedsRestartAction())
             return qsTr("点击“重启服务”")
         const receiverCode = buttonReceiverStateCode()
@@ -384,6 +390,8 @@ Item {
     }
 
     function bridgeStateColor() {
+        if (!SettingsController.bridgeRunning)
+            return tokens.darkMode ? "#facc15" : "#ca8a04"
         if (sourceAuthorizationRetryAvailable())
             return tokens.errorColor
         if (bridgeNeedsRestartAction())
@@ -438,6 +446,11 @@ Item {
             wrapMode: Text.WordWrap
             text: qsTr("关闭后遥控器将无法接收按键和语音，可随时再打开。")
         }
+    }
+
+    QuickSetupDialog {
+        id: quickSetupDialog
+        tokens: root.tokens
     }
 
     ScrollView {
@@ -779,11 +792,10 @@ Item {
                     CompactButton {
                         id: buttonReceiverPrimaryButton
                         objectName: "openButtonSettingsButton"
-                        visible: !SettingsController.isRc003Device
                         tokens: root.tokens
                         flat: true
-                        text: qsTr("按键设置")
-                        onClicked: root.openButtonsRequested()
+                        text: qsTr("快速配置")
+                        onClicked: quickSetupDialog.open()
                     }
                 }
 

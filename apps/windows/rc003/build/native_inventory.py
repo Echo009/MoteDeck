@@ -97,3 +97,36 @@ the spec's explicit list. Helper closure follows only its own entry modules.
                 elif node.module:
                     pending.append(node.module)
     return sorted(seen - {"__future__"})
+
+
+# Sources that shape the narrow HID helper. A change here alters the helper
+# binary, so the shipped HELPER_GENERATION must be raised or upgraded installs
+# will keep reusing the previous helper. Shared by the PyInstaller spec and
+# build/check-helper-generation.py so both agree on the same file set.
+HELPER_SEEDS = (
+    "ovb_rc003.hid_elevation_windows",
+    "ovb_rc003.frida_hid_tap_injector",
+)
+HELPER_EXCLUDES = (
+    "PySide6", "numpy", "sounddevice", "winrt", "uiautomation",
+    "ovb_rc003.app", "ovb_rc003.qt_settings_app", "ovb_rc003.ble_transport_winrt",
+    "ovb_rc003.audio_playback", "ovb_rc003.windows_diagnostics",
+    "ovb_rc003.settings_ui", "ovb_rc003.key_mapping",
+)
+HELPER_LAUNCHER = "src/hid_helper_launcher.py"
+
+
+def helper_source_files(root: Path) -> list[Path]:
+    """Return the helper launcher plus its import closure as sorted paths."""
+    sources = module_sources(root)
+    seeds = list(HELPER_SEEDS)
+    files = {
+        sources[name]
+        for name in import_closure(root, seeds, excludes=HELPER_EXCLUDES)
+        if name in sources
+    }
+    launcher = root / HELPER_LAUNCHER
+    if not launcher.is_file():
+        raise FileNotFoundError(launcher)
+    files.add(launcher)
+    return sorted(files)

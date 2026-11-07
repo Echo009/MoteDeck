@@ -17,8 +17,8 @@ Item {
     activeFocusOnTab: false
     Accessible.role: Accessible.StaticText
     Accessible.name: available
-        ? qsTr("小米遥控器2 Pro 电量 %1%").arg(level)
-        : qsTr("小米遥控器2 Pro 电量不可用")
+        ? qsTr("遥控器电量 %1%").arg(level)
+        : qsTr("遥控器电量不可用")
 
     Canvas {
         id: ring

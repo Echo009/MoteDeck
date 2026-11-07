@@ -306,8 +306,12 @@ class PyInstallerSpecTests(unittest.TestCase):
         self.assertIn('"comtypes"', helper_analysis)
         self.assertIn('"comtypes.client"', helper_analysis)
         self.assertIn("excludes=list(HELPER_EXCLUDES)", helper_analysis)
-        self.assertIn('"PySide6"', text)
-        self.assertIn('"ovb_rc003.qt_settings_app"', text)
+        inventory_text = (
+            _RC003_ROOT / "build" / "native_inventory.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("HELPER_EXCLUDES", text)
+        self.assertIn('"PySide6"', inventory_text)
+        self.assertIn('"ovb_rc003.qt_settings_app"', inventory_text)
         self.assertIn(
             '(str(HID_HELPER_RELATIVE_PATH), helper_exe.name, "EXECUTABLE")',
             text,

@@ -138,6 +138,7 @@ from . import (
     resources,
     running_apps_windows,
     settings_ui,
+    quick_setup_windows,
     shell_targets,
     single_instance,
     startup_windows,
@@ -153,15 +154,19 @@ from . import (
 # 静默检查一次；下载仍需用户手动触发，不会自动运行或覆盖当前安装。
 APPLICATION_UPDATE_CHECK_ENABLED = True
 
-# 语音页「外部应用程序支持」弹窗里的三个入口。Vokie 插件包作为发布资产随
-# 版本一起上传，所以“下载插件”指向该资产的直链，而不是 Vokie 官网。
+# Vokie 插件使用最新正式发布的固定资产入口；每个 Latest 发布都需上传
+# 名为 MoteDeck2Vokie.zip 的插件包，实际版本号保留在包内。
 VOKIE_WEBSITE_URL = "https://www.vokie.com"
 VOKIE_PLUGIN_URL = (
     f"https://github.com/{application_update.REPOSITORY_SLUG}"
-    "/releases/download/v0.1.4/MoteDeck2Vokie-0.1.2.zip"
+    "/releases/latest/download/MoteDeck2Vokie.zip"
 )
 OPENMEXIA_WEBSITE_URL = "https://hzdavy.github.io/OpenMexia/"
 OPENMEXIA_DOWNLOAD_URL = "https://github.com/HZDavy/OpenMexia/releases"
+# 快速配置里「没安装时点击访问官网下载安装软件」的三个输入法官网。
+WETYPE_WEBSITE_URL = "https://z.weixin.qq.com/"
+DOUBAO_WEBSITE_URL = "https://shurufa.doubao.com/pc"
+CHATTERFLY_WEBSITE_URL = "https://chatterfly.tencent.com/"
 # 语音页「语音键设置教程」入口，指向帮助站点的语音输入页。
 VOICE_KEY_TUTORIAL_URL = f"{application_update.WEBSITE_URL}help/voice/"
 # 设备页「软件协助」里的帮助入口，指向帮助站点首页。
@@ -397,6 +402,7 @@ _APPLICATION_EXIT_WAIT_TIMEOUT_SECONDS = (
     + bridge_control_windows.DEFAULT_EXIT_TIMEOUT_SECONDS
     + _APPLICATION_EXIT_WAIT_SAFETY_MARGIN_SECONDS
 )
+
 _APPLICATION_EXIT_SAVE_WAIT_TIMEOUT_SECONDS = (
     windows_diagnostics.OUTPUT_ENDPOINT_PREFLIGHT_PROCESS_TIMEOUT_SECONDS
     + windows_diagnostics.OUTPUT_ENDPOINT_PREFLIGHT_MAX_CANCELLATION_SECONDS
@@ -406,6 +412,17 @@ _APPLICATION_EXIT_POLL_INTERVAL_MS = 100
 _BRIDGE_STATUS_STALE_AFTER_SECONDS = 20.0
 _BRIDGE_STATUS_MISSING_AFTER_SECONDS = _BRIDGE_STATUS_STALE_AFTER_SECONDS
 _BRIDGE_RECONNECT_BUSY_TIMEOUT_MS = 10_000
+
+# 快速配置里「创建微信输入法语音键」用的语音键名字，也是幂等判断的依据。
+WETYPE_VOICE_KEY_NAME = "微信输入法语音"
+# 豆包输入法同理；它走驱动级注入，建键时会一并把麦克风键切成已装的驱动。
+DOUBAO_VOICE_KEY_NAME = "豆包输入法语音"
+# Chatterfly 的三个语音功能各建一个语音键，名字是应用名 + 界面上的功能名。
+CHATTERFLY_VOICE_KEY_NAMES = (
+    "Chatterfly语音输入",
+    "Chatterfly指令模式",
+    "Chatterfly翻译",
+)
 
 
 @dataclass(frozen=True)
@@ -1229,6 +1246,7 @@ def _load_qt_classes() -> dict:
         holdVoiceHotkeyTextChanged = Signal()
         voiceSlotHotkeysChanged = Signal()
         voiceKeyConfigsChanged = Signal()
+        quickSetupChanged = Signal()
         voicePluginStateChanged = Signal()
         openMexiaStateChanged = Signal()
         openMexiaActionsChanged = Signal()
@@ -1613,6 +1631,13 @@ def _load_qt_classes() -> dict:
             )
             self._microphone_level = 0.0
             self._microphone_level_monitor = None
+            self._wetype_installed: Optional[bool] = None
+            self._doubao_installed: Optional[bool] = None
+            self._chatterfly_installed: Optional[bool] = None
+            self._openmexia_installed: Optional[bool] = None
+            self._vokie_installed: Optional[bool] = None
+            self._input_driver_installed: Optional[bool] = None
+            self._vb_cable_installed: Optional[bool] = None
             self._microphone_level_timer = QTimer(self)
             self._microphone_level_timer.setInterval(50)
             self._microphone_level_timer.timeout.connect(
@@ -2797,15 +2822,15 @@ def _load_qt_classes() -> dict:
             )
 
         def _tray_icon_state(self) -> str:
+            if not self._bridge_running:
+                return "off"
             if self._bridge_connected and self._button_receiver_usable():
                 return "connected"
-            if self._bridge_running:
-                return "waiting"
-            return "off"
+            return "waiting"
 
         def _tray_icon_source(self) -> str:
             path = resources.find_app_icon(self._tray_icon_state())
-            return QUrl.fromLocalFile(str(path)).toString() if path else ""
+            return QUrl.fromLocalFile(str(path.with_suffix(".ico"))).toString() if path else ""
 
         def _brand_icon_source(self) -> str:
             path = resources.find_app_icon("connected")
@@ -5358,6 +5383,270 @@ def _load_qt_classes() -> dict:
                 restart_capture=True,
             )
 
+        # -- 快速配置：微信输入法 / 豆包输入法 -------------------------------
+
+        def _quick_setup_voice_key_entry(
+            self, name: str
+        ) -> Optional[Dict[str, object]]:
+            for entry in config.voice_key_configs(self._config):
+                if str(entry.get("name", "")) == name:
+                    return entry
+            return None
+
+        @Slot()
+        def refreshQuickSetup(self) -> None:
+            self._wetype_installed = quick_setup_windows.wetype_installed()
+            self._doubao_installed = quick_setup_windows.doubao_installed()
+            self._chatterfly_installed = quick_setup_windows.chatterfly_installed()
+            self._openmexia_installed = quick_setup_windows.openmexia_installed()
+            self._vokie_installed = quick_setup_windows.vokie_installed()
+            self._input_driver_installed = (
+                quick_setup_windows.input_driver_installed()
+            )
+            self._vb_cable_installed = self._detect_vb_cable_installed()
+            self.quickSetupChanged.emit()
+
+        def _get_wetype_installed(self) -> bool:
+            if self._wetype_installed is None:
+                self._wetype_installed = quick_setup_windows.wetype_installed()
+            return self._wetype_installed
+
+        wetypeInstalled = Property(
+            bool, _get_wetype_installed, notify=quickSetupChanged
+        )
+
+        def _get_doubao_installed(self) -> bool:
+            if self._doubao_installed is None:
+                self._doubao_installed = quick_setup_windows.doubao_installed()
+            return self._doubao_installed
+
+        doubaoInstalled = Property(
+            bool, _get_doubao_installed, notify=quickSetupChanged
+        )
+
+        def _get_chatterfly_installed(self) -> bool:
+            if self._chatterfly_installed is None:
+                self._chatterfly_installed = (
+                    quick_setup_windows.chatterfly_installed()
+                )
+            return self._chatterfly_installed
+
+        chatterflyInstalled = Property(
+            bool, _get_chatterfly_installed, notify=quickSetupChanged
+        )
+
+        def _get_input_driver_installed(self) -> bool:
+            if self._input_driver_installed is None:
+                self._input_driver_installed = (
+                    quick_setup_windows.input_driver_installed()
+                )
+            return self._input_driver_installed
+
+        inputDriverInstalled = Property(
+            bool, _get_input_driver_installed, notify=quickSetupChanged
+        )
+
+        # 虚拟声卡（VB-CABLE）是否已安装：快速配置底栏没装时提示先安装并重启。
+        def _detect_vb_cable_installed(self) -> bool:
+            try:
+                return any(
+                    audio_output.is_cable_input_endpoint(endpoint.name)
+                    for endpoint in audio_output.enumerate_output_endpoints()
+                )
+            except audio_output.AudioOutputUnavailableError:
+                return False
+
+        def _get_vb_cable_installed(self) -> bool:
+            if self._vb_cable_installed is None:
+                self._vb_cable_installed = self._detect_vb_cable_installed()
+            return self._vb_cable_installed
+
+        vbCableInstalled = Property(
+            bool, _get_vb_cable_installed, notify=quickSetupChanged
+        )
+
+        def _get_openmexia_installed(self) -> bool:
+            if self._openmexia_installed is None:
+                self._openmexia_installed = (
+                    quick_setup_windows.openmexia_installed()
+                )
+            return self._openmexia_installed
+
+        openMexiaInstalled = Property(
+            bool, _get_openmexia_installed, notify=quickSetupChanged
+        )
+
+        def _get_vokie_installed(self) -> bool:
+            if self._vokie_installed is None:
+                self._vokie_installed = quick_setup_windows.vokie_installed()
+            return self._vokie_installed
+
+        vokieInstalled = Property(
+            bool, _get_vokie_installed, notify=quickSetupChanged
+        )
+
+        def _quick_setup_hotkey_text(self, name: str) -> str:
+            entry = self._quick_setup_voice_key_entry(name)
+            value = str(entry.get("hotkey", "")) if entry is not None else ""
+            return hotkey.format_hotkey_text(value) if value else ""
+
+        def _get_wetype_voice_key_hotkey_text(self) -> str:
+            return self._quick_setup_hotkey_text(WETYPE_VOICE_KEY_NAME)
+
+        wetypeVoiceKeyHotkeyText = Property(
+            str, _get_wetype_voice_key_hotkey_text, notify=quickSetupChanged
+        )
+
+        def _get_doubao_voice_key_hotkey_text(self) -> str:
+            return self._quick_setup_hotkey_text(DOUBAO_VOICE_KEY_NAME)
+
+        doubaoVoiceKeyHotkeyText = Property(
+            str, _get_doubao_voice_key_hotkey_text, notify=quickSetupChanged
+        )
+
+        def _get_chatterfly_voice_key_hotkey_texts(self) -> List[str]:
+            return [
+                self._quick_setup_hotkey_text(name)
+                for name in CHATTERFLY_VOICE_KEY_NAMES
+            ]
+
+        chatterflyVoiceKeyHotkeyTexts = Property(
+            "QVariantList",
+            _get_chatterfly_voice_key_hotkey_texts,
+            notify=quickSetupChanged,
+        )
+
+        def _create_quick_setup_voice_key(
+            self,
+            name: str,
+            chord: str,
+            *,
+            short_press_resend: bool = False,
+        ) -> Optional[tuple]:
+            """Create or update the named voice key and persist it.
+
+            Returns ``(config, slot)`` on success, ``None`` after reporting the
+            failure to the voice page. ``short_press_resend`` only ever turns
+            the option on (Chatterfly 的「延迟发送」)；为 False 时保持用户原配置。
+            """
+
+            text = str(chord).strip()
+            if not text:
+                return None
+            try:
+                text = hotkey.HotkeySpec.from_user_text(text).serialize()
+            except hotkey.HotkeyParseError as exc:
+                self._set_error_message(str(exc), self._VOICE_PAGE_INDEX)
+                return None
+            extra = {"short_press_resend": True} if short_press_resend else {}
+            entry = self._quick_setup_voice_key_entry(name)
+            if entry is not None:
+                slot = int(entry["id"])
+                new_config = config.update_voice_key_config(
+                    self._config,
+                    slot,
+                    hotkey=text,
+                    **extra,
+                )
+            else:
+                new_config = config.add_voice_key_config(self._config)
+                slots = [
+                    int(item["id"])
+                    for item in config.voice_key_configs(new_config)
+                ]
+                if len(slots) <= len(config.voice_key_configs(self._config)):
+                    self._set_error_message(
+                        "语音键数量已达上限，无法再创建。",
+                        self._VOICE_PAGE_INDEX,
+                    )
+                    return None
+                slot = max(slots)
+                new_config = config.update_voice_key_config(
+                    new_config,
+                    slot,
+                    name=name,
+                    hotkey=text,
+                    **extra,
+                )
+            if not self._save_voice_config_data(new_config):
+                return None
+            return new_config, slot
+
+        @Slot(str, result=bool)
+        def createWetypeVoiceKey(self, chord: str) -> bool:
+            created = self._create_quick_setup_voice_key(
+                WETYPE_VOICE_KEY_NAME, chord
+            )
+            if created is None:
+                return False
+            new_config, slot = created
+            self._bind_mic_to_voice_key(new_config, slot)
+            self.quickSetupChanged.emit()
+            return True
+
+        @Slot(str, result=bool)
+        def createDoubaoVoiceKey(self, chord: str) -> bool:
+            created = self._create_quick_setup_voice_key(
+                DOUBAO_VOICE_KEY_NAME, chord
+            )
+            if created is None:
+                return False
+            new_config, slot = created
+            # 豆包输入法要驱动级注入：装的是哪个驱动就用哪个。
+            self._bind_mic_to_voice_key(
+                new_config,
+                slot,
+                inject_mode=quick_setup_windows.installed_driver_inject_mode(),
+            )
+            self.quickSetupChanged.emit()
+            return True
+
+        @Slot(int, str, result=bool)
+        def createChatterflyVoiceKey(self, index: int, chord: str) -> bool:
+            if index < 0 or index >= len(CHATTERFLY_VOICE_KEY_NAMES):
+                return False
+            created = self._create_quick_setup_voice_key(
+                CHATTERFLY_VOICE_KEY_NAMES[index],
+                chord,
+                # Chatterfly 要自动打开「延迟发送」。
+                short_press_resend=True,
+            )
+            if created is None:
+                return False
+            new_config, slot = created
+            # 和豆包输入法一样，装的是哪个驱动就用哪个。
+            self._bind_mic_to_voice_key(
+                new_config,
+                slot,
+                inject_mode=quick_setup_windows.installed_driver_inject_mode(),
+            )
+            self.quickSetupChanged.emit()
+            return True
+
+        def _bind_mic_to_voice_key(
+            self,
+            config_data: Dict[str, object],
+            slot: int,
+            *,
+            inject_mode: str = "",
+        ) -> None:
+            """把麦克风键的映射指到刚建好的语音键。
+
+            微信输入法只认落在正常输入流里的按键，驱动级注入（WinUHid /
+            Interception）是另一块虚拟键盘，它那边触发不了，所以默认固定走
+            SendInput。豆包输入法相反，调用方会传入已安装的驱动级注入方式。
+            """
+
+            row = self._model.index_of("mic")
+            if row < 0:
+                return
+            label = config.voice_key_labels(config_data).get(slot, "")
+            if label:
+                self._model.setActionTextAt(row, label)
+            self._model.setInjectModeAt(
+                row, inject_mode or key_mapping.DEFAULT_INJECT_MODE
+            )
+
         def _get_microphone_level(self) -> float:
             return self._microphone_level
 
@@ -5875,6 +6164,24 @@ def _load_qt_classes() -> dict:
         @Slot(result=bool)
         def openVokieWebsite(self) -> bool:
             result = shell_targets.open_external_target(VOKIE_WEBSITE_URL)
+            self._report_external_target(result, self._VOICE_PAGE_INDEX)
+            return result.outcome is shell_targets.ExternalTargetOutcome.OPENED
+
+        @Slot(result=bool)
+        def openWetypeWebsite(self) -> bool:
+            result = shell_targets.open_external_target(WETYPE_WEBSITE_URL)
+            self._report_external_target(result, self._VOICE_PAGE_INDEX)
+            return result.outcome is shell_targets.ExternalTargetOutcome.OPENED
+
+        @Slot(result=bool)
+        def openDoubaoWebsite(self) -> bool:
+            result = shell_targets.open_external_target(DOUBAO_WEBSITE_URL)
+            self._report_external_target(result, self._VOICE_PAGE_INDEX)
+            return result.outcome is shell_targets.ExternalTargetOutcome.OPENED
+
+        @Slot(result=bool)
+        def openChatterflyWebsite(self) -> bool:
+            result = shell_targets.open_external_target(CHATTERFLY_WEBSITE_URL)
             self._report_external_target(result, self._VOICE_PAGE_INDEX)
             return result.outcome is shell_targets.ExternalTargetOutcome.OPENED
 

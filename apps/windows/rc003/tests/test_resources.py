@@ -54,8 +54,8 @@ class FindRemotePhotoFrozenBundleTests(unittest.TestCase):
         root = Path(self._tmpdir.name)
         icon_dir = root / "app_icons"
         icon_dir.mkdir()
-        expected = icon_dir / "remote-mic-connected.svg"
-        expected.write_text("<svg/>", encoding="utf-8")
+        expected = icon_dir / "remote-mic.png"
+        expected.write_bytes(b"bundled png marker")
         sys._MEIPASS = str(root)
 
         self.assertEqual(resources.find_app_icon("connected"), expected)
@@ -87,14 +87,16 @@ class FindRemotePhotoTests(unittest.TestCase):
             self.assertIsNotNone(icon)
             self.assertTrue(icon.is_file())
 
-    def test_unavailable_states_share_one_crossed_microphone_icon(self):
+    def test_stopped_state_uses_separate_icon_and_running_states_keep_brand_png(self):
         off = resources.find_app_icon("off")
         waiting = resources.find_app_icon("waiting")
         connected = resources.find_app_icon("connected")
 
-        self.assertEqual(off, waiting)
-        self.assertEqual(off.name, "remote-mic-unavailable.svg")
-        self.assertNotEqual(off, connected)
+        self.assertNotEqual(off, waiting)
+        self.assertEqual(off.name, "remote-mic-stopped.png")
+        self.assertTrue(off.with_suffix(".ico").is_file())
+        self.assertEqual(waiting, connected)
+        self.assertEqual(resources.find_app_icon("unknown"), waiting)
 
 
 if __name__ == "__main__":

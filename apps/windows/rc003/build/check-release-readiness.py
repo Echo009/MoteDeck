@@ -59,7 +59,41 @@ _PRIVATE_HISTORY_PATH_PATTERNS = (
 # exact hashes are registered as the same kind of exception. Like above, this
 # exempts only the author/committer email of these commits - never their
 # subjects or content.
+# On 2026-11-07 the project owner explicitly approved retaining the exact
+# additional public-history commits listed below without rewriting history.
+# This remains an email-only exception; subjects and content checks still run.
 _APPROVED_PUBLIC_CONTRIBUTOR_COMMITS = frozenset({
+    "016f09158952049e8505cf6bc9a7898cc1d900da",
+    "031e3730bf2eff6d9308963658378ddf1f528004",
+    "0d1572f6b587f6483ed239e8865cc8d78731eab3",
+    "0dd61cbcd12e4ddc56709fd077e2fb797ba6a1d1",
+    "139aecf3aa0fb4295c5d894ab5e01ef629aed764",
+    "1991fc4c50d7d2f861b9efae7050701fcc7223c3",
+    "1ba7a4f6aabbe50dce004b2f9ba7f4dca08bb9c0",
+    "206d7617de96b2399a0253505922e067617e3571",
+    "260e910669f9fd3174cdab96e4c9510cac4a9bbc",
+    "33fc6e7a18952f4fe3e10be62da503f0728605f0",
+    "42c9d8b6f5e68304bbdc3cf04b73cce826edb33d",
+    "43a2101e2ae105dee80460ba1f2f8d7f82a9aadb",
+    "442131b6dac3dcc31ba804af1ddfc72238ff7be0",
+    "47f43cf9a359b47a09ce5ff7765417e0bc41a47b",
+    "49d97a9c5aaa86d79ac73f88e835f97e4960bcb3",
+    "4b16ae6339cb70aa22868528c7d75beea6f2bdd5",
+    "4c67ac8190e1a7c734c92ff32687e415a7ce9a4d",
+    "4f45851a7b19e222336587f80cba47ed6f6d220b",
+    "4f8cc2de8ae1f12a9485160eb81230b587f81246",
+    "787b9a0a50fb6806d31c6c36472b42d634d47b4b",
+    "879aeff0432337dce435e8c20a29c57dd4bdbc12",
+    "9d7b0f0458c8a1fef47917a599544058b8e84da2",
+    "b1936237b1f1e3348630eb315945f1593768bfcd",
+    "b4cb8271d36259ac0486220586c2ebb704ff1c35",
+    "b8f89bb8a2ad44f86a4149df18462773bd11d5ca",
+    "c4654f08760326fb2a32d8f5677fd7075bbcfbb4",
+    "c760854f88e23630213fd908848b3bb270f2b206",
+    "c8a197debabe1bce02fca0a93fc8934c68b96cb8",
+    "d262ae5c0e88f69226e63eecdb5575db49a76848",
+    "ec683dbf29b705c6da8c495c8cb1cd9220a5caba",
+    "edaf1306a3617fd05f121c03ca0e4520a3de5bcb",
     "2dc521834df4b30d3492f9ab5355ccf4a125b8c5",
     "c927ac977d6d6d62c1c4976ce2f0af96f7c05c2e",
     "53855b2b6223d7e1f86c396d912a68cfbd86ba8c",

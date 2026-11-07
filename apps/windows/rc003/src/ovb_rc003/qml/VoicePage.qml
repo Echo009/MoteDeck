@@ -1456,17 +1456,19 @@ Item {
                         Layout.fillWidth: true
                         spacing: 10
 
-                        // 深色圆角块放原版图形 logo，深浅主题下都能看清。
+                        // 深色模式下图标与底色一起反色。
                         Rectangle {
                             Layout.alignment: Qt.AlignTop
                             width: 40
                             height: 40
                             radius: 10
-                            color: "#141414"
+                            color: root.tokens.darkMode ? "#EBEBEB" : "#141414"
 
                             Image {
                                 anchors.centerIn: parent
-                                source: card.logoSource
+                                source: root.tokens.darkMode
+                                    ? card.logoSource.toString().replace("-mark.svg", "-mark-dark.png")
+                                    : card.logoSource
                                 sourceSize.width: 24
                                 sourceSize.height: 24
                                 width: 22

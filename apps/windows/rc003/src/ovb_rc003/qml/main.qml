@@ -784,38 +784,19 @@ ApplicationWindow {
                 color: window.tokens.border
             }
 
-            // 产品标识：黑底圆角方块 + 白色遥控器，与安装包图标一致
-            Rectangle {
+            Image {
                 id: appLogo
                 objectName: "appLogo"
                 x: 24
                 y: 24
                 width: 24
                 height: 24
-                // 稿子 64 画布：rx16，主体 18×42 rx9，圆点 r4.5 距顶 12；按 24/64 缩放
-                radius: 6
-                color: window.tokens.accent
-                antialiasing: true
-
-                Rectangle {
-                    width: 6.75
-                    height: 15.75
-                    radius: 3.375
-                    anchors.centerIn: parent
-                    rotation: 45
-                    antialiasing: true
-                    color: window.tokens.accentText
-
-                    Rectangle {
-                        width: 3.375
-                        height: 3.375
-                        radius: 1.6875
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        y: 4.5 - 1.6875
-                        antialiasing: true
-                        color: window.tokens.accent
-                    }
-                }
+                source: window.tokens.darkMode
+                    ? "assets/brand-mark-dark.svg" : "assets/brand-mark.svg"
+                sourceSize.width: width * Screen.devicePixelRatio
+                sourceSize.height: height * Screen.devicePixelRatio
+                smooth: true
+                fillMode: Image.PreserveAspectFit
             }
 
             Column {
@@ -885,7 +866,7 @@ ApplicationWindow {
                 anchors.bottomMargin: 24
                 tokens: window.tokens
                 level: SettingsController.remoteBatteryLevel
-                visible: SettingsController.isRc003Device
+                visible: SettingsController.remoteBatteryLevel >= 0
             }
         }
 

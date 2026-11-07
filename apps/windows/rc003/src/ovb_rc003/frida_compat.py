@@ -21,6 +21,7 @@ import os
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+import queue
 import socket
 import subprocess
 import sys
@@ -97,6 +98,8 @@ HID_INTERCEPT_LEASE_SECONDS = 2.0
 HID_INTERCEPT_RENEW_INTERVAL_SECONDS = 0.5
 HID_INTERCEPT_DISABLE_ACK_TIMEOUT_SECONDS = 0.5
 HID_INTERCEPT_LEASE_SAFETY_SECONDS = 0.15
+# 业务回调卡住时只等这么久；超时就放弃这条分发线程，不能拖住退出。
+HID_REPORT_DISPATCH_STOP_TIMEOUT_SECONDS = 2.0
 _ERROR_INSUFFICIENT_BUFFER = 122
 _TCP_TABLE_OWNER_PID_ALL = 5
 HID_TAP_INJECTOR_EXIT_DETAILS = {
@@ -570,6 +573,10 @@ class RC003HidReportTap:
                          ) if injector is run_injector_subprocess else injector
         self._stop_requested_event = threading.Event()
         self.thread: threading.Thread | None = None
+        # 业务回调走独立线程：声卡打开/关闭卡在驱动里时，HID 报文仍能继续
+        # 被拷贝和投递，不会连带让整把遥控器失去响应。
+        self._report_queue: queue.SimpleQueue = queue.SimpleQueue()
+        self._dispatch_thread: threading.Thread | None = None
         self.active_usages: set[int] = set()
         self._state_lock = threading.Lock()
         self._client_lock = threading.Lock()
@@ -824,7 +831,7 @@ class RC003HidReportTap:
         trace = self._diagnostic_trace
         if trace is None or not trace.enabled:
             if forwarded:
-                self.report_handler(1, report)
+                self._forward_report(report, "")
             return
         with self._state_lock:
             self._diagnostic_report_seq += 1
@@ -849,7 +856,47 @@ class RC003HidReportTap:
                 tap_detail=self.status_detail,
             )
             if forwarded:
-                self.report_handler(1, report)
+                self._forward_report(report, report_id)
+
+    def _forward_report(self, report: bytes, trace_report_id: str) -> None:
+        """把报文交给业务线程；HID 拷贝线程绝不在业务上等待。"""
+
+        thread = self._dispatch_thread
+        if thread is None or not thread.is_alive():
+            self.report_handler(1, report)
+            return
+        self._report_queue.put((report, trace_report_id))
+
+    def _dispatch_reports(self) -> None:
+        """唯一的业务线程：按键、语音开关都在这里按顺序执行。"""
+
+        while True:
+            item = self._report_queue.get()
+            if item is None:
+                return
+            report, trace_report_id = item
+            try:
+                trace = self._diagnostic_trace
+                if trace_report_id and trace is not None and trace.enabled:
+                    with trace.hid_report_context(trace_report_id):
+                        self.report_handler(1, report)
+                else:
+                    self.report_handler(1, report)
+            except Exception as exc:  # noqa: BLE001 - 单个报文异常不能停掉分发
+                _LOGGER.warning(
+                    "HID report handler failed: error_type=%s",
+                    type(exc).__name__,
+                )
+
+    def _stop_report_dispatch(self) -> None:
+        thread = self._dispatch_thread
+        self._dispatch_thread = None
+        if thread is None:
+            return
+        # 哨兵排在已投递报文之后，保证合成的松手报文也能送出去。
+        self._report_queue.put(None)
+        if thread is not threading.current_thread():
+            thread.join(timeout=HID_REPORT_DISPATCH_STOP_TIMEOUT_SECONDS)
 
     def _handle_ioctl_output(
         self, data: bytes, *, force: bool = False, copy_probe_id: int = 0
@@ -1625,6 +1672,13 @@ class RC003HidReportTap:
         self._stop_requested_event.clear()
         self.stop_event.clear()
         self._set_status(HidTapState.STARTING)
+        self._report_queue = queue.SimpleQueue()
+        self._dispatch_thread = threading.Thread(
+            target=self._dispatch_reports,
+            name="rc003-hid-report-dispatch",
+            daemon=True,
+        )
+        self._dispatch_thread.start()
         self.thread = threading.Thread(
             target=self._run_guarded,
             name="rc003-hidogatt-report-tap",
@@ -1637,11 +1691,14 @@ class RC003HidReportTap:
         self._stop_requested_event.set()
         self._disable_interception_before_stop()
         self.stop_event.set()
-        if self.thread is not None and self.thread is not threading.current_thread():
-            self.thread.join(timeout=3.0)
-            if self.thread.is_alive():
-                raise RuntimeError("RC003 HID report tap did not stop")
-        self._release_active()
+        try:
+            if self.thread is not None and self.thread is not threading.current_thread():
+                self.thread.join(timeout=3.0)
+                if self.thread.is_alive():
+                    raise RuntimeError("RC003 HID report tap did not stop")
+            self._release_active()
+        finally:
+            self._stop_report_dispatch()
         self.thread = None
         self._set_status(HidTapState.STOPPED)
 

@@ -19,14 +19,18 @@ import subprocess
 import threading
 import uuid
 
-from . import remote_selection
+from . import remote_layout, remote_selection
 
 
 MODULE = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "drivers" / "umdf" / "microsoft.bluetooth.profiles.hidovergatt.dll"
 _TESTED_SHA256 = "8a18571ddfa447bd590354ccdf7800b815a098806359ab195d395158f9d07cc5"
 _TESTED_RVA = 0x12FCC
 _HID_SERVICE = "{00001812-0000-1000-8000-00805f9b34fb}"
-_GOOGLE_HARDWARE = "dev_vid&0118d1_pid&9450_rev&0110"
+# A: eight-byte reports; B: two-byte Consumer usages from the same model family.
+_GOOGLE_HARDWARE = (
+    "dev_vid&0118d1_pid&9450_rev&0110",
+    "dev_vid&0218d1_pid&9450_rev&011b",
+)
 _ADDRESS_SUFFIX = re.compile(r"_([0-9a-f]{12})$", re.I)
 _SYMBOL = "Microsoft::Bluetooth::Profiles::HidOverGatt::HogpGattAdapter::OnReportValueChanged"
 
@@ -48,7 +52,7 @@ def selected_host_and_address(entity: str) -> tuple[int, str]:
             for index in range(count):
                 name = winreg.EnumKey(root, index)
                 folded = name.casefold()
-                if not folded.startswith(_HID_SERVICE) or _GOOGLE_HARDWARE not in folded:
+                if not folded.startswith(_HID_SERVICE) or not any(hardware in folded for hardware in _GOOGLE_HARDWARE):
                     continue
                 address = _ADDRESS_SUFFIX.search(name)
                 if address is None:
@@ -201,6 +205,7 @@ def callback_rva(module: Path = MODULE) -> int:
 _SCRIPT = r"""
 const expectedPath = __PATH__;
 const expectedAddress = __ADDRESS__;
+const consumerCodes = __CONSUMER_CODES__;
 const module = Process.findModuleByName("microsoft.bluetooth.profiles.hidovergatt.dll");
 if (module === null || module.path.toLowerCase().replace(/\\/g, "/") !== expectedPath)
   throw new Error("module_mismatch");
@@ -234,13 +239,23 @@ function report(buffer) {
     if (buffer.isNull()) return null;
     const sizeOut = Memory.alloc(4);
     if (method(buffer, 7, "int", ["pointer", "pointer"])(buffer, sizeOut) !== 0) return null;
-    if (sizeOut.readU32() !== 8) return null;
+    const size = sizeOut.readU32();
+    if (size !== 8 && size !== 2) return null;
     const accessOut = Memory.alloc(Process.pointerSize);
     if (method(buffer, 0, "int", ["pointer", "pointer", "pointer"])(buffer, iid, accessOut) !== 0) return null;
     access = accessOut.readPointer();
     const bytesOut = Memory.alloc(Process.pointerSize);
     if (method(access, 3, "int", ["pointer", "pointer"])(access, bytesOut) !== 0) return null;
-    return new Uint8Array(bytesOut.readPointer().readByteArray(8));
+    const bytes = new Uint8Array(bytesOut.readPointer().readByteArray(size));
+    if (size === 2) {
+      // GATT omits the 0x02 report ID added by the downstream Windows copy.
+      // Normalize only known Consumer usages from the selected adapter.
+      const usage = bytes[0] | (bytes[1] << 8);
+      const code = usage === 0 ? 0 : consumerCodes[usage];
+      if (code === undefined) return null;
+      return new Uint8Array([code, 0, 0, 0, 0, 0, 0, 0]);
+    }
+    return bytes;
   } finally {
     if (!access.isNull()) method(access, 2, "uint32", ["pointer"])(access);
   }
@@ -286,7 +301,11 @@ class HidTap:
         rva = callback_rva()
         source = (_SCRIPT.replace("__PATH__", json.dumps(str(MODULE).lower().replace("\\", "/")))
                  .replace("__ADDRESS__", json.dumps(list(bytes.fromhex(address)[::-1])))
-                 .replace("__RVA__", str(rva)))
+                 .replace("__RVA__", str(rva))
+                 .replace("__CONSUMER_CODES__", json.dumps({
+                     usage: remote_layout.CHROMECAST_REPORT_CODES[key]
+                     for key, usage in remote_layout.CHROMECAST_CONSUMER_USAGES.items()
+                 })))
         self.pid, self.address = pid, address
         try:
             self.session = frida.attach(pid)

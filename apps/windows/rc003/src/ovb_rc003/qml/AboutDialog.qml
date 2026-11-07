@@ -72,14 +72,17 @@ SettingsDialog {
             Layout.fillWidth: true
             spacing: 14
 
-            // 与安装包 / 托盘图标一致的 liquid glass 产品标识
+            // 与安装包 / 托盘图标一致的产品标识
             Image {
                 objectName: "aboutBrandIcon"
                 source: SettingsController.brandIconSource
-                sourceSize.width: 80
-                sourceSize.height: 80
-                width: 40
-                height: 40
+                Layout.minimumWidth: 40
+                Layout.preferredWidth: 40
+                Layout.maximumWidth: 40
+                Layout.minimumHeight: 40
+                Layout.preferredHeight: 40
+                Layout.maximumHeight: 40
+                mipmap: true
                 smooth: true
                 fillMode: Image.PreserveAspectFit
             }

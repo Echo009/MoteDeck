@@ -156,20 +156,12 @@ def _register_current_consumer_unlocked(
     directory = consumer_directory(config_root)
     directory.mkdir(parents=True, exist_ok=True)
     destination = consumer_marker_path(config_root, app)
-    temporary = destination.with_name(
-        f".{destination.name}.{os.getpid()}.{time.time_ns()}.tmp"
+    from . import atomic_files
+
+    atomic_files.write_text_atomic(
+        destination,
+        json.dumps(_marker_payload(app), indent=2, sort_keys=True) + "\n",
     )
-    try:
-        temporary.write_text(
-            json.dumps(_marker_payload(app), indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        os.replace(temporary, destination)
-    finally:
-        try:
-            temporary.unlink(missing_ok=True)
-        except OSError:
-            pass
     _prune_stale_consumer_markers_unlocked(
         config_root,
         exclude_marker=destination,

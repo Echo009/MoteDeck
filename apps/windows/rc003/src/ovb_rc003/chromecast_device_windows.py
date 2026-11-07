@@ -169,7 +169,16 @@ class SelectedDevice:
                                    audio=int(audio.characteristic_properties), control=int(control.characteristic_properties),
                                    tx_handle=int(tx.attribute_handle), audio_handle=int(audio.attribute_handle),
                                    control_handle=int(control.attribute_handle))
-        if tuple(int(c.attribute_handle) for c in (tx, audio, control)) != _VERIFIED_VOICE_DECLARATIONS:
+        handles = tuple(int(c.attribute_handle) for c in (tx, audio, control))
+        if len(set(handles)) != 3 or not all(0 < handle <= 65535 for handle in handles):
+            raise PipeError("unsupported_layout")
+        if direct and not all(handle > int(self.voice_service.attribute_handle) for handle in handles):
+            raise PipeError("unsupported_layout")
+        if not direct and handles != _VERIFIED_VOICE_DECLARATIONS:
+            raise PipeError("unsupported_layout")
+        if direct and any(not (c.characteristic_properties & (GattCharacteristicProperties.NOTIFY
+                                                              | GattCharacteristicProperties.INDICATE))
+                          for c in (audio, control)):
             raise PipeError("unsupported_layout")
         self.voice_tx = tx
         properties = tx.characteristic_properties
@@ -179,14 +188,16 @@ class SelectedDevice:
             self.voice_write_option = GattWriteOption.WRITE_WITHOUT_RESPONSE
         else:
             raise PipeError("unsupported_layout")
-        self.voice_attributes = dict(_VERIFIED_VOICE_VALUES)
+        self.voice_attributes = ({handles[1]: "audio", handles[2]: "control"} if direct
+                                 else dict(_VERIFIED_VOICE_VALUES))
         if direct:
             from winrt.windows.devices.bluetooth.genericattributeprofile import (
                 GattClientCharacteristicConfigurationDescriptorValue as CccdValue,
             )
             self._voice_open = True
-            for characteristic, attribute in ((audio, 0x3C), (control, 0x3F)):
-                self.voice_evidence["step"] = "audio_subscription" if attribute == 0x3C else "control_subscription"
+            for characteristic, attribute, kind in ((audio, handles[1], "audio"),
+                                                    (control, handles[2], "control")):
+                self.voice_evidence["step"] = kind + "_subscription"
                 self.voice_evidence["status"] = -1
                 def notify(_sender, args, attribute=attribute):
                     if not self._voice_open:

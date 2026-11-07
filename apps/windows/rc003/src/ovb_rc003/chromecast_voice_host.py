@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from .atvv_session import ATVVSession
+from .chromecast_voice import TAP_MAX_SECONDS
 from .voice_audio_session import VoiceAudioSession
 from .voice_shortcut_session import VoiceShortcutSession
 from . import bridge_runtime_status as status
@@ -70,6 +71,7 @@ class VoiceHost:
         self._press_timer = None
         self._press_token = None
         self._press_delivered = False
+        self._press_started = 0.0
         self._detection_press = False
         self._asr_capture = False
 
@@ -127,6 +129,9 @@ class VoiceHost:
         services = self.services
         if self.state != "idle" or not self.closed or attempt <= self.attempt:
             return
+        # 按下时刻：松手时用它判短按，这样"延迟发送"关闭、快捷键已经发出去
+        # 的轻点也能像小米实体键一样切模式。
+        self._press_started = time.monotonic()
         # Refresh before claiming the shortcut so one attempt never mixes two
         # hotkey configurations.
         services.reload_settings()
@@ -473,18 +478,23 @@ class VoiceHost:
         with services.shortcut.lock:
             services.disable_forwarding()
             delivered = self._press_delivered
+            quick_release = (
+                self._press_started > 0.0
+                and time.monotonic() - self._press_started <= TAP_MAX_SECONDS
+            )
             detection = self._detection_press
             self._detection_press = False
             self._cancel_press_delay()
             if (
                 from_remote_release
-                and not delivered
                 and not detection
                 and not asr_committed
                 and self.failure_result is None
+                and (not delivered or quick_release)
             ):
-                # Released inside the tap window: no key was injected, so this
-                # press only switches the voice mode, like the Xiaomi mic.
+                # Released inside the tap window: this press only switches the
+                # voice mode, like the Xiaomi mic. 延迟发送关闭时快捷键已经
+                # 下发过，这里照样补一次切模式（与小米实体键一致）。
                 services.shortcut.controller.cancel_pending()
                 tapped = True
             tail, self._output_pcm = self._output_pcm, []
@@ -510,6 +520,7 @@ class VoiceHost:
             self.engaged = False
             self.decoder = None
         self._press_delivered = False
+        self._press_started = 0.0
         if tapped:
             self._notify_short_tap()
         services.logger.info(

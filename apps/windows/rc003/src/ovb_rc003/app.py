@@ -60,6 +60,7 @@ from typing import List, Optional, Tuple
 
 from . import __version__
 from . import (
+    atomic_files,
     audio_output,
     audio_playback,
     audio_playback_worker,
@@ -347,6 +348,11 @@ class RC003App:
         )
         self._button_combos = button_combo.ButtonComboRecognizer()
         self._logger: logging.Logger = logging_setup.get_logger(self._config_root)
+        self._logger.info(
+            "settings root: %s (resolved: %s)",
+            self._config_root,
+            atomic_files.resolve_real_path(self._config_root),
+        )
         self._last_raw_input_lookup_diagnostic = None
         self._diagnostic_trace = diagnostic_trace.DiagnosticTrace(
             self._config_root,
@@ -952,8 +958,38 @@ class RC003App:
                 cancel_mappings=self._cancel_chromecast_mappings,
                 release_inputs=self._release_chromecast_inputs,
                 route_edge=self._route_chromecast_edge,
+                start_battery_monitor=self._start_chromecast_battery_monitor,
             )
         )
+
+    async def _start_chromecast_battery_monitor(self):
+        """Chromecast 遥控器同样带电池服务，用独立 worker 读，避免拖住主循环。"""
+        from . import ble_transport_winrt, remote_selection
+        from .battery_monitor_winrt import BatteryMonitor
+
+        winrt = ble_transport_winrt._import_winrt()
+        selector = winrt.bluetooth_le_device.get_device_selector_from_pairing_state(True)
+        devices = await winrt.device_information.find_all_async_aqs_filter_and_additional_properties(
+            selector, ["System.Devices.Aep.ContainerId"]
+        )
+        device_id = ""
+        for info in devices:
+            try:
+                if remote_selection.candidate_key(info) == self._selected_remote_key:
+                    device_id = str(getattr(info, "id", "") or "")
+                    break
+            except (remote_selection.SelectionError, OSError, TypeError, ValueError):
+                continue
+        if not device_id:
+            return None
+        monitor = BatteryMonitor(
+            device_id,
+            asyncio.get_running_loop(),
+            self._set_runtime_battery_level,
+            ble_transport_winrt._import_winrt,
+            timeout=8.0,
+        )
+        return monitor if monitor.start() else None
 
     def _create_chromecast_voice_host(self):
         from .chromecast_voice_host import VoiceHost, VoiceHostServices
@@ -1073,15 +1109,13 @@ class RC003App:
         )
 
     def _chromecast_voice_short_tap(self) -> None:
-        slot = self._active_voice_slot()
+        """Switch the voice mode on a Chromecast voice-key short press.
+
+        谷歌遥控器同样上报完整的按下/松开事件，松手时直接按小米实体键的规则
+        切模式，不看"延迟发送"开关。
+        """
+
         with self._voice_shortcut.lock:
-            if (
-                self._chromecast_voice_press_delay() <= 0
-                and not self._voice_slot_is_plugin(slot)
-                and not self._voice_slot_uses_local_microphone(slot)
-            ):
-                # "延迟发送"关闭时，普通热键槽的短按是重发快捷键，不是切模式。
-                return
             self._handle_voice_short_tap_locked("chromecast short press")
 
     def _cancel_chromecast_mappings(self) -> None:

@@ -955,7 +955,8 @@ let client = null;
 let started = false;
 let stopped = false;
 let shuttingDown = false;
-let connectedToMoteDeck = false; // 用户是否在插件页打开「连接本软件」
+// 用户是否在插件页打开「连接本软件」；首次导入默认开启。
+let connectedToMoteDeck = true;
 
 function coreState() {
   if (shuttingDown || stopped) return 'stopped';
@@ -1001,11 +1002,12 @@ function applyConnectionSetting(value) {
 }
 
 function parseConnectionConfig(config) {
-  if (config === undefined || config === null) return { value: false };
+  if (config === undefined || config === null) return { value: true };
   if (typeof config !== 'object' || Array.isArray(config)) {
     return { error: 'invalid_config' };
   }
-  if (!('connect' in config)) return { value: false };
+  // 首次导入还没有存过配置，默认就是开启连接。
+  if (!('connect' in config)) return { value: true };
   if (typeof config.connect !== 'boolean') return { error: 'invalid_connect_flag' };
   return { value: config.connect };
 }

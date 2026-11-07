@@ -170,6 +170,15 @@ class VoiceShortcutSession:
         self._stop_hold_repeat_locked()
         if not self.pending_tokens:
             return
+        # WinUHid 的键盘报告表达的是"状态"而不是"事件"：要让宿主再看到一次
+        # 按键，只能先松开再按下。这一记松开会被"按住说话"当成松手，语音刚
+        # 激活就结束（表现为长按后闪一下又退出）。按住说话只认按下/松开两个
+        # 状态，所以这个后端不做连发。
+        if (
+            injection_backend.backend_for(self.pending_inject_mode).name
+            == injection_backend.INJECT_MODE_WINUHID
+        ):
+            return
         self.repeat_stopping = False
         self.repeat_token = object()
         self._schedule_repeat_locked(

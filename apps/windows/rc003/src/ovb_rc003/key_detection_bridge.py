@@ -208,15 +208,12 @@ def _read_json(path: Path):
 
 
 def _write_json_atomic(path: Path, payload: dict) -> None:
-    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=True, sort_keys=True),
-            encoding="utf-8",
-        )
-        os.replace(temporary, path)
-    finally:
-        _unlink(temporary)
+    from . import atomic_files
+
+    atomic_files.write_text_atomic(
+        path,
+        json.dumps(payload, ensure_ascii=True, sort_keys=True),
+    )
 
 
 def _unlink(path: Path) -> None:

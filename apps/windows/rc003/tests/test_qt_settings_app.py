@@ -645,7 +645,7 @@ class SettingsControllerTests(unittest.TestCase):
             ),
         )
         self.assertTrue(
-            controller.trayIconSource.endswith("remote-mic-unavailable.svg")
+            controller.trayIconSource.endswith("remote-mic.ico")
         )
 
     def test_per_button_inject_mode_round_trips_through_the_controller(self):
@@ -800,7 +800,7 @@ class SettingsControllerTests(unittest.TestCase):
 
         self.assertTrue(controller.buttonReceiverUsable)
         self.assertTrue(
-            controller.trayIconSource.endswith("remote-mic-connected.svg")
+            controller.trayIconSource.endswith("remote-mic.ico")
         )
         self.assertIn(device_catalog.RC003_DISPLAY_NAME, controller.trayTooltip)
         self.assertIn("正常", controller.trayTooltip)
@@ -808,7 +808,7 @@ class SettingsControllerTests(unittest.TestCase):
         controller._set_bridge_connected(False)
         self.assertTrue(controller.buttonReceiverUsable)
         self.assertTrue(
-            controller.trayIconSource.endswith("remote-mic-unavailable.svg")
+            controller.trayIconSource.endswith("remote-mic.ico")
         )
         self.assertIn("未连接", controller.trayTooltip)
 
@@ -826,9 +826,12 @@ class SettingsControllerTests(unittest.TestCase):
         )
         self.assertFalse(controller.buttonReceiverUsable)
         self.assertTrue(
-            controller.trayIconSource.endswith("remote-mic-unavailable.svg")
+            controller.trayIconSource.endswith("remote-mic.ico")
         )
         self.assertIn("按键接收异常", controller.trayTooltip)
+        controller._set_bridge_running(False)
+        self.assertEqual(controller._tray_icon_state(), "off")
+        self.assertTrue(controller.trayIconSource.endswith("remote-mic-stopped.ico"))
         self.assertGreaterEqual(len(changes), 5)
 
     def test_remote_battery_exposes_valid_level_and_clears_when_status_disappears(self):
@@ -9718,10 +9721,12 @@ class SettingsShellSourceContractTests(unittest.TestCase):
             self.main_qml,
         )
 
-    def test_xiaomi_battery_gauge_is_passive_and_anchored_to_sidebar_bottom(self):
+    def test_remote_battery_gauge_is_passive_and_anchored_to_sidebar_bottom(self):
         self.assertIn('objectName: "remoteBatteryGauge"', self.main_qml)
         self.assertIn("anchors.bottom: parent.bottom", self.main_qml)
-        self.assertIn("visible: SettingsController.isRc003Device", self.main_qml)
+        self.assertIn(
+            "visible: SettingsController.remoteBatteryLevel >= 0", self.main_qml
+        )
         self.assertIn("level: SettingsController.remoteBatteryLevel", self.main_qml)
         self.assertIn("implicitWidth: 36", self.battery_gauge_qml)
         self.assertIn("implicitHeight: 36", self.battery_gauge_qml)
@@ -10311,6 +10316,9 @@ class SettingsShellSourceContractTests(unittest.TestCase):
         self.assertIn("font.family: iconFontFamily", self.icon_glyph_qml)
 
     def test_device_page_shows_real_service_state_and_start_progress(self):
+        self.assertIn('qsTr("待启动服务")', self.device_qml)
+        self.assertIn('return "service_stopped"', self.device_qml)
+        self.assertIn('tokens.darkMode ? "#facc15" : "#ca8a04"', self.device_qml)
         self.assertIn("SettingsController.bridgeLaunchBusy", self.device_qml)
         self.assertIn("SettingsController.bridgeConnected", self.device_qml)
         self.assertIn("SettingsController.bridgeRunning", self.device_qml)
@@ -11538,7 +11546,7 @@ class OffscreenQmlLoadTests(unittest.TestCase):
             "让遥控器按键在电脑上生效",
         )
         self.assertEqual(
-            cases["raw_unpaired"]["buttons"]["state"], "请先配对遥控器"
+            cases["raw_unpaired"]["buttons"]["state"], "未连接"
         )
         self.assertEqual(
             cases["raw_unpaired"]["buttons"]["detail"],
@@ -12478,15 +12486,16 @@ assert recorder is not None
 _wait_until(
     window,
     app,
-    lambda: bool(recorder.property("visible")) and controller.hotkeyCaptureActive,
+    lambda: bool(recorder.property("opened")) and controller.hotkeyCaptureReady,
     "shortcut recorder did not start physical capture",
 )
+recorder_content = recorder.property("contentItem")
 manual_mode = _find_child_by_object_name(
-    window, "shortcutRecorderManualModeButton"
+    recorder_content, "shortcutRecorderManualModeButton"
 )
-manual_field = _find_child_by_object_name(window, "shortcutRecorderManualField")
+manual_field = _find_child_by_object_name(recorder_content, "shortcutRecorderManualField")
 manual_confirm = _find_child_by_object_name(
-    window, "shortcutRecorderManualConfirmButton"
+    recorder_content, "shortcutRecorderManualConfirmButton"
 )
 assert manual_mode is not None and manual_field is not None
 assert manual_confirm is not None

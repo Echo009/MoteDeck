@@ -14,7 +14,6 @@ import ctypes
 import json
 import os
 import sys
-import tempfile
 from ctypes import wintypes
 from pathlib import Path
 
@@ -145,23 +144,16 @@ def _write_executable_cache(cache_root, executables: dict) -> None:
     path = _executable_cache_path(cache_root)
     if path is None:
         return
-    temporary = ""
+    path.parent.mkdir(parents=True, exist_ok=True)
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        handle, temporary = tempfile.mkstemp(
-            dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
-        with os.fdopen(handle, "w", encoding="utf-8") as stream:
-            json.dump(executables, stream, ensure_ascii=False, indent=2, sort_keys=True)
-        os.replace(temporary, path)
-        temporary = ""
+        from . import atomic_files
+
+        atomic_files.write_text_atomic(
+            path,
+            json.dumps(executables, ensure_ascii=False, indent=2, sort_keys=True),
+        )
     except (OSError, ValueError):
         return
-    finally:
-        if temporary:
-            try:
-                os.unlink(temporary)
-            except OSError:
-                pass
 
 
 def remember_executables(cache_root, executables: dict) -> None:

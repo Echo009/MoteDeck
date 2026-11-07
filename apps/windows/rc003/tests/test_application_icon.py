@@ -14,23 +14,38 @@ _GENERATOR = _RC003_ROOT / "build" / "generate-app-icon.py"
 
 
 class ApplicationIconTests(unittest.TestCase):
-    def test_state_icons_use_the_monochrome_liquid_glass_brand_mark(self):
-        for name in ("remote-mic-connected.svg", "remote-mic-unavailable.svg"):
-            content = (_ICON_DIR / name).read_text(encoding="utf-8")
-            self.assertIn('rx="5.4"', content, "图标必须是圆角矩形底")
-            self.assertIn('fill-rule="evenodd"', content, "遥控器线稿需要镂空圆点")
-            self.assertIn('stop-color="#FFFFFF"', content, "品牌标识必须是白色")
-            self.assertIn("url(#glassSheen)", content, "玻璃质感需要高光层")
-            self.assertNotIn("stroke=\"#FFFFFF", content, "图标不能有白色描边")
-            self.assertNotIn("currentColor", content)
-        connected = (_ICON_DIR / "remote-mic-connected.svg").read_text(
-            encoding="utf-8"
+    def test_application_icon_is_a_valid_square_png(self):
+        from PySide6.QtGui import QImage
+
+        image = QImage(str(_ICON_DIR / "remote-mic.png"))
+        self.assertFalse(image.isNull())
+        self.assertEqual(image.width(), image.height())
+
+    def test_navigation_icon_uses_theme_specific_svg_resources(self):
+        import xml.etree.ElementTree as ET
+
+        qml_dir = _RC003_ROOT / "src" / "ovb_rc003" / "qml"
+        light = ET.parse(qml_dir / "assets" / "brand-mark.svg").getroot()
+        dark = ET.parse(qml_dir / "assets" / "brand-mark-dark.svg").getroot()
+        self.assertEqual(len(list(light.iter())), len(list(dark.iter())) + 1)
+        light_shapes = {
+            node.attrib["id"]: node.attrib for node in light.iter()
+            if "id" in node.attrib and node.attrib["id"] != "tile"
+        }
+        dark_shapes = {
+            node.attrib["id"]: node.attrib for node in dark.iter()
+            if "id" in node.attrib
+        }
+        self.assertNotIn("tile", dark_shapes)
+        self.assertEqual(dark_shapes, light_shapes)
+        main = (qml_dir / "main.qml").read_text(encoding="utf-8")
+        logo = main.split('id: appLogo', 1)[1].split('Column {', 1)[0]
+        self.assertIn(
+            'window.tokens.darkMode\n'
+            '                    ? "assets/brand-mark-dark.svg" : "assets/brand-mark.svg"',
+            logo,
         )
-        self.assertIn('stop-color="#0B0F15"', connected, "连接状态使用墨黑玻璃底")
-        unavailable = (_ICON_DIR / "remote-mic-unavailable.svg").read_text(
-            encoding="utf-8"
-        )
-        self.assertIn('stop-color="#98A2B1"', unavailable, "离线状态使用灰底以示区别")
+        self.assertIn('MoteDeckWordmark {\n                    objectName: "titleWordmark"', main)
 
     def test_qt_icon_is_applied_to_the_application_and_native_window(self):
         calls = []
@@ -47,7 +62,7 @@ class ApplicationIconTests(unittest.TestCase):
             def setIcon(self, icon):
                 calls.append(("window", icon.path))
 
-        icon_path = _ICON_DIR / "remote-mic-connected.svg"
+        icon_path = _ICON_DIR / "remote-mic.png"
         qt_settings_app._apply_application_icon(
             FakeApplication(), FakeWindow(), FakeIcon, icon_path
         )
@@ -60,7 +75,7 @@ class ApplicationIconTests(unittest.TestCase):
             ],
         )
 
-    def test_windows_ico_is_generated_from_the_shared_connected_svg(self):
+    def test_windows_ico_is_generated_from_the_shared_png(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             generated = Path(tmpdir) / "remote-mic.ico"
             result = subprocess.run(
@@ -68,7 +83,7 @@ class ApplicationIconTests(unittest.TestCase):
                     sys.executable,
                     str(_GENERATOR),
                     "--source",
-                    str(_ICON_DIR / "remote-mic-connected.svg"),
+                    str(_ICON_DIR / "remote-mic.png"),
                     "--output",
                     str(generated),
                 ],

@@ -1,4 +1,4 @@
-"""Generate the Windows shortcut/executable ICO from the shared SVG icon."""
+"""Generate the Windows shortcut/executable ICO from the shared PNG icon."""
 
 from __future__ import annotations
 
@@ -6,20 +6,17 @@ import argparse
 from pathlib import Path
 import struct
 
-from PySide6.QtCore import QByteArray, QBuffer, QIODevice
-from PySide6.QtGui import QImage, QPainter
-from PySide6.QtSvg import QSvgRenderer
+from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
+from PySide6.QtGui import QImage
 
 
 ICON_SIZES = (16, 20, 24, 32, 40, 48, 64, 128, 256)
 
 
-def _render_png(renderer: QSvgRenderer, size: int) -> bytes:
-    image = QImage(size, size, QImage.Format_ARGB32)
-    image.fill(0)
-    painter = QPainter(image)
-    renderer.render(painter)
-    painter.end()
+def _render_png(source: QImage, size: int) -> bytes:
+    image = source.scaled(
+        size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+    )
 
     payload = QByteArray()
     buffer = QBuffer(payload)
@@ -29,12 +26,12 @@ def _render_png(renderer: QSvgRenderer, size: int) -> bytes:
     return bytes(payload)
 
 
-def build_ico(svg_path: Path) -> bytes:
-    renderer = QSvgRenderer(str(svg_path))
-    if not renderer.isValid():
-        raise ValueError(f"invalid SVG icon: {svg_path}")
+def build_ico(png_path: Path) -> bytes:
+    source = QImage(str(png_path))
+    if source.isNull():
+        raise ValueError(f"invalid PNG icon: {png_path}")
 
-    images = [(size, _render_png(renderer, size)) for size in ICON_SIZES]
+    images = [(size, _render_png(source, size)) for size in ICON_SIZES]
     offset = 6 + 16 * len(images)
     entries = []
     payloads = []
@@ -69,7 +66,7 @@ def main() -> int:
         / "ovb_rc003"
         / "assets"
         / "icons"
-        / "remote-mic-connected.svg",
+        / "remote-mic.png",
     )
     parser.add_argument(
         "--output",
