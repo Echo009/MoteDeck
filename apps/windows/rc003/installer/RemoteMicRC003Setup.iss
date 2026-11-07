@@ -81,7 +81,6 @@ Name: "chinesesimp"; MessagesFile: "ChineseSimplified.isl"
 ; immediately. The old complete runtime remains quarantined until that check
 ; has actually run the new executable successfully.
 Source: "{#DistDir}\*"; DestDir: "{app}"; Excludes: "{#AppExeName}"; Flags: recursesubdirs createallsubdirs ignoreversion
-Source: "readme-rc003.txt"; DestDir: "{app}"; DestName: "README.txt"; Flags: isreadme ignoreversion
 Source: "..\..\..\..\THIRD_PARTY_NOTICES.md"; DestDir: "{app}"; DestName: "THIRD_PARTY_NOTICES.md"; Flags: ignoreversion
 Source: "..\..\..\..\THIRD_PARTY_SOURCE.md"; DestDir: "{app}"; DestName: "THIRD_PARTY_SOURCE.md"; Flags: ignoreversion
 Source: "..\..\..\..\ASSET_LICENSES.md"; DestDir: "{app}"; DestName: "ASSET_LICENSES.md"; Flags: ignoreversion

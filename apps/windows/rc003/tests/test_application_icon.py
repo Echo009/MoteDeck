@@ -21,6 +21,20 @@ class ApplicationIconTests(unittest.TestCase):
         self.assertFalse(image.isNull())
         self.assertEqual(image.width(), image.height())
 
+    def test_application_and_installer_pngs_match_the_brand_svg(self):
+        import runpy
+
+        generator = runpy.run_path(str(_GENERATOR))
+        svg_path = _RC003_ROOT / "src" / "ovb_rc003" / "qml" / "assets" / "brand-mark.svg"
+        for path, size in (
+            (_ICON_DIR / "remote-mic.png", 1024),
+            (_RC003_ROOT / "installer" / "wizard-small.png", 55),
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(
+                    path.read_bytes(), generator["render_brand_png"](svg_path, size)
+                )
+
     def test_navigation_icon_uses_theme_specific_svg_resources(self):
         import xml.etree.ElementTree as ET
 

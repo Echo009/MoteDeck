@@ -1,4 +1,4 @@
-"""Generate the Windows shortcut/executable ICO from the shared PNG icon."""
+"""Generate shared Windows and installer icons from the brand SVG."""
 
 from __future__ import annotations
 
@@ -7,7 +7,8 @@ from pathlib import Path
 import struct
 
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, Qt
-from PySide6.QtGui import QImage
+from PySide6.QtGui import QImage, QPainter
+from PySide6.QtSvg import QSvgRenderer
 
 
 ICON_SIZES = (16, 20, 24, 32, 40, 48, 64, 128, 256)
@@ -24,6 +25,30 @@ def _render_png(source: QImage, size: int) -> bytes:
         raise RuntimeError(f"could not render {size}x{size} application icon")
     buffer.close()
     return bytes(payload)
+
+
+def render_brand_png(svg_path: Path, size: int) -> bytes:
+    renderer = QSvgRenderer(str(svg_path))
+    if not renderer.isValid():
+        raise ValueError(f"invalid SVG icon: {svg_path}")
+    image = QImage(size, size, QImage.Format_ARGB32_Premultiplied)
+    image.fill(Qt.transparent)
+    painter = QPainter(image)
+    renderer.render(painter)
+    painter.end()
+    payload = QByteArray()
+    buffer = QBuffer(payload)
+    if not buffer.open(QIODevice.WriteOnly) or not image.save(buffer, "PNG"):
+        raise RuntimeError(f"could not render {size}x{size} application icon")
+    buffer.close()
+    return bytes(payload)
+
+
+def write_if_changed(path: Path, content: bytes) -> None:
+    if path.is_file() and path.read_bytes() == content:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(content)
 
 
 def build_ico(png_path: Path) -> bytes:
@@ -58,34 +83,23 @@ def build_ico(png_path: Path) -> bytes:
 def main() -> int:
     rc003_root = Path(__file__).resolve().parents[1]
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--source",
-        type=Path,
-        default=rc003_root
-        / "src"
-        / "ovb_rc003"
-        / "assets"
-        / "icons"
-        / "remote-mic.png",
-    )
-    parser.add_argument(
-        "--output",
-        type=Path,
-        default=rc003_root
-        / "src"
-        / "ovb_rc003"
-        / "assets"
-        / "icons"
-        / "remote-mic.ico",
-    )
+    parser.add_argument("--source", type=Path)
+    parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    content = build_ico(args.source.resolve())
-    output = args.output.resolve()
-    if output.is_file() and output.read_bytes() == content:
-        return 0
-    output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_bytes(content)
+    icon_dir = rc003_root / "src" / "ovb_rc003" / "assets" / "icons"
+    if args.source is None and args.output is None:
+        png_path = icon_dir / "remote-mic.png"
+        ico_path = icon_dir / "remote-mic.ico"
+        wizard_path = rc003_root / "installer" / "wizard-small.png"
+        svg_path = rc003_root / "src" / "ovb_rc003" / "qml" / "assets" / "brand-mark.svg"
+        write_if_changed(png_path, render_brand_png(svg_path, 1024))
+        write_if_changed(wizard_path, render_brand_png(svg_path, 55))
+    else:
+        png_path = args.source or icon_dir / "remote-mic.png"
+        ico_path = args.output or icon_dir / "remote-mic.ico"
+
+    write_if_changed(ico_path.resolve(), build_ico(png_path.resolve()))
     return 0
 
 

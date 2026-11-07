@@ -625,13 +625,10 @@ class InnoSetupScriptTests(unittest.TestCase):
             self.text,
         )
 
-    def test_installer_bundles_the_current_user_readme(self):
+    def test_installer_does_not_offer_or_install_readme(self):
         files_section = _iss_section(self.text, "Files")
-        self.assertIn(
-            'Source: "readme-rc003.txt"; DestDir: "{app}"; DestName: "README.txt"; '
-            "Flags: isreadme ignoreversion",
-            files_section,
-        )
+        self.assertNotIn("readme-rc003.txt", files_section)
+        self.assertNotIn("isreadme", files_section.lower())
 
     def test_no_vbcable_reference(self):
         # This installer SCRIPT's own directives never mention VB-CABLE at
