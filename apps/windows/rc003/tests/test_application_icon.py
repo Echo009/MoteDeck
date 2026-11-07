@@ -99,13 +99,25 @@ class ApplicationIconTests(unittest.TestCase):
         self.assertEqual(resources.find_tray_icon("connected").name, "remote-mic-tray.png")
         self.assertEqual(resources.find_app_icon("connected").name, "remote-mic.png")
 
-    def test_navigation_icon_uses_the_approved_application_png(self):
+    def test_navigation_svg_dark_mode_only_removes_the_background(self):
+        from xml.etree import ElementTree
+
         qml_dir = _RC003_ROOT / "src" / "ovb_rc003" / "qml"
         main = (qml_dir / "main.qml").read_text(encoding="utf-8")
         logo = main.split('id: appLogo', 1)[1].split('Column {', 1)[0]
-        self.assertIn('source: "../assets/icons/remote-mic.png"', logo)
-        self.assertNotIn("brand-mark", logo)
-        self.assertTrue((qml_dir / "../assets/icons/remote-mic.png").is_file())
+        self.assertIn(
+            'source: window.darkMode ? "assets/brand-mark-dark.svg" : "assets/brand-mark.svg"',
+            logo,
+        )
+        self.assertNotIn("remote-mic.png", logo)
+        light = ElementTree.parse(qml_dir / "assets/brand-mark.svg").getroot()
+        dark = ElementTree.parse(qml_dir / "assets/brand-mark-dark.svg").getroot()
+        light_elements = {item.get("id"): (item.tag, item.attrib) for item in light.iter() if item.get("id")}
+        dark_elements = {item.get("id"): (item.tag, item.attrib) for item in dark.iter() if item.get("id")}
+        self.assertIn("tile", light_elements)
+        self.assertNotIn("tile", dark_elements)
+        del light_elements["tile"]
+        self.assertEqual(light_elements, dark_elements)
         self.assertIn('MoteDeckWordmark {\n                    objectName: "titleWordmark"', main)
 
     def test_qt_icon_is_applied_to_the_application_and_native_window(self):

@@ -791,7 +791,7 @@ ApplicationWindow {
                 y: 24
                 width: 24
                 height: 24
-                source: "../assets/icons/remote-mic.png"
+                source: window.darkMode ? "assets/brand-mark-dark.svg" : "assets/brand-mark.svg"
                 sourceSize.width: width * Screen.devicePixelRatio
                 sourceSize.height: height * Screen.devicePixelRatio
                 smooth: true
