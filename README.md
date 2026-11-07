@@ -13,7 +13,7 @@
 欢迎通过 [Issues](https://github.com/HZDavy/MoteDeck/issues) 提交功能建议与 Bug 反馈，也欢迎直接提交 [Pull Request](https://github.com/HZDavy/MoteDeck/pulls)；使用说明见[使用帮助](https://hzdavy.github.io/MoteDeck/help/)。
 
 > [!NOTE]
-> 本项目自身代码几乎全部由 AI 协助开发，可能存在疏漏，由此给您带来的不便敬请谅解。Motedeck是完全开源，永久免费的项目，理论上可以支持任何用快捷键呼出语音的输入法，与任何输入法无任何利益关联。
+> 本项目自身代码几乎全部由 AI 协助开发，可能存在疏漏，由此给您带来的不便敬请谅解。Motedeck是完全开源，永久免费的项目，理论上可以支持任何用键盘快捷键唤醒的输入法，与任何输入法无任何利益关联。
 
 MoteDeck 是一个以遥控器语音控制电脑为核心的 Windows 工具，支持**小米蓝牙遥控器 2 Pro**（RC003）、**小米蓝牙遥控器 2**（RC001）与 Google TV 款的**谷歌遥控器**（Chromecast；谷歌 TV 遥控器均为第三方生产，存在多个版本，不能保证所有版本都可以使用），通过按键映射与语音输入，把遥控器变成电脑的快捷键和麦克风；连接 OpenMexia 后还可用语音控制米家设备。
 
