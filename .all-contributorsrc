@@ -13,6 +13,15 @@
   "skipCi": true,
   "contributors": [
     {
+      "login": "Ultraw",
+      "name": "Ultraw",
+      "avatar_url": "https://avatars.githubusercontent.com/u/25666456?v=4",
+      "profile": "https://github.com/Ultraw",
+      "contributions": [
+        "bug"
+      ]
+    },
+    {
       "login": "vermouth587",
       "name": "vermouth587",
       "avatar_url": "https://avatars.githubusercontent.com/u/50365488?v=4",
