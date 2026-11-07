@@ -251,10 +251,11 @@ h2{font-family:var(--display);font-size:44px;line-height:1.25;font-weight:700;le
 @media (max-width:720px){
   :root{--pad:20px}
   html{font-size:16px}
-  .top nav,.top .gh span{display:none}
+  .top nav,.top .gh.help,.top .gh.qq,.top .gh span{display:none}
   .top .wrap{gap:8px}
-  .top .gh.help{font-size:12.5px;gap:4px}
-  .top .gh.qq{font-size:12.5px;padding:1px 9px}
+  .top .sp{flex:1}
+  .top .gh:not(.help):not(.qq){display:flex}
+  .top .b1.sm{flex:none;padding:0 12px}
   h1{font-size:38px}
   h2{font-size:30px}
   .sub,.lead{font-size:17px}
