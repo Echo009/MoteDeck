@@ -53,7 +53,7 @@ MoteDeck 是一个以遥控器语音控制电脑为核心的 Windows 工具，�
 - **按键映射**：方向、确认、返回、音量、菜单键可设为方向键、快捷键、鼠标操作、打开应用或 Quicker 动作；同一按键的单击、双击、长按可以各设一个动作。
 - **语音输入**：按住遥控器语音键说话，文字直接落进当前输入框；录音源可以是遥控器自带话筒，也可以是电脑本机麦克风。
 - **按应用切换**：为不同前台应用保存不同按键布局，切到该应用时自动生效，未配置的按键回落到全局映射。
-- **驱动级注入**：每个按键可单独选择 `SendInput` 或 Interception 驱动级注入，长按和组合键更接近真实键盘手感。
+- **驱动级注入**：每个按键可单独选择 `SendInput`、WinUHid 或 Interception；WinUHid 是推荐的可选驱动方案，长按和组合键更接近真实键盘手感。
 - **米家设备联动**：和同作者的 [OpenMexia](https://github.com/HZDavy/OpenMexia) 连接后，按键动作里多出「米家设备」分组，可以直接开关灯、调亮度与色温。
 - **配置管理**：复制、应用、重命名、删除配置副本，支持导出／导入；当前映射自动保存，应用条可以直接拖动排序。
 
@@ -77,12 +77,12 @@ MoteDeck 是一个以遥控器语音控制电脑为核心的 Windows 工具，�
 
 <img src="./assets/readme/vokie-support.svg" width="100%" alt="原生支持 Vokie：MoteDeck 通过本机回环 TCP 把遥控器话筒的声音交给 Vokie 插件，由 Vokie 整理成文字后自动上屏">
 
-Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适配，配套插件 [MoteDeck2Vokie](https://github.com/HZDavy/MoteDeck/tree/main/plugins/MoteDeck2Vokie) 已随 0.1.4 发布（插件版本 0.1.2）。装上之后，遥控器就是 Vokie 自己的语音设备：按住话筒键说话，音频由插件推进 Vokie 会话，松手后整理成完整文字再落进输入框。
+Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适配，配套插件 [MoteDeck2Vokie](https://github.com/HZDavy/MoteDeck/tree/main/plugins/MoteDeck2Vokie) 当前版本为 0.1.4。装上之后，遥控器就是 Vokie 自己的语音设备：按住话筒键说话，音频由插件推进 Vokie 会话，松手后整理成完整文字再落进输入框。
 
 - 不用再配虚拟声卡和模拟快捷键：插件与 MoteDeck 走本机回环 `127.0.0.1` 直连（随机端口 + 共享 token），控制指令和音频都从这里过
 - Vokie 的语音模式会同步到 MoteDeck 的语音键配置，遥控器上按一下就能切换
 - 插件按 Vokie 当前会话类型走：闪记、翻译、语音指令各有各的通道，被拒时自动退回普通语音输入，不会出现「按了没反应」
-- 安装：在 MoteDeck「语音」页点「下载插件」，把 [MoteDeck2Vokie-0.1.2.zip](https://github.com/HZDavy/MoteDeck/releases/download/v0.1.4/MoteDeck2Vokie-0.1.2.zip) 装进 Vokie 的插件目录，再在插件里点「开启连接」
+- 安装：在 MoteDeck「语音」页点「下载插件」，或下载 [最新版 MoteDeck2Vokie.zip](https://github.com/HZDavy/MoteDeck/releases/latest/download/MoteDeck2Vokie.zip) 并装进 Vokie 的插件目录；在 Vokie 中启用插件后，从 MoteDeck「语音」页开启连接，插件会按保存的连接状态自动连接。
 
 <img src="docs/screenshots/plugin-page.png" width="100%" alt="语音页的「外部应用程序支持」面板：Vokie 与 OpenMexia 两个外部程序入口，各有访问官网、下载和连接按钮">
 
@@ -104,9 +104,9 @@ Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适�
 
 到 [Releases](https://github.com/HZDavy/MoteDeck/releases) 下载最新的 `MoteDeckSetup-<版本号>-unsigned.exe`，也可以先在 [官网](https://hzdavy.github.io/MoteDeck/) 查看当前版本与更新说明。
 
-当前正式版为 **0.2.0**。直接下载 [MoteDeckSetup-0.2.0-unsigned.exe](https://github.com/HZDavy/MoteDeck/releases/download/v0.2.0/MoteDeckSetup-0.2.0-unsigned.exe)，或查看 [v0.2.0 版本说明](https://github.com/HZDavy/MoteDeck/releases/tag/v0.2.0)。发布页同时提供 `SHA256SUMS.txt`，下载后可用 `Get-FileHash -Algorithm SHA256` 核对文件。
+当前正式版为 **0.2.1**。直接下载 [MoteDeckSetup-0.2.1-unsigned.exe](https://github.com/HZDavy/MoteDeck/releases/download/v0.2.1/MoteDeckSetup-0.2.1-unsigned.exe)，或到[最新发布页](https://github.com/HZDavy/MoteDeck/releases/latest)查看版本说明与后续更新。发布页同时提供 `SHA256SUMS.txt`，下载后可用 `Get-FileHash -Algorithm SHA256` 核对文件。
 
-需要 Vokie 插件时，同一版本页提供 [MoteDeck2Vokie-0.1.2.zip](https://github.com/HZDavy/MoteDeck/releases/download/v0.2.0/MoteDeck2Vokie-0.1.2.zip)，也可以直接在软件「语音」页的「外部应用程序支持」里点「下载插件」。
+需要 Vokie 插件时，下载[最新版 MoteDeck2Vokie.zip](https://github.com/HZDavy/MoteDeck/releases/latest/download/MoteDeck2Vokie.zip)，也可以直接在软件「语音」页的「外部应用程序支持」里点「下载插件」。
 
 - 系统要求：64 位 Windows 10 1809 或更高版本。
 - 双击安装包按提示安装，默认装到 `%LOCALAPPDATA%\MoteDeck`，并创建开始菜单与桌面快捷方式；之后从 Windows 设置 → 应用 → MoteDeck 卸载。
@@ -127,11 +127,15 @@ Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适�
 
 在“按键”页选中遥控器上的按键，分别设置单击、双击或长按动作，点“完成”即保存。改完后按一次实体按键确认效果。
 
+需要驱动级发送时，在“按键”页的“驱动管理”中安装推荐的 WinUHid，并为按键选择对应发送方式。建议 0.1.x 老用户卸载原有 Interception 驱动后改用 WinUHid；安装或卸载需要管理员授权。WinUHid 不接管物理键盘，但反作弊兼容性仍以具体游戏规则为准。
+
 ### 3. 设置语音输入
+
+以下是虚拟声卡接入方式；使用 Vokie 插件直连时无需配置虚拟声卡和模拟快捷键，按[原生支持 Vokie](#原生支持-vokie)中的步骤操作即可。
 
 1. 在“语音”页安装虚拟音频组件。MoteDeck 的“输出端点”选 `CABLE Input`，输入法的麦克风选 `CABLE Output`。
 2. 核对 MoteDeck 里的「语音按键」与输入法里设置的语音快捷键一致；自动读取失败时可以手动录入。搜狗、微信、豆包、Vokie 等带语音快捷键的输入法都可以这样接。
-3. 先在**记事本**里用电脑键盘试一次这个快捷键，确认能唤起语音输入；再把光标留在输入框里，用遥控器说话。
+3. 先在**记事本**里用电脑键盘试一次这个快捷键，确认能唤起语音输入；再把光标留在输入框里，用遥控器说话。微信和豆包输入法也可以从“设备”页的“快速配置”开始设置。
 
 ---
 
