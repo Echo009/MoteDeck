@@ -552,8 +552,8 @@ def probe_virtual_cable_loopback(
         cleanup_retained_portaudio_test_resources()
         if cancel_event is not None and cancel_event.is_set():
             raise LoopbackProbeCancelledError("VB-CABLE 通道测试已取消")
-        if not audio_output.is_cable_input_endpoint(output_endpoint.name):
-            raise LoopbackProbeUnavailableError("播放端点不是 CABLE Input")
+        if not audio_output.is_cable_render_endpoint(output_endpoint.name):
+            raise LoopbackProbeUnavailableError("播放端点不是 VB-CABLE 的输出端点")
         if not audio_output.is_cable_output_endpoint(input_endpoint.name):
             raise LoopbackProbeUnavailableError("录音端点不是 CABLE Output")
         if not output_endpoint.host_api or (

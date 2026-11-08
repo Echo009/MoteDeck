@@ -83,6 +83,14 @@ def apply_settings_window_chrome(
 _WM_NCCALCSIZE = 0x0083
 _WM_NCHITTEST = 0x0084
 _WM_GETMINMAXINFO = 0x0024
+_WM_SETICON = 0x0080
+_ICON_SMALL = 0
+_ICON_BIG = 1
+_IMAGE_ICON = 1
+_LR_LOADFROMFILE = 0x00000010
+_LR_DEFAULTSIZE = 0x00000040
+_GCLP_HICON = -14
+_GCLP_HICONSM = -34
 _DWMWA_WINDOW_CORNER_PREFERENCE = 33
 _DWMWA_USE_IMMERSIVE_DARK_MODE = 20
 _MONITOR_DEFAULTTONEAREST = 2
@@ -145,6 +153,62 @@ def _install_dwm(window: object) -> None:
                ctypes.byref(dark), wintypes.DWORD(ctypes.sizeof(dark)))
     except (AttributeError, OSError, RuntimeError, TypeError, ValueError):
         return
+
+
+def apply_native_window_icon(
+    window: object,
+    icon_path: str,
+    *,
+    platform: Optional[str] = None,
+) -> bool:
+    """Set the Windows taskbar/title-bar icons from the shipped ICO file."""
+
+    current_platform = sys.platform if platform is None else platform
+    if current_platform != "win32":
+        return False
+
+    try:
+        hwnd = wintypes.HWND(int(window.winId()))  # type: ignore[attr-defined]
+        user32 = ctypes.WinDLL("user32")
+        user32.LoadImageW.argtypes = (
+            wintypes.HINSTANCE,
+            wintypes.LPCWSTR,
+            wintypes.UINT,
+            ctypes.c_int,
+            ctypes.c_int,
+            wintypes.UINT,
+        )
+        user32.LoadImageW.restype = wintypes.HANDLE
+        user32.SendMessageW.argtypes = (
+            wintypes.HWND,
+            wintypes.UINT,
+            wintypes.WPARAM,
+            wintypes.LPARAM,
+        )
+        user32.SendMessageW.restype = wintypes.LPARAM
+        for icon_type, width, height in (
+            (_ICON_BIG, 32, 32),
+            (_ICON_SMALL, 16, 16),
+        ):
+            handle = user32.LoadImageW(
+                None,
+                str(icon_path),
+                _IMAGE_ICON,
+                width,
+                height,
+                _LR_LOADFROMFILE | _LR_DEFAULTSIZE,
+            )
+            if not handle:
+                return False
+            user32.SendMessageW(
+                hwnd,
+                _WM_SETICON,
+                wintypes.WPARAM(icon_type),
+                wintypes.LPARAM(handle),
+            )
+    except (AttributeError, OSError, TypeError, ValueError):
+        return False
+    return True
 
 
 def install_frameless_window(window: object, *, platform: Optional[str] = None) -> bool:

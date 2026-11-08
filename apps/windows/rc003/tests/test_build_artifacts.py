@@ -3336,6 +3336,130 @@ class QtSettingsUiSpecTests(unittest.TestCase):
         self.assertIn('"ovb_rc003_qml"', self.spec_text)
         self.assertIn('"ovb_rc003_qml"', qt_settings_app_text)
 
+    def test_spec_filters_only_explicit_unused_qml_modules(self):
+        tree = ast.parse(self.spec_text, filename=str(_SPEC_PATH))
+        nodes = [
+            node for node in tree.body
+            if (isinstance(node, ast.Assign) and any(
+                isinstance(target, ast.Name)
+                and target.id == "_UNUSED_QML_MODULES"
+                for target in node.targets
+            )) or (isinstance(node, ast.FunctionDef)
+                   and node.name == "_is_unused_qml_module")
+        ]
+        namespace = {}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]),
+                     str(_SPEC_PATH), "exec"), namespace)
+        predicate = namespace["_is_unused_qml_module"]
+        removed = (
+            "Qt3D/Core", "Qt5Compat/GraphicalEffects", "QtCharts",
+            "QtDataVisualization", "QtGraphs", "QtLocation",
+            "QtPositioning", "QtRemoteObjects", "QtScxml",
+            "QtSensors", "QtTextToSpeech", "QtTest",
+            "QtWebChannel", "QtWebEngine", "QtWebSockets",
+            "QtWebView", "QtQuick3D/Helpers",
+            "QtQuick/VirtualKeyboard/Styles", "QtQuick/Pdf",
+            "QtQuick/Particles", "QtQuick/Timeline",
+            "QtQuick/VectorImage", "QtQuick/Scene2D",
+            "QtQuick/Scene3D", "QtQuick/LocalStorage",
+        )
+        for module in removed:
+            for filename, kind in (("qmldir", "DATA"),
+                                   ("plugin.dll", "BINARY")):
+                destination = f"PySide6/qml/{module}/{filename}"
+                for path in (destination, destination.upper().replace("/", "\\")):
+                    with self.subTest(path=path):
+                        self.assertTrue(predicate((path, "source", kind)))
+        kept = (
+            "PySide6/qml/QtQuick/qmldir",
+            "PySide6/qml/QtQuick/Controls/FluentWinUI3/impl/plugin.dll",
+            "PySide6/qml/QtQuick/Controls/Fusion/qmldir",
+            "PySide6/qml/QtQuick/Controls/Basic/qmldir",
+            "PySide6/qml/QtQuick/Controls/impl/plugin.dll",
+            "PySide6/qml/QtQuick/Templates/plugin.dll",
+            "PySide6/qml/QtQuick/Layouts/plugin.dll",
+            "PySide6/qml/QtQuick/Dialogs/quickimpl/plugin.dll",
+            "PySide6/qml/QtQuick/Effects/plugin.dll",
+            "PySide6/qml/QtQuick/Shapes/plugin.dll",
+            "PySide6/qml/QtQuick/Window/qmldir",
+            "PySide6/qml/Qt/labs/platform/plugin.dll",
+            "PySide6/qml/QtCore/qmldir",
+            "PySide6/qml/QtQml/Models/plugin.dll",
+            "PySide6/qml/QtQml/WorkerScript/plugin.dll",
+            "PySide6/opengl32sw.dll", "PySide6/Qt6Widgets.dll",
+            "PySide6/Qt6Network.dll", "PySide6/Qt6Svg.dll",
+            "PySide6/Qt6Quick3D.dll",
+            "PySide6/qml/QtQuick3DExtra/qmldir",
+            "PySide6/qml/QtQuick/PdfExtra/qmldir",
+            "ovb_rc003_qml/Pdf/Example.qml",
+            "frida/_frida.pyd", "sherpa_onnx/lib.dll",
+        )
+        for path in kept:
+            with self.subTest(path=path):
+                self.assertFalse(predicate((path, "source", "BINARY")))
+        for collection in ("binaries", "datas"):
+            self.assertIn(
+                f"a.{collection} = [entry for entry in a.{collection} "
+                "if not _is_unused_qml_module(entry)]", self.spec_text,
+            )
+
+    def test_spec_filters_unused_qt_runtimes_and_preserves_fluent_chain(self):
+        tree = ast.parse(self.spec_text, filename=str(_SPEC_PATH))
+        names = {
+            "_UNUSED_QT_RUNTIME_STEMS", "_UNUSED_QT_STYLES",
+            "_UNUSED_QT_ENTRY_PLUGINS",
+        }
+        nodes = [node for node in tree.body if (
+            isinstance(node, ast.Assign) and any(
+                isinstance(target, ast.Name) and target.id in names
+                for target in node.targets
+            )
+        ) or (isinstance(node, ast.FunctionDef)
+              and node.name == "_is_unused_qt_runtime")]
+        namespace = {}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]),
+                     str(_SPEC_PATH), "exec"), namespace)
+        predicate = namespace["_is_unused_qt_runtime"]
+        removed = [
+            f"PySide6/{stem}.dll"
+            for stem in namespace["_UNUSED_QT_RUNTIME_STEMS"]
+        ] + [
+            f"PySide6/{path}"
+            for path in namespace["_UNUSED_QT_ENTRY_PLUGINS"]
+        ] + [
+            f"PySide6/qml/QtQuick/Controls/{style}/impl/qmldir"
+            for style in ("Imagine", "Material", "Universal", "Windows")
+        ] + ["PySide6/qml/Qt/labs/wavefrontmesh/plugin.dll"]
+        kept = [
+            "PySide6/QtOpenGL.pyd", "PySide6/opengl32sw.dll",
+            "PySide6/Qt6OpenGL.dll", "PySide6/Qt6Widgets.dll",
+            "PySide6/Qt6Quick.dll", "PySide6/Qt6Gui.dll",
+            "PySide6/Qt6QuickControls2.dll", "PySide6/Qt6QuickTemplates2.dll",
+            "PySide6/Qt6QuickControls2FluentWinUI3.dll",
+            "PySide6/Qt6QuickControls2Fusion.dll",
+            "PySide6/Qt6QuickControls2Basic.dll",
+            "PySide6/qml/QtQuick/Controls/FluentWinUI3/impl/plugin.dll",
+            "PySide6/qml/QtQuick/Controls/Fusion/qmldir",
+            "PySide6/qml/QtQuick/Controls/Basic/qmldir",
+            "PySide6/qml/QtQuick/Controls/impl/plugin.dll",
+            "PySide6/qml/QtQuick/Controls/WindowsExtra/qmldir",
+            "PySide6/Qt6PdfExtra.dll", "other/Qt6Pdf.dll",
+            "PySide6/plugins/imageformats/qsvg.dll",
+            "PySide6/plugins/platforms/qwindows.dll",
+        ]
+        for expected, paths in ((True, removed), (False, kept)):
+            for path in paths:
+                for normalized in (path, path.upper().replace("/", "\\")):
+                    with self.subTest(path=normalized):
+                        self.assertEqual(
+                            predicate((normalized, "source", "BINARY")), expected
+                        )
+        for collection in ("binaries", "datas"):
+            self.assertIn(
+                f"a.{collection} = [entry for entry in a.{collection} "
+                "if not _is_unused_qt_runtime(entry)]", self.spec_text,
+            )
+
     def test_spec_rejects_only_ambient_icu_dlls(self):
         tree = ast.parse(self.spec_text, filename=str(_SPEC_PATH))
         predicate_node = next(

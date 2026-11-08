@@ -34,6 +34,9 @@ PREFERRED_OUTPUT_HOST_APIS = (
     "Windows DirectSound",
     "MME",
 )
+# Recommendations never offer MME: it still plays, but truncates device names
+# and adds latency, so it is only accepted when the user picks it explicitly.
+RECOMMENDED_OUTPUT_HOST_APIS = ("Windows WASAPI", "Windows DirectSound")
 
 
 def is_supported_output_host_api(host_api: str) -> bool:
@@ -97,6 +100,30 @@ def select_preferred_output_endpoint(
             "select a unique device explicitly"
         )
     return preferred[0]
+
+
+def select_recommended_output_endpoint(
+    endpoints: Sequence[AudioEndpoint],
+) -> AudioEndpoint:
+    """Choose the VB-CABLE render endpoint recommended for new setups.
+
+    The 16-channel variant is preferred when present: it carries the same
+    virtual cable, but meeting and voice apps rarely grab it, so it stays
+    openable while the standard ``CABLE Input`` is in use.
+    """
+
+    cable_endpoints = [
+        endpoint
+        for endpoint in endpoints
+        if is_cable_render_endpoint(endpoint.name)
+        and endpoint.host_api in RECOMMENDED_OUTPUT_HOST_APIS
+    ]
+    preferred_16ch = [
+        endpoint
+        for endpoint in cable_endpoints
+        if is_cable_16ch_input_endpoint(endpoint.name)
+    ]
+    return select_preferred_output_endpoint(preferred_16ch or cable_endpoints)
 
 
 def resolve_selected_endpoint(
@@ -220,6 +247,9 @@ def _enumerate_endpoints(channel_count_key: str) -> List[AudioEndpoint]:
 # persisted until the user saves and the real stream preflight succeeds.
 CABLE_INPUT_NAME = "CABLE Input"
 CABLE_OUTPUT_NAME = "CABLE Output"
+# VB-CABLE's 16-channel variant exposes the same render side under this name;
+# it is a real playback endpoint of the same virtual cable family.
+CABLE_16CH_INPUT_NAME = "CABLE In 16ch"
 DJI_MIC_2_NAME_PREFIXES = ("DJI-MIC2", "DJI Mic 2", "DJI Mic2")
 
 
@@ -243,6 +273,18 @@ def is_cable_input_endpoint(name: str) -> bool:
     """True if ``name`` names VB-CABLE's playback ("CABLE Input") endpoint."""
 
     return _matches_cable_endpoint(name, CABLE_INPUT_NAME)
+
+
+def is_cable_16ch_input_endpoint(name: str) -> bool:
+    """True if ``name`` names VB-CABLE's 16-channel playback endpoint."""
+
+    return _matches_cable_endpoint(name, CABLE_16CH_INPUT_NAME)
+
+
+def is_cable_render_endpoint(name: str) -> bool:
+    """True if ``name`` is any VB-CABLE playback ("input") endpoint."""
+
+    return is_cable_input_endpoint(name) or is_cable_16ch_input_endpoint(name)
 
 
 def is_cable_output_endpoint(name: str) -> bool:

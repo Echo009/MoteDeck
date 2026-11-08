@@ -260,8 +260,11 @@ class SelectionContractTests(unittest.TestCase):
         self.assertEqual(len(exclude_argument.args), 1)
         self.assertIsInstance(exclude_argument.args[0], ast.Name)
         self.assertEqual(exclude_argument.args[0].id, "HELPER_EXCLUDES")
+        inventory = (
+            Path(__file__).resolve().parents[1] / "build" / "native_inventory.py"
+        )
         excluded = ast.literal_eval(next(
-            node.value for node in tree.body
+            node.value for node in ast.parse(inventory.read_text(encoding="utf-8")).body
             if isinstance(node, ast.Assign)
             and any(isinstance(target, ast.Name) and target.id == "HELPER_EXCLUDES"
                     for target in node.targets)

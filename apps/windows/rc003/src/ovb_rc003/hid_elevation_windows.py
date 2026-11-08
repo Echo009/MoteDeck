@@ -72,8 +72,9 @@ HELPER_PROTOCOL_VERSION = 1
 # native first-report ownership fix. Generation 10
 # added protected script reload and the exclusive-device legacy migration.
 # Protocol 4, the administrator-only helper and LocalService runtime ACLs are
-# unchanged.
-HELPER_GENERATION = 17
+# unchanged. Generation 19 ships the 0.2.2 window icon/brand asset changes,
+# which ride in the helper's bundled sources (`resources.py` among them).
+HELPER_GENERATION = 19
 TASK_CONTRACT_VERSION = 5
 MANIFEST_FILENAME = "helper-manifest.json"
 INJECTION_RESULT_FILENAME = "hid-injection-result.json"

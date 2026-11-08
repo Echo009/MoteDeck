@@ -5,6 +5,9 @@ Windows 的远程按键和语音输入设备。
 
 **[下载页面与最新版说明](https://github.com/HZDavy/MoteDeck)**
 
+正式版与测试版均通过 GitHub Releases 提供未签名 Windows 安装包；附件名、校验清单
+和版本说明以各自发布页为准。
+
 正式版、测试版、支持设备和界面预览都以下载页面为准。历史版本可在
 [Releases](https://github.com/HZDavy/MoteDeck/releases) 中查找。
 

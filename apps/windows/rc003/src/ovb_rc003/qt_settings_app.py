@@ -1894,16 +1894,9 @@ def _load_qt_classes() -> dict:
             endpoint_values = list(endpoints)
 
             recommended_display = ""
-            recommendation_candidates = [
-                endpoint
-                for endpoint in endpoints
-                if audio_output.is_cable_input_endpoint(endpoint.name)
-                and endpoint.host_api
-                in ("Windows WASAPI", "Windows DirectSound")
-            ]
             try:
-                recommended_endpoint = audio_output.select_preferred_output_endpoint(
-                    recommendation_candidates
+                recommended_endpoint = audio_output.select_recommended_output_endpoint(
+                    endpoints
                 )
             except audio_output.AudioOutputUnavailableError:
                 pass
@@ -3261,7 +3254,11 @@ def _load_qt_classes() -> dict:
                         ),
                     )
                 except audio_output.AudioOutputUnavailableError:
-                    result = (False, "所选语音输出设备无法实际打开。")
+                    result = (
+                        False,
+                        "所选语音输出设备无法实际打开；"
+                        "若会议或通话软件正在占用该设备，请先退出后重试。",
+                    )
                 except Exception:  # noqa: BLE001 - keep UI text sanitized
                     result = (False, "输出端点检查失败，请稍后重试。")
                 else:
@@ -10619,12 +10616,14 @@ def run_settings_window(
     root_window = None
 
     def update_application_icon() -> None:
-        path = resources.find_app_icon(controller._tray_icon_state())
+        # The window's own icon (title bar + taskbar) stays on the fixed brand
+        # .ico asset regardless of service state; only the tray icon reflects
+        # it (see SettingsController._tray_icon_source).
+        path = resources.find_window_icon()
         if path is not None:
             _apply_application_icon(app, root_window, QIcon, path)
 
     update_application_icon()
-    controller.trayStateChanged.connect(update_application_icon)
     diagnostics_controller = DiagnosticsController(
         controller,
         config.config_root(),
@@ -10690,6 +10689,12 @@ def run_settings_window(
         update_application_icon()
         window_chrome_windows.apply_settings_window_chrome(root_window)
         window_chrome_windows.install_frameless_window(root_window)
+        window_icon = resources.find_window_icon()
+        if window_icon is not None:
+            window_chrome_windows.apply_native_window_icon(
+                root_window,
+                str(window_icon),
+            )
 
         # The real QML window and full-exit signal are ready here. Publish the
         # capability before optional element navigation startup, whose bounded

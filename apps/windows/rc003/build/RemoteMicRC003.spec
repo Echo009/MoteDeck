@@ -506,6 +506,110 @@ def _is_unused_webengine(entry):
 a.binaries = [entry for entry in a.binaries if not _is_unused_webengine(entry)]
 a.datas = [entry for entry in a.datas if not _is_unused_webengine(entry)]
 
+# QtQml's hook scans the complete installed QML tree. Keep the independent
+# modules this settings app does not use out of the frozen runtime.
+_UNUSED_QML_MODULES = frozenset({
+    "qt3d",
+    "qt5compat",
+    "qtcharts",
+    "qtdatavisualization",
+    "qtgraphs",
+    "qtlocation",
+    "qtpositioning",
+    "qtremoteobjects",
+    "qtscxml",
+    "qtsensors",
+    "qttexttospeech",
+    "qttest",
+    "qtwebchannel",
+    "qtwebengine",
+    "qtwebsockets",
+    "qtwebview",
+    "qtquick3d",
+    "virtualkeyboard",
+    "pdf",
+    "particles",
+    "timeline",
+    "vectorimage",
+    "scene2d",
+    "scene3d",
+    "localstorage",
+})
+
+
+def _is_unused_qml_module(entry):
+    parts = tuple(
+        part.casefold()
+        for part in entry[0].replace("\\", "/").split("/")
+    )
+    try:
+        pyside_index = parts.index("pyside6")
+        qml_index = parts.index("qml", pyside_index + 1)
+    except ValueError:
+        return False
+    if qml_index + 1 >= len(parts):
+        return False
+    module = parts[qml_index + 1]
+    if module == "qtquick" and qml_index + 2 < len(parts):
+        module = parts[qml_index + 2]
+    return module in _UNUSED_QML_MODULES
+
+
+a.binaries = [entry for entry in a.binaries if not _is_unused_qml_module(entry)]
+a.datas = [entry for entry in a.datas if not _is_unused_qml_module(entry)]
+
+# QML plugins have already expanded their native dependencies during Analysis.
+# Remove the unused runtimes and remaining entry plugins as one group.
+_UNUSED_QT_RUNTIME_STEMS = frozenset(
+    ("Qt63DAnimation Qt63DCore Qt63DExtras Qt63DInput Qt63DLogic "
+     "Qt63DQuick Qt63DQuickAnimation Qt63DQuickExtras Qt63DQuickInput "
+     "Qt63DQuickLogic Qt63DQuickRender Qt63DQuickScene2D Qt63DQuickScene3D "
+     "Qt63DRender Qt6Graphs Qt6LabsWavefrontMesh Qt6Quick3D "
+     "Qt6Quick3DAssetImport Qt6Quick3DAssetUtils Qt6Quick3DEffects "
+     "Qt6Quick3DHelpers Qt6Quick3DHelpersImpl Qt6Quick3DParticleEffects "
+     "Qt6Quick3DParticles Qt6Quick3DRuntimeRender Qt6Quick3DSpatialAudio "
+     "Qt6Quick3DUtils Qt6Quick3DXr Qt6ShaderTools Qt6Charts Qt6ChartsQml "
+     "Qt6DataVisualization Qt6DataVisualizationQml Qt6Location "
+     "Qt6Positioning Qt6PositioningQuick Qt6QmlLocalStorage "
+     "Qt6QuickParticles Qt6QuickTest Qt6QuickTimeline "
+     "Qt6QuickTimelineBlendTrees Qt6QuickVectorImage "
+     "Qt6QuickVectorImageGenerator Qt6QuickVectorImageHelpers "
+     "Qt6RemoteObjects Qt6RemoteObjectsQml Qt6Scxml Qt6ScxmlQml "
+     "Qt6Sensors Qt6SensorsQuick Qt6Sql Qt6Test Qt6TextToSpeech "
+     "Qt6VirtualKeyboard Qt6VirtualKeyboardQml Qt6VirtualKeyboardSettings "
+     "Qt6WebChannel Qt6WebChannelQuick Qt6WebSockets Qt6Pdf Qt6PdfQuick "
+     "Qt6QuickControls2Imagine Qt6QuickControls2Material "
+     "Qt6QuickControls2Universal Qt6QuickControls2Windows").casefold().split()
+)
+_UNUSED_QT_STYLES = frozenset({"imagine", "material", "universal", "windows"})
+_UNUSED_QT_ENTRY_PLUGINS = frozenset({
+    "plugins/imageformats/qpdf.dll",
+    "plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll",
+    "plugins/qmltooling/qmldbg_quick3dprofiler.dll",
+})
+
+
+def _is_unused_qt_runtime(entry):
+    parts = entry[0].replace("\\", "/").casefold().split("/")
+    if not parts or parts[0] != "pyside6":
+        return False
+    relative = "/".join(parts[1:])
+    if len(parts) == 2 and parts[1].endswith(".dll"):
+        return parts[1][:-4] in _UNUSED_QT_RUNTIME_STEMS
+    if relative in _UNUSED_QT_ENTRY_PLUGINS:
+        return True
+    if relative.startswith("qml/qt/labs/wavefrontmesh/"):
+        return True
+    return (
+        len(parts) > 5
+        and parts[1:4] == ["qml", "qtquick", "controls"]
+        and parts[4] in _UNUSED_QT_STYLES
+    )
+
+
+a.binaries = [entry for entry in a.binaries if not _is_unused_qt_runtime(entry)]
+a.datas = [entry for entry in a.datas if not _is_unused_qt_runtime(entry)]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(

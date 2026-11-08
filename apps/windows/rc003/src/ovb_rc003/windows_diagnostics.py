@@ -1414,7 +1414,7 @@ def check_vb_cable_endpoints(
         )
 
     has_input = any(
-        audio_output.is_cable_input_endpoint(e.name)
+        audio_output.is_cable_render_endpoint(e.name)
         and audio_output.is_supported_output_host_api(e.host_api)
         for e in playback
     )
@@ -1497,13 +1497,13 @@ def check_vb_cable_loopback(
             CheckStatus.FAIL,
             "输出端点不可用；请重新选择并应用",
         )
-    if not audio_output.is_cable_input_endpoint(output_endpoint.name):
+    if not audio_output.is_cable_render_endpoint(output_endpoint.name):
         return CheckResult(
             "vb_cable_loopback",
             title,
             CheckGroup.OPTIONAL_DRIVER,
             CheckStatus.FAIL,
-            "输出端点不是 CABLE Input；请重新选择并应用",
+            "输出端点不是 VB-CABLE 的输出端点；请重新选择并应用",
         )
 
     input_matches = [
@@ -1584,7 +1584,7 @@ def check_vb_cable_loopback(
         title,
         CheckGroup.OPTIONAL_DRIVER,
         CheckStatus.PASS,
-        f"CABLE Input → CABLE Output 正常（约 {latency_ms:.0f} ms）；"
+        f"VB-CABLE 本地回路正常（约 {latency_ms:.0f} ms）；"
         "不代表语音识别已通过",
     )
 
@@ -1841,13 +1841,13 @@ def check_output_endpoint_resolution(
             "端点存在但无法播放；请选择 Windows WASAPI 或 DirectSound",
         )
 
-    if audio_output.is_cable_input_endpoint(endpoint.name):
+    if audio_output.is_cable_render_endpoint(endpoint.name):
         return CheckResult(
             "output_endpoint",
             "语音输出端点",
             CheckGroup.VOICE_BRIDGE,
             CheckStatus.PASS,
-            f"已选择 CABLE Input：{endpoint.name}",
+            f"已选择虚拟声卡输出端点：{endpoint.name}",
         )
     # RETRY 1 (independent review): resolving to a real but non-CABLE-Input
     # endpoint used to still return PASS here - a false green readiness

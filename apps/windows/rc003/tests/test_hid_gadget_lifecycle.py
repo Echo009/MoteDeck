@@ -18,7 +18,10 @@ class GadgetLifecycleTests(unittest.TestCase):
     def test_real_script_reconnects_after_eof_and_reloads_twice_in_same_host(self):
         archive = runtime.gadget_archive_path()
         self.assertEqual(runtime.sha256_file(archive), runtime.GADGET_ARCHIVE_SHA256)
-        with tempfile.TemporaryDirectory(prefix="rc003-gadget-lifecycle-") as raw, socket.socket() as server:
+        # Windows 上宿主进程释放后 DLL 可能仍被短暂锁定，清理失败不应让用例失败。
+        with tempfile.TemporaryDirectory(
+            prefix="rc003-gadget-lifecycle-", ignore_cleanup_errors=True
+        ) as raw, socket.socket() as server:
             root = Path(raw)
             dll = root / runtime.GADGET_DLL_NAME
             dll.write_bytes(lzma.decompress(archive.read_bytes()))

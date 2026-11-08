@@ -360,8 +360,28 @@ class VbCableLoopbackCheckTests(unittest.TestCase):
         )
 
         self.assertEqual(result.status, diag.CheckStatus.PASS)
-        self.assertIn("CABLE Input → CABLE Output", result.detail)
+        self.assertIn("VB-CABLE 本地回路正常", result.detail)
         self.assertIn("不代表语音识别", result.detail)
+
+    def test_16ch_output_pairs_with_the_shared_cable_output(self):
+        """VB-CABLE's 16-channel render endpoint is the same cable, so the
+        loopback test must accept it instead of refusing it as "not CABLE
+        Input"."""
+
+        result = diag.check_vb_cable_loopback(
+            "CABLE In 16ch (VB-Audio Virtual Cable)",
+            "Windows WASAPI",
+            list_playback=lambda: [
+                audio_output.AudioEndpoint(
+                    "CABLE In 16ch (VB-Audio Virtual Cable)", "Windows WASAPI"
+                )
+            ],
+            list_recording=self._recording,
+            probe=lambda *_args, **_kwargs: self._probe_result(),
+        )
+
+        self.assertEqual(result.status, diag.CheckStatus.PASS)
+        self.assertIn("VB-CABLE 本地回路正常", result.detail)
 
     def test_non_cable_saved_output_fails_without_running_probe(self):
         probe = mock.Mock()
@@ -376,7 +396,7 @@ class VbCableLoopbackCheckTests(unittest.TestCase):
         )
 
         self.assertEqual(result.status, diag.CheckStatus.FAIL)
-        self.assertIn("不是 CABLE Input", result.detail)
+        self.assertIn("不是 VB-CABLE", result.detail)
         probe.assert_not_called()
 
     def test_recording_endpoint_must_share_the_selected_host_api(self):
@@ -538,6 +558,22 @@ class OutputEndpointResolutionCheckTests(unittest.TestCase):
         self.assertEqual(result.status, diag.CheckStatus.FAIL)
         self.assertIn("不是 CABLE Input", result.detail)
         self.assertIn("输出端点", result.detail)
+
+    def test_resolves_to_16ch_cable_endpoint_passes(self):
+        """VB-CABLE's 16-channel render endpoint is the same virtual cable
+        under another name; it must not be reported as "please reselect the
+        endpoint" when it is a working selection."""
+
+        name = "CABLE In 16ch (VB-Audio Virtual Cable)"
+        result = diag.check_output_endpoint_resolution(
+            name, "Windows WASAPI",
+            list_playback=lambda: [
+                audio_output.AudioEndpoint(name=name, host_api="Windows WASAPI")
+            ],
+            preflight=lambda _name, _host_api: None,
+        )
+        self.assertEqual(result.status, diag.CheckStatus.PASS)
+        self.assertIn(name, result.detail)
 
     def test_empty_selection_fails(self):
         result = diag.check_output_endpoint_resolution(

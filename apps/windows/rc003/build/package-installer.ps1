@@ -79,9 +79,18 @@ try {
     Copy-Item -LiteralPath $installerPath -Destination $outputFullPath -Force
     $installerHash = (Get-FileHash -LiteralPath $outputFullPath -Algorithm SHA256).Hash
     $manifestPath = Join-Path $outputDirectory "SHA256SUMS.txt"
+    $manifestLines = @(
+        ("{0}  {1}" -f $installerHash.ToLowerInvariant(), (Split-Path -Leaf $outputFullPath))
+    )
+    $repoRoot = (Resolve-Path (Join-Path $RC003Root "..\..\..")).Path
+    $pluginPath = Join-Path $repoRoot "dist-archive\MoteDeck2Vokie.zip"
+    if (Test-Path -LiteralPath $pluginPath -PathType Leaf) {
+        $pluginHash = (Get-FileHash -LiteralPath $pluginPath -Algorithm SHA256).Hash
+        $manifestLines += "{0}  MoteDeck2Vokie.zip" -f $pluginHash.ToLowerInvariant()
+    }
     Set-Content `
         -LiteralPath $manifestPath `
-        -Value ("{0}  {1}" -f $installerHash.ToLowerInvariant(), (Split-Path -Leaf $outputFullPath)) `
+        -Value $manifestLines `
         -Encoding ascii
 
     Write-Host "local installer package: $outputFullPath"

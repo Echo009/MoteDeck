@@ -3280,6 +3280,34 @@ class SettingsControllerTests(unittest.TestCase):
             "the display-only recommendation must never pollute saved endpoint text",
         )
 
+    def test_endpoint_recommendation_prefers_the_16ch_cable_endpoint(self):
+        endpoints = [
+            audio_output.AudioEndpoint(
+                name="CABLE Input (VB-Audio Virtual Cable)",
+                host_api="Windows WASAPI",
+            ),
+            audio_output.AudioEndpoint(
+                name="CABLE In 16ch (VB-Audio Virtual Cable)",
+                host_api="Windows DirectSound",
+            ),
+            audio_output.AudioEndpoint(
+                name="CABLE In 16ch (VB-Audio Virtual Cable)",
+                host_api="Windows WASAPI",
+            ),
+        ]
+
+        with mock.patch.object(
+            audio_output, "enumerate_output_endpoints", return_value=endpoints
+        ):
+            controller, _ = self._make_controller()
+
+        self.assertGreaterEqual(controller.recommendedEndpointIndex, 0)
+        self.assertEqual(
+            controller.endpointOptions[controller.recommendedEndpointIndex],
+            settings_ui._endpoint_display(endpoints[2]),
+            "the 16-channel cable is less likely to be held by meeting apps",
+        )
+
     def test_endpoint_recommendation_falls_back_to_unique_directsound_cable_input(self):
         endpoints = [
             audio_output.AudioEndpoint(

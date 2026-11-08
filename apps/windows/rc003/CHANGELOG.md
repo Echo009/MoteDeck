@@ -1,12 +1,21 @@
 # Changelog — MoteDeck RC003 (Windows)
 
 候选阶段使用持续递增的 `candidate.N` 测试序号。内部构建版本号唯一来源是
-`src/ovb_rc003/VERSION`（当前 `0.1.8`，RC003 重写批次），程序、冻结构建和
+`src/ovb_rc003/VERSION`（当前 `0.2.2`），程序、冻结构建和
 包装都读取该文件。新发布 tag 为 `v<VERSION>`，历史 tag 与包名保持原样。
 
 正式版把最终采用的候选序号放在最后一位：采用 `candidate.30` 时发布为 `v1.0.30`，
 后续候选继续从 `candidate.31` 递增。正式 tag 不带 `windows`、`rc003` 或 `candidate`。
-完整命名规则以 `VALIDATION-AND-DELIVERY.md` 的“版本与命名规则”为准。
+正式发布附件为未签名安装包 `MoteDeckSetup-<版本号>-unsigned.exe`、`SHA256SUMS.txt`
+和固定文件名的 `MoteDeck2Vokie.zip`；完整命名规则以
+`VALIDATION-AND-DELIVERY.md` 的“版本与命名规则”为准。
+
+## [0.2.2] — 2026-11-08（正式版）
+
+- 修复 0.2.1 的图标联动：停止服务时只有托盘的图标变红，窗口标题栏、任务栏和桌面图标保持固定，不再跟着变红。
+- 支持 VB-CABLE 的 16 声道输出端点（`CABLE In 16ch`）：诊断检查和本地回路测试不再把它误判为「不是 CABLE Input」，同时它在「输出端点」列表里标注「（推荐）」，新遥控器首次配置会自动选它，因为会议、通话类软件很少占用这个端点。
+- 端点保存失败时提示改为「若会议或通话软件正在占用该设备，请先退出后重试」，便于按占用方向排查。
+- 体积优化：构建时裁掉未使用的 Qt 运行库与入口插件（Qt3D/Quick3D/Graphs/Charts/Location/Positioning/RemoteObjects/Scxml/Sensors/TextToSpeech/WebChannel/WebSockets/VirtualKeyboard/Sql/PDF 等）、Imagine/Material/Universal/Windows 控件样式与对应 QML，保留 FluentWinUI3→Fusion→Basic 依赖链、QtWidgets、QtOpenGL 与软件 OpenGL 回退库。
 
 ## [0.2.0] — 2026-11-06（正式版，大版本升级；2026-11-07 重新打包）
 
@@ -183,7 +192,7 @@
 
 - 按用户要求将第 86 个测试序号转为正式版，功能代码与 `1.0.86-candidate.86` 相同；内置版本、窗口、EXE 资源和下载名称统一为 `1.0.86`。发布继续沿用 `main` 和递增序号，不新增产品更新分支。
 - 原微信久置反馈电脑按用户要求取消验收，其环境归因来源为用户反馈；其它真机项目不改记为通过。复用已有完整自检，对正式版本信息、更新识别、冻结程序、基础使用流程和新程序包补做核验，结果见 `TESTING.md`。
-- 正式版为未签名免安装 ZIP，旧版和测试版 tag、附件及哈希保留原样。
+- 正式版使用未签名安装包，并随附 `SHA256SUMS.txt`；旧版和测试版 tag、附件及哈希保留原样。当前附件命名以 `VALIDATION-AND-DELIVERY.md` 为准。
 
 ## [1.0.86-candidate.86] — 2026-10-01（豆包新版适配，公开测试版）
 

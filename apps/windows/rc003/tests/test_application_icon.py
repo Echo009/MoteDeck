@@ -12,7 +12,7 @@ from ovb_rc003 import qt_settings_app, resources
 _RC003_ROOT = Path(__file__).resolve().parents[1]
 _ICON_DIR = _RC003_ROOT / "src" / "ovb_rc003" / "assets" / "icons"
 _GENERATOR = _RC003_ROOT / "build" / "generate-app-icon.py"
-_APP_ICON_SHA256 = "62e057c9e830c83d627b2c5f9550af9b5d5506245982754703cfce915302212a"
+_APP_ICON_SHA256 = "baac72cd0340497a518087fab21145416c6dd0d6b43ce05571c03b956ac4e365"
 _TRAY_ICON_SHA256 = "8d3242f8e9a2cc26f8d7916306b736a82a8ff60c279abc2aeeea267aec449e95"
 
 
@@ -98,6 +98,7 @@ class ApplicationIconTests(unittest.TestCase):
         self.assertEqual(resources.find_tray_icon("waiting").name, "remote-mic-tray.png")
         self.assertEqual(resources.find_tray_icon("connected").name, "remote-mic-tray.png")
         self.assertEqual(resources.find_app_icon("connected").name, "remote-mic.png")
+        self.assertEqual(resources.find_window_icon().name, "remote-mic.ico")
 
     def test_navigation_svg_dark_mode_only_removes_the_background(self):
         from xml.etree import ElementTree
@@ -174,6 +175,25 @@ class ApplicationIconTests(unittest.TestCase):
             _reserved, image_type, image_count = struct.unpack_from("<HHH", content)
             self.assertEqual(image_type, 1)
             self.assertEqual(image_count, 9)
+
+    def test_window_and_taskbar_icon_never_follow_the_tray_state(self):
+        """Only the tray icon may reflect service state.
+
+        0.2.1 applied the state icon to ``QGuiApplication.setWindowIcon`` and
+        ``window.setIcon`` too, so stopping the service turned the title bar
+        and taskbar icon red along with the tray. The window icon has to stay
+        on the fixed brand source.
+        """
+
+        source = (
+            _RC003_ROOT / "src" / "ovb_rc003" / "qt_settings_app.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn("find_app_icon(controller._tray_icon_state())", source)
+        self.assertNotIn("trayStateChanged.connect(update_application_icon)", source)
+        self.assertIn("path = resources.find_window_icon()", source)
+        self.assertIn("window_chrome_windows.apply_native_window_icon(", source)
+        self.assertIn("str(window_icon)", source)
 
     def test_builds_regenerate_the_shared_windows_icon(self):
         local_build = (_RC003_ROOT / "build" / "build-candidate.ps1").read_text(

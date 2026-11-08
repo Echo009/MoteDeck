@@ -8282,7 +8282,9 @@ class VoiceRemoteMicrophoneModeTests(_AppWiringTestCase):
             return_value=backend,
         ) as backend_for:
             self.app._on_control_event(MicButtonPressed())
-            backend_for.assert_called_once_with(
+            # 连发初始化会再解析一次，以取得真正生效的后端（可能借用已安装的另一驱动），
+            # 这里只要求按下这一记走对模式。
+            backend_for.assert_called_with(
                 key_mapping.INJECT_MODE_WINUHID
             )
             backend.key_down.assert_called_once_with(("ralt",))
@@ -8299,6 +8301,8 @@ class VoiceRemoteMicrophoneModeTests(_AppWiringTestCase):
         calls = []
 
         class _RecordingBackend:
+            name = key_mapping.INJECT_MODE_WINUHID
+
             def key_down(self, tokens, **_kwargs):
                 calls.append(("driver-down", tokens))
 
@@ -8341,7 +8345,8 @@ class VoiceRemoteMicrophoneModeTests(_AppWiringTestCase):
             return_value=backend,
         ) as backend_for:
             self.app._on_control_event(MicButtonPressed())
-            backend_for.assert_called_once_with(
+            # 同 WinUHid 用例：连发初始化会按需再解析一次实际生效的后端。
+            backend_for.assert_called_with(
                 key_mapping.INJECT_MODE_INTERCEPTION
             )
             backend.key_down.assert_called_once_with(("ralt",))
@@ -8358,6 +8363,8 @@ class VoiceRemoteMicrophoneModeTests(_AppWiringTestCase):
         calls = []
 
         class _RecordingBackend:
+            name = key_mapping.INJECT_MODE_INTERCEPTION
+
             def key_down(self, tokens, **_kwargs):
                 calls.append(("driver-down", tokens))
 

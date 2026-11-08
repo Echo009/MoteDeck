@@ -140,3 +140,18 @@ def find_app_icon(state: str = "waiting") -> Optional[Path]:
         if candidate.is_file():
             return candidate
     return None
+
+
+def find_window_icon() -> Optional[Path]:
+    """Window/taskbar icon: the shipped .ico, not the flat PNG rendering.
+
+    Fixed on purpose - it never follows the service state (only the tray
+    icon does), and Windows' title bar/taskbar/Alt-Tab all read multi-size
+    .ico resources better than a single flat PNG.
+    """
+
+    for directory in _app_icon_directory_candidates():
+        candidate = directory / "remote-mic.ico"
+        if candidate.is_file():
+            return candidate
+    return None

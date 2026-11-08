@@ -76,12 +76,12 @@ SettingsDialog {
             Image {
                 objectName: "aboutBrandIcon"
                 source: SettingsController.brandIconSource
-                Layout.minimumWidth: 44
-                Layout.preferredWidth: 44
-                Layout.maximumWidth: 44
-                Layout.minimumHeight: 44
-                Layout.preferredHeight: 44
-                Layout.maximumHeight: 44
+                Layout.minimumWidth: 52
+                Layout.preferredWidth: 52
+                Layout.maximumWidth: 52
+                Layout.minimumHeight: 52
+                Layout.preferredHeight: 52
+                Layout.maximumHeight: 52
                 mipmap: true
                 smooth: true
                 fillMode: Image.PreserveAspectFit
