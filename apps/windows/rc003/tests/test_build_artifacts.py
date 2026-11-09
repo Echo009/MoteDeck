@@ -254,6 +254,51 @@ class PyInstallerSpecTests(unittest.TestCase):
         text = _SPEC_PATH.read_text(encoding="utf-8")
         ast.parse(text, filename=str(_SPEC_PATH))  # raises SyntaxError on failure
 
+    def test_qt_pruning_removes_optional_modules_and_keeps_settings_dependencies(self):
+        tree = ast.parse(_SPEC_PATH.read_text(encoding="utf-8"))
+        names = {
+            "_UNUSED_QML_MODULES", "_UNUSED_QT_RUNTIME_STEMS",
+            "_UNUSED_QT_STYLES", "_UNUSED_QT_ENTRY_PLUGINS",
+            "_is_unused_qml_module", "_is_unused_qt_runtime",
+        }
+        nodes = [
+            node for node in tree.body
+            if (isinstance(node, ast.FunctionDef) and node.name in names)
+            or (isinstance(node, ast.Assign) and any(
+                isinstance(target, ast.Name) and target.id in names
+                for target in node.targets
+            ))
+        ]
+        namespace = {}
+        exec(compile(ast.Module(body=nodes, type_ignores=[]), str(_SPEC_PATH), "exec"), namespace)
+
+        def removed(path):
+            entry = ("PySide6/" + path, "unused", "DATA")
+            return namespace["_is_unused_qml_module"](entry) or namespace["_is_unused_qt_runtime"](entry)
+
+        for path in (
+            "qml/QtMultimedia/qmldir", "qml/QtWebView/qmldir",
+            "qml/QtQml/StateMachine/qmldir", "qml/Qt/labs/settings/qmldir",
+            "Qt6Multimedia.dll", "Qt6SpatialAudio.dll", "Qt6StateMachine.dll",
+            "Qt6WebViewQuick.dll", "Qt6LabsStyleKitImpl.dll",
+            "Qt6QuickControls2MaterialStyleImpl.dll",
+            "plugins/qmltooling/qmldbg_debugger.dll",
+            "plugins/multimedia/windowsmediaplugin.dll", "translations/qtbase_zh_CN.qm",
+        ):
+            with self.subTest(removed=path):
+                self.assertTrue(removed(path))
+        for path in (
+            "qml/QtQuick/Controls/FluentWinUI3/qmldir",
+            "qml/QtQuick/Controls/Fusion/qmldir", "qml/QtQuick/Controls/Basic/qmldir",
+            "qml/QtQuick/Dialogs/qmldir", "qml/QtQml/Models/qmldir",
+            "qml/Qt/labs/platform/qmldir", "qml/Qt/labs/platform/plugin.dll",
+            "Qt6LabsPlatform.dll", "Qt6QuickControls2FluentWinUI3StyleImpl.dll",
+            "Qt6QuickControls2FusionStyleImpl.dll", "Qt6Widgets.dll", "Qt6Svg.dll",
+            "Qt6OpenGL.dll", "opengl32sw.dll", "plugins/imageformats/qsvg.dll",
+        ):
+            with self.subTest(retained=path):
+                self.assertFalse(removed(path))
+
     def test_spec_requires_and_bundles_the_shared_version_file(self):
         text = _strip_hash_comments(_SPEC_PATH.read_text(encoding="utf-8"))
         self.assertTrue(_VERSION_PATH.is_file())

@@ -1139,6 +1139,72 @@ def _physical_key_is_down_before_injection(vk_code: int) -> bool:
     return raw_input_windows.physical_key_is_down_before_injection(vk_code)
 
 
+_APP_SWITCHER_TOKENS = ("ctrl", "alt", "tab")
+
+
+def _reconcile_stale_physical_owner(vk_code: int) -> bool:
+    """Drop provably stale Raw Input owners after Windows confirms release.
+
+    Raw Input stores the physical side of a generic modifier, so the generic
+    token is expanded before looking the owner up.
+    """
+
+    variants = raw_input_windows._GENERIC_KEY_VARIANTS.get(
+        int(vk_code), (int(vk_code),)
+    )
+    changed = False
+    for variant in variants:
+        try:
+            if raw_input_windows._real_async_key_is_down(variant):
+                continue
+            snapshot = raw_input_windows.snapshot_stale_physical_owner(variant)
+        except Exception:
+            continue
+        if snapshot is None:
+            continue
+        if not raw_input_windows.clear_stale_physical_owner_if_unchanged(snapshot):
+            continue
+        changed = True
+        trace = _diagnostic_trace
+        if trace is not None:
+            try:
+                trace.emit(
+                    "input_physical_state_reconciled",
+                    vk=int(variant),
+                    owner_count=1,
+                    age_ms=int(snapshot.age_ms),
+                    windows_down=False,
+                    reason="stale_raw_owner",
+                )
+            except Exception:
+                pass
+    return changed
+
+
+def recover_app_switcher_input() -> bool:
+    """Recover the Ctrl+Alt+Tab preflight for the app-switcher action only.
+
+    The preflight in ``_ensure_keys_not_physically_down`` keeps its fail-closed
+    policy for every other action.  This helper is called after an
+    app-switcher delivery was rejected and returns True only when it actually
+    changed input state, so the caller can retry exactly once.
+
+    Recovery only clears stale tracker records after Windows reports key-up.
+    Missing physical owners do not prove synthetic ownership, so this helper
+    never injects key-up events. Outstanding synthetic releases remain the
+    responsibility of the existing cleanup coordinator.
+    """
+
+    vk_codes = win32_keys.resolve_vk_codes(_APP_SWITCHER_TOKENS)
+    changed = False
+    for vk_code in vk_codes:
+        if _reconcile_stale_physical_owner(vk_code):
+            changed = True
+    if voice_key_physicalizer_windows.reconcile_stale_physical_owners(vk_codes):
+        changed = True
+    return changed
+
+
 def can_begin_tracked_hold(tokens: Sequence[str]) -> bool:
     """Return whether every key can retain physical ownership after injection."""
 

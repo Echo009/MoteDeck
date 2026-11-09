@@ -6691,6 +6691,30 @@ class RC003App:
             except win32_input.Win32InputUnavailableError as exc:
                 self._logger.info("button hold unavailable: %s", exc)
                 return
+            except win32_input.PhysicalKeyInUseError as exc:
+                if not self._recover_app_switcher_input(action):
+                    self._logger.exception(
+                        "button hold failed to deliver: error_type=%s detail=%s",
+                        type(exc).__name__,
+                        exc,
+                    )
+                    return
+                try:
+                    backend.key_down(tokens)
+                except win32_input.InputCleanupIncompleteError:
+                    self._logger.exception(
+                        "button hold key-down remains incomplete"
+                    )
+                    self._button_key_release_pending = tokens
+                    self._schedule_button_input_release_retry_locked()
+                    return
+                except OSError as retry_exc:
+                    self._logger.exception(
+                        "button hold failed to deliver: error_type=%s detail=%s",
+                        type(retry_exc).__name__,
+                        retry_exc,
+                    )
+                    return
             except win32_input.InputCleanupIncompleteError:
                 self._logger.exception("button hold key-down remains incomplete")
                 self._button_key_release_pending = tokens
@@ -6698,8 +6722,9 @@ class RC003App:
                 return
             except OSError as exc:
                 self._logger.exception(
-                    "button hold failed to deliver: error_type=%s",
+                    "button hold failed to deliver: error_type=%s detail=%s",
                     type(exc).__name__,
+                    exc,
                 )
                 return
             self._button_key_holds[owner] = (tokens, backend)
@@ -6731,6 +6756,29 @@ class RC003App:
                     type(exc).__name__,
                 )
             self._finish_button_input_release_if_complete_locked()
+
+    def _recover_app_switcher_input(
+        self, action: key_mapping.ButtonAction
+    ) -> bool:
+        """Clear a stale Ctrl/Alt/Tab state that blocks the app switcher.
+
+        Only stale physical tracker records are reconciled here; synthetic
+        releases remain owned by the existing cleanup paths. No voice lock is
+        needed while the button mapping/action locks may be held.
+        """
+
+        if action.kind != key_mapping.ActionKind.APP_SWITCHER:
+            return False
+        try:
+            recovered = win32_input.recover_app_switcher_input()
+        except Exception:
+            self._logger.exception(
+                "app switcher input recovery failed unexpectedly"
+            )
+            return False
+        if recovered:
+            self._logger.info("app switcher stale physical state recovered")
+        return recovered
 
     def _release_pending_mouse_holds_locked(self) -> bool:
         for button in tuple(self._button_hold_release_pending):
@@ -6990,7 +7038,12 @@ class RC003App:
             elif action.kind == key_mapping.ActionKind.CONTEXT_MENU:
                 win32_input.send_context_menu()
             elif action.kind == key_mapping.ActionKind.APP_SWITCHER:
-                win32_input.send_app_switcher()
+                try:
+                    win32_input.send_app_switcher()
+                except win32_input.PhysicalKeyInUseError:
+                    if not self._recover_app_switcher_input(action):
+                        raise
+                    win32_input.send_app_switcher()
             elif action.kind == key_mapping.ActionKind.SYSTEM_VOLUME_UP:
                 win32_input.send_volume_up()
             elif action.kind == key_mapping.ActionKind.SYSTEM_VOLUME_DOWN:

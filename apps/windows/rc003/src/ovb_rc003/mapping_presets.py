@@ -128,9 +128,10 @@ def validate_mapping(value: object, profile: str) -> dict:
 
 
 def _validate_action(raw: object, button: str, trigger: str, profile: str) -> key_mapping.ButtonAction:
-    # OpenMexia 设备动作会额外带 device / op / label 三个字段。
+    # OpenMexia 设备动作会额外带 device / op / label 三个字段，
+    # 启动应用动作会额外带 target（要启动的进程名或可执行文件路径）。
     if not isinstance(raw, dict) or set(raw) - {
-        "kind", "keys", "uri", "inject_mode", "device", "op", "label"
+        "kind", "keys", "uri", "inject_mode", "device", "op", "label", "target"
     }:
         raise ValueError("按键动作格式无效。")
     action = key_mapping.ButtonAction.from_dict(raw)

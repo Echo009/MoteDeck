@@ -515,6 +515,7 @@ _UNUSED_QML_MODULES = frozenset({
     "qtdatavisualization",
     "qtgraphs",
     "qtlocation",
+    "qtmultimedia",
     "qtpositioning",
     "qtremoteobjects",
     "qtscxml",
@@ -550,6 +551,10 @@ def _is_unused_qml_module(entry):
     if qml_index + 1 >= len(parts):
         return False
     module = parts[qml_index + 1]
+    if module == "qt" and parts[qml_index + 2:qml_index + 3] == ("labs",):
+        return parts[qml_index + 3:qml_index + 4] != ("platform",)
+    if module == "qtqml" and parts[qml_index + 2:qml_index + 3] == ("statemachine",):
+        return True
     if module == "qtquick" and qml_index + 2 < len(parts):
         module = parts[qml_index + 2]
     return module in _UNUSED_QML_MODULES
@@ -579,13 +584,21 @@ _UNUSED_QT_RUNTIME_STEMS = frozenset(
      "Qt6VirtualKeyboard Qt6VirtualKeyboardQml Qt6VirtualKeyboardSettings "
      "Qt6WebChannel Qt6WebChannelQuick Qt6WebSockets Qt6Pdf Qt6PdfQuick "
      "Qt6QuickControls2Imagine Qt6QuickControls2Material "
-     "Qt6QuickControls2Universal Qt6QuickControls2Windows").casefold().split()
+     "Qt6QuickControls2Universal Qt6QuickControls2Windows "
+     "Qt6QuickControls2ImagineStyleImpl Qt6QuickControls2MaterialStyleImpl "
+     "Qt6QuickControls2UniversalStyleImpl Qt6QuickControls2WindowsStyleImpl "
+     "Qt6Multimedia Qt6MultimediaQuick Qt6SpatialAudio "
+     "Qt6StateMachine Qt6StateMachineQml Qt6WebView Qt6WebViewQuick "
+     "Qt6LabsAnimation Qt6LabsFolderListModel "
+     "Qt6LabsQmlModels Qt6LabsSettings Qt6LabsSharedImage "
+     "Qt6LabsStyleKit Qt6LabsStyleKitImpl Qt6LabsSynchronizer").casefold().split()
 )
 _UNUSED_QT_STYLES = frozenset({"imagine", "material", "universal", "windows"})
 _UNUSED_QT_ENTRY_PLUGINS = frozenset({
     "plugins/imageformats/qpdf.dll",
     "plugins/platforminputcontexts/qtvirtualkeyboardplugin.dll",
     "plugins/qmltooling/qmldbg_quick3dprofiler.dll",
+    "qml/qt/labs/wavefrontmesh/plugin.dll",
 })
 
 
@@ -598,7 +611,7 @@ def _is_unused_qt_runtime(entry):
         return parts[1][:-4] in _UNUSED_QT_RUNTIME_STEMS
     if relative in _UNUSED_QT_ENTRY_PLUGINS:
         return True
-    if relative.startswith("qml/qt/labs/wavefrontmesh/"):
+    if relative.startswith(("plugins/qmltooling/", "plugins/multimedia/", "translations/")):
         return True
     return (
         len(parts) > 5

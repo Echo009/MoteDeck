@@ -787,6 +787,67 @@ class PhysicalModifierTrackingTests(unittest.TestCase):
         )
         query.assert_not_called()
 
+    def test_explicit_reconciliation_clears_a_stale_left_alt_owner(self):
+        physicalizer._set_physical_tracker_active(True, _query=lambda _vk: False)
+        physicalizer.record_physical_key_event(
+            self._event(physicalizer.VK_LMENU), physicalizer.WM_KEYDOWN
+        )
+        with physicalizer._PHYSICAL_KEY_STATE_LOCK:
+            physicalizer._PHYSICAL_KEY_LAST_EDGE_AT[physicalizer.VK_LMENU] -= 1.0
+        trace = mock.Mock()
+        physicalizer.set_diagnostic_trace(trace)
+
+        self.assertTrue(
+            physicalizer.reconcile_stale_physical_owners(
+                (physicalizer.VK_MENU,), _query=lambda _vk: False
+            )
+        )
+
+        self.assertFalse(physicalizer.physical_key_is_down(physicalizer.VK_LMENU))
+        trace.emit.assert_called_once()
+        self.assertEqual(trace.emit.call_args.args, ("input_physical_state_reconciled",))
+
+    def test_explicit_reconciliation_keeps_a_key_windows_still_reports_down(self):
+        physicalizer._set_physical_tracker_active(True, _query=lambda _vk: False)
+        physicalizer.record_physical_key_event(
+            self._event(physicalizer.VK_LMENU), physicalizer.WM_KEYDOWN
+        )
+        with physicalizer._PHYSICAL_KEY_STATE_LOCK:
+            physicalizer._PHYSICAL_KEY_LAST_EDGE_AT[physicalizer.VK_LMENU] -= 1.0
+
+        self.assertFalse(
+            physicalizer.reconcile_stale_physical_owners(
+                (physicalizer.VK_MENU,), _query=lambda _vk: True
+            )
+        )
+
+        self.assertTrue(physicalizer.physical_key_is_down(physicalizer.VK_LMENU))
+
+    def test_explicit_reconciliation_ignores_a_fresh_edge(self):
+        physicalizer._set_physical_tracker_active(True, _query=lambda _vk: False)
+        physicalizer.record_physical_key_event(
+            self._event(physicalizer.VK_LCONTROL), physicalizer.WM_KEYDOWN
+        )
+
+        self.assertFalse(
+            physicalizer.reconcile_stale_physical_owners(
+                (physicalizer.VK_LCONTROL,), _query=lambda _vk: False
+            )
+        )
+
+        self.assertTrue(
+            physicalizer.physical_key_is_down(physicalizer.VK_LCONTROL)
+        )
+
+    def test_explicit_reconciliation_ignores_untracked_keys(self):
+        physicalizer._set_physical_tracker_active(True, _query=lambda _vk: False)
+
+        self.assertFalse(
+            physicalizer.reconcile_stale_physical_owners(
+                (0x09,), _query=lambda _vk: False
+            )
+        )
+
 
 class VoiceKeyPhysicalizerLifecycleTests(unittest.TestCase):
     def test_test_worker_starts_and_stops_cleanly(self):

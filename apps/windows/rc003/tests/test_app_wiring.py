@@ -2521,6 +2521,83 @@ class OrdinaryButtonGestureWiringTests(_AppWiringTestCase):
         )
         self.assertEqual(len(self._button_input_release_timers), 1)
 
+    def test_app_switcher_retries_once_after_stale_state_recovery(self):
+        with mock.patch.object(
+            win32_input,
+            "send_app_switcher",
+            side_effect=[win32_input.PhysicalKeyInUseError("held"), None],
+        ) as send, mock.patch.object(
+            win32_input, "recover_app_switcher_input", return_value=True
+        ) as recover:
+            self.app._apply_button_action(
+                key_mapping.ButtonAction(key_mapping.ActionKind.APP_SWITCHER)
+            )
+
+        self.assertEqual(send.call_count, 2)
+        recover.assert_called_once_with()
+
+    def test_app_switcher_does_not_retry_when_recovery_changes_nothing(self):
+        with mock.patch.object(
+            win32_input,
+            "send_app_switcher",
+            side_effect=win32_input.PhysicalKeyInUseError("held"),
+        ) as send, mock.patch.object(
+            win32_input, "recover_app_switcher_input", return_value=False
+        ):
+            self.app._apply_button_action(
+                key_mapping.ButtonAction(key_mapping.ActionKind.APP_SWITCHER)
+            )
+
+        self.assertEqual(send.call_count, 1)
+
+    def test_app_switcher_recovery_never_releases_synthetic_keys_mid_hold(self):
+        self.app._button_key_holds["remote"] = (("ctrl",), mock.Mock())
+        try:
+            with mock.patch.object(
+                win32_input, "recover_app_switcher_input", return_value=True
+            ) as recover:
+                self.assertTrue(
+                    self.app._recover_app_switcher_input(
+                        key_mapping.ButtonAction(
+                            key_mapping.ActionKind.APP_SWITCHER
+                        )
+                    )
+                )
+        finally:
+            self.app._button_key_holds.clear()
+
+        recover.assert_called_once_with()
+
+    def test_app_switcher_recovery_does_not_acquire_voice_lock(self):
+        voice_lock = mock.MagicMock()
+        voice_lock.__enter__.side_effect = AssertionError("voice lock acquired")
+        with mock.patch.object(
+            self.app._voice_shortcut, "lock", voice_lock
+        ), mock.patch.object(
+            win32_input, "recover_app_switcher_input", return_value=True
+        ) as recover:
+            with self.app._button_mapping_lock, self.app._button_action_lock:
+                self.assertTrue(
+                    self.app._recover_app_switcher_input(
+                        key_mapping.ButtonAction(key_mapping.ActionKind.APP_SWITCHER)
+                    )
+                )
+
+        voice_lock.__enter__.assert_not_called()
+        recover.assert_called_once_with()
+
+    def test_app_switcher_recovery_ignores_other_actions(self):
+        with mock.patch.object(
+            win32_input, "recover_app_switcher_input"
+        ) as recover:
+            self.assertFalse(
+                self.app._recover_app_switcher_input(
+                    key_mapping.ButtonAction(key_mapping.ActionKind.ESCAPE)
+                )
+            )
+
+        recover.assert_not_called()
+
     def test_element_navigation_action_uses_the_isolated_controller(self):
         result = app_module.element_navigation_control_windows.ToggleResult(
             app_module.element_navigation_control_windows.ToggleResultKind.DELIVERED,

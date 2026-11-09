@@ -1679,5 +1679,109 @@ class KeyboardRepeatIntervalTests(unittest.TestCase):
         )
 
 
+class AppSwitcherRecoveryTests(unittest.TestCase):
+    def test_stale_raw_owner_is_reconciled_without_a_synthetic_release(self):
+        raw = win32_input.raw_input_windows
+        sender = mock.Mock(return_value=1)
+        with mock.patch.object(
+            raw, "_real_async_key_is_down", return_value=False
+        ), mock.patch.object(
+            raw, "snapshot_stale_physical_owner", return_value=object()
+        ), mock.patch.object(
+            raw, "clear_stale_physical_owner_if_unchanged", return_value=True
+        ), mock.patch.object(
+            win32_input, "_real_send_input_batch", sender
+        ):
+            self.assertTrue(
+                win32_input.recover_app_switcher_input()
+            )
+
+        sender.assert_not_called()
+
+    def test_recovery_reports_no_change_when_nothing_is_provably_stale(self):
+        raw = win32_input.raw_input_windows
+        sender = mock.Mock()
+        with mock.patch.object(
+            raw, "_real_async_key_is_down", return_value=False
+        ), mock.patch.object(
+            raw, "snapshot_stale_physical_owner", return_value=None
+        ), mock.patch.object(
+            win32_input, "_real_send_input_batch", sender
+        ):
+            self.assertFalse(
+                win32_input.recover_app_switcher_input()
+            )
+
+        sender.assert_not_called()
+
+    def test_missing_owners_never_authorize_release_even_with_healthy_tracking(self):
+        raw = win32_input.raw_input_windows
+        physicalizer = win32_input.voice_key_physicalizer_windows
+        for tracking in (False, True):
+            with self.subTest(tracking=tracking), mock.patch.object(
+                raw, "physical_keyboard_tracking_available", return_value=tracking
+            ), mock.patch.object(
+                physicalizer, "physical_key_tracking_available", return_value=tracking
+            ), mock.patch.object(
+                raw, "physical_key_is_down", return_value=False
+            ), mock.patch.object(
+                physicalizer, "physical_key_is_down", return_value=False
+            ), mock.patch.object(
+                raw, "_real_async_key_is_down", return_value=True
+            ), mock.patch.object(
+                physicalizer, "reconcile_stale_physical_owners", return_value=False
+            ), mock.patch.object(
+                win32_input, "_real_send_input_batch"
+            ) as sender:
+                self.assertFalse(win32_input.recover_app_switcher_input())
+                sender.assert_not_called()
+
+    def test_synthetic_release_is_skipped_while_a_physical_owner_exists(self):
+        raw = win32_input.raw_input_windows
+        physicalizer = win32_input.voice_key_physicalizer_windows
+        sender = mock.Mock(return_value=1)
+        with mock.patch.object(
+            raw, "physical_key_is_down", return_value=True
+        ), mock.patch.object(
+            physicalizer, "physical_key_is_down", return_value=False
+        ), mock.patch.object(
+            raw, "_real_async_key_is_down", return_value=True
+        ), mock.patch.object(
+            raw, "snapshot_stale_physical_owner", return_value=None
+        ), mock.patch.object(
+            win32_input, "_real_send_input_batch", sender
+        ):
+            self.assertFalse(
+                win32_input.recover_app_switcher_input()
+            )
+
+        sender.assert_not_called()
+
+    def test_physical_down_during_windows_query_never_causes_key_up(self):
+        raw = win32_input.raw_input_windows
+        physicalizer = win32_input.voice_key_physicalizer_windows
+        pressed = set()
+
+        def windows_down(vk):
+            pressed.add(vk)
+            return True
+
+        with mock.patch.object(
+            raw, "physical_key_is_down", side_effect=lambda vk: vk in pressed
+        ), mock.patch.object(
+            physicalizer, "physical_key_is_down", side_effect=lambda vk: vk in pressed
+        ), mock.patch.object(
+            raw, "_real_async_key_is_down", side_effect=windows_down
+        ), mock.patch.object(
+            physicalizer, "reconcile_stale_physical_owners", return_value=False
+        ), mock.patch.object(
+            win32_input, "_real_send_input_batch"
+        ) as sender:
+            self.assertFalse(win32_input.recover_app_switcher_input())
+
+        self.assertTrue(pressed)
+        sender.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

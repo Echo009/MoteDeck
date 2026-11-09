@@ -16,7 +16,7 @@ import threading
 import time
 from ctypes import wintypes
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Sequence
 
 from . import diagnostic_trace
 
@@ -829,6 +829,104 @@ def physical_key_is_down_before_injection(
             except BaseException:
                 pass
     return False
+
+
+def reconcile_stale_physical_owners(
+    vk_codes: Sequence[int],
+    *,
+    _query: Optional[Callable[[int], bool]] = None,
+) -> bool:
+    """Drop hook owners that are provably stale for the requested keys.
+
+    Only an explicit recovery caller uses this after a rejected preflight; the
+    ordinary preflight in ``physical_key_is_down_before_injection`` keeps its
+    fail-closed policy.  A key is released from the tracker only when Windows
+    reports it up, the tracker generation and key revisions did not change, no
+    right-Alt callback is in flight, and the last edge is older than the
+    existing grace window.
+    """
+
+    query = _query or _real_async_key_is_down
+    changed = False
+    for raw_vk in dict.fromkeys(int(vk) for vk in vk_codes):
+        variants = _GENERIC_KEY_VARIANTS.get(raw_vk)
+        if variants is None:
+            if raw_vk not in _TRACKED_PHYSICAL_KEYS:
+                continue
+            variants = (raw_vk,)
+        with _PHYSICAL_KEY_STATE_LOCK:
+            if not _PHYSICAL_TRACKER_ACTIVE or _PHYSICAL_TRACKER_DRAINING:
+                continue
+            generation = int(_PHYSICAL_TRACKER_GENERATION)
+            cached_down = tuple(
+                variant for variant in variants if variant in _PHYSICAL_KEYS_DOWN
+            )
+            if not cached_down:
+                continue
+            revisions = {
+                variant: _PHYSICAL_KEY_REVISIONS.get(variant, 0)
+                for variant in cached_down
+            }
+            callback_revision = int(_PHYSICAL_RALT_CALLBACK_REVISION)
+            callbacks_in_flight = int(_PHYSICAL_RALT_CALLBACKS_IN_FLIGHT)
+            newest_edge = max(
+                (
+                    _PHYSICAL_KEY_LAST_EDGE_AT.get(variant, 0.0)
+                    for variant in cached_down
+                ),
+                default=0.0,
+            )
+        needs_callback_fence = any(
+            variant in (VK_LMENU, VK_RMENU) for variant in cached_down
+        )
+        if needs_callback_fence and callbacks_in_flight:
+            continue
+        if time.monotonic() - newest_edge <= _RALT_STALE_OWNER_GRACE_SECONDS:
+            continue
+        try:
+            if any(bool(query(variant)) for variant in variants):
+                continue
+        except Exception:
+            continue
+        reconciled_at = time.monotonic()
+        with _PHYSICAL_KEY_STATE_LOCK:
+            if (
+                not _PHYSICAL_TRACKER_ACTIVE
+                or _PHYSICAL_TRACKER_DRAINING
+                or int(_PHYSICAL_TRACKER_GENERATION) != generation
+                or int(_PHYSICAL_RALT_CALLBACK_REVISION) != callback_revision
+                or (
+                    needs_callback_fence
+                    and int(_PHYSICAL_RALT_CALLBACKS_IN_FLIGHT)
+                )
+                or any(
+                    variant not in _PHYSICAL_KEYS_DOWN
+                    or _PHYSICAL_KEY_REVISIONS.get(variant, 0)
+                    != revisions[variant]
+                    for variant in cached_down
+                )
+            ):
+                continue
+            for variant in cached_down:
+                _PHYSICAL_KEYS_DOWN.discard(variant)
+                _PHYSICAL_KEY_REVISIONS[variant] = revisions[variant] + 1
+                _PHYSICAL_KEY_LAST_EDGE_AT[variant] = reconciled_at
+        changed = True
+        trace = _diagnostic_trace
+        if trace is not None:
+            for variant in cached_down:
+                try:
+                    trace.emit(
+                        "input_physical_state_reconciled",
+                        vk=variant,
+                        owner_count=len(cached_down),
+                        age_ms=max(0, int((reconciled_at - newest_edge) * 1000)),
+                        windows_down=False,
+                        reason="stale_hook_owner",
+                    )
+                except BaseException:
+                    pass
+    return changed
 
 
 def physical_key_tracking_available(vk_code: int) -> bool:

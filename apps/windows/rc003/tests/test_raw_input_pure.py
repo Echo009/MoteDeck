@@ -455,6 +455,65 @@ class PhysicalKeyboardTrackingTests(unittest.TestCase):
         self.assertFalse(raw_input_windows.physical_keyboard_tracking_available())
         self.assertEqual(losses, ["physical_keyboard_edge_mismatch"])
 
+    def test_stale_owner_snapshot_covers_any_key_and_clears_only_that_key(self):
+        self._send(0x11, make_code=0x1D)
+        self._send(ord("H"))
+        self._age_owner(0xA2)
+        snapshot = raw_input_windows.snapshot_stale_physical_owner(0xA2)
+
+        self.assertIsNotNone(snapshot)
+        self.assertEqual(snapshot.vk_code, 0xA2)
+        self.assertTrue(
+            raw_input_windows.clear_stale_physical_owner_if_unchanged(snapshot)
+        )
+        self.assertFalse(raw_input_windows.physical_key_is_down(0x11))
+        self.assertTrue(raw_input_windows.physical_key_is_down(ord("H")))
+
+    def test_stale_owner_snapshot_refuses_a_fresh_edge(self):
+        self._send(0xA2)
+
+        self.assertIsNone(raw_input_windows.snapshot_stale_physical_owner(0xA2))
+
+    def test_stale_owner_snapshot_refuses_two_owners(self):
+        self._send(0xA2, device_handle=501)
+        self._send(0xA2, device_handle=502)
+        self._age_owner(0xA2)
+
+        self.assertIsNone(raw_input_windows.snapshot_stale_physical_owner(0xA2))
+
+    def test_stale_owner_clear_refuses_an_owner_that_changed_after_the_snapshot(
+        self,
+    ):
+        self._send(0xA2, device_handle=501)
+        self._age_owner(0xA2)
+        snapshot = raw_input_windows.snapshot_stale_physical_owner(0xA2)
+        self.assertIsNotNone(snapshot)
+        self._send(0xA2, WM_KEYUP, device_handle=501)
+        self._send(0xA2, device_handle=501)
+        self._age_owner(0xA2)
+
+        self.assertFalse(
+            raw_input_windows.clear_stale_physical_owner_if_unchanged(snapshot)
+        )
+        self.assertTrue(raw_input_windows.physical_key_is_down(0xA2))
+
+    def test_stale_owner_snapshot_requires_a_healthy_tracker(self):
+        self._send(0xA2)
+        self._age_owner(0xA2)
+        with mock.patch.object(
+            raw_input_windows, "_PHYSICAL_KEY_TRACKER_HEALTHY", False
+        ):
+            self.assertIsNone(
+                raw_input_windows.snapshot_stale_physical_owner(0xA2)
+            )
+
+    @staticmethod
+    def _age_owner(vk_code):
+        with raw_input_windows._PHYSICAL_KEY_STATE_LOCK:
+            raw_input_windows._PHYSICAL_KEY_LAST_EDGE_AT[vk_code] -= (
+                raw_input_windows._STALE_PHYSICAL_OWNER_GRACE_SECONDS + 1.0
+            )
+
 
 class KeyboardBodyTests(unittest.TestCase):
     def test_recognized_vk_down_emits_press(self):

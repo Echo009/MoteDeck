@@ -291,12 +291,12 @@ _PHYSICAL_KEY_TRACKER_ACTIVE = False
 _PHYSICAL_KEY_TRACKER_HEALTHY = False
 # A low-level hook may delay the Windows async state by up to one second.
 # Reconcile only an older hold; ordinary key transitions remain protected.
-_STALE_LWIN_OWNER_GRACE_SECONDS = 2.0
-_VK_LWIN = 0x5B
+_STALE_PHYSICAL_OWNER_GRACE_SECONDS = 2.0
 
 
 @dataclass(frozen=True)
-class StaleLWinOwnerSnapshot:
+class StalePhysicalOwnerSnapshot:
+    vk_code: int
     device_handle: int
     tracker_epoch: int
     key_revision: int
@@ -442,60 +442,67 @@ def remove_physical_keyboard_device(device_handle: int) -> None:
                 _PHYSICAL_KEY_OWNER_HISTORY.pop(vk_code, None)
 
 
-def snapshot_stale_lwin_owner() -> Optional[StaleLWinOwnerSnapshot]:
+def snapshot_stale_physical_owner(
+    vk_code: int,
+) -> Optional[StalePhysicalOwnerSnapshot]:
     """Find one old Raw owner; the caller must verify independent key state."""
 
+    target = int(vk_code)
     with _PHYSICAL_KEY_STATE_LOCK:
         if not (_PHYSICAL_KEY_TRACKER_ACTIVE and _PHYSICAL_KEY_TRACKER_HEALTHY):
             return None
         owners = tuple(
             handle
             for handle, keys in _PHYSICAL_KEYS_BY_DEVICE.items()
-            if _VK_LWIN in keys
+            if target in keys
         )
-        if len(owners) != 1 or _PHYSICAL_KEY_OWNER_HISTORY.get(_VK_LWIN) != {
+        if len(owners) != 1 or _PHYSICAL_KEY_OWNER_HISTORY.get(target) != {
             owners[0]
         }:
             return None
-        age = time.monotonic() - _PHYSICAL_KEY_LAST_EDGE_AT.get(_VK_LWIN, 0.0)
-        if age <= _STALE_LWIN_OWNER_GRACE_SECONDS:
+        age = time.monotonic() - _PHYSICAL_KEY_LAST_EDGE_AT.get(target, 0.0)
+        if age <= _STALE_PHYSICAL_OWNER_GRACE_SECONDS:
             return None
-        return StaleLWinOwnerSnapshot(
+        return StalePhysicalOwnerSnapshot(
+            vk_code=target,
             device_handle=owners[0],
             tracker_epoch=_PHYSICAL_KEY_TRACKER_EPOCH,
-            key_revision=_PHYSICAL_KEY_REVISIONS.get(_VK_LWIN, 0),
+            key_revision=_PHYSICAL_KEY_REVISIONS.get(target, 0),
             age_ms=max(0, int(age * 1000)),
         )
 
 
-def clear_stale_lwin_owner_if_unchanged(snapshot: StaleLWinOwnerSnapshot) -> bool:
-    """Drop only the verified Raw LWin owner after an external UP observation."""
+def clear_stale_physical_owner_if_unchanged(
+    snapshot: StalePhysicalOwnerSnapshot,
+) -> bool:
+    """Drop only the verified Raw owner after an external UP observation."""
 
+    target = int(snapshot.vk_code)
     with _PHYSICAL_KEY_STATE_LOCK:
         if not (
             _PHYSICAL_KEY_TRACKER_ACTIVE
             and _PHYSICAL_KEY_TRACKER_HEALTHY
             and _PHYSICAL_KEY_TRACKER_EPOCH == snapshot.tracker_epoch
-            and _PHYSICAL_KEY_REVISIONS.get(_VK_LWIN, 0) == snapshot.key_revision
-            and _PHYSICAL_KEY_OWNER_HISTORY.get(_VK_LWIN)
+            and _PHYSICAL_KEY_REVISIONS.get(target, 0) == snapshot.key_revision
+            and _PHYSICAL_KEY_OWNER_HISTORY.get(target)
             == {snapshot.device_handle}
             and tuple(
                 handle
                 for handle, keys in _PHYSICAL_KEYS_BY_DEVICE.items()
-                if _VK_LWIN in keys
+                if target in keys
             )
             == (snapshot.device_handle,)
-            and time.monotonic() - _PHYSICAL_KEY_LAST_EDGE_AT.get(_VK_LWIN, 0.0)
-            > _STALE_LWIN_OWNER_GRACE_SECONDS
+            and time.monotonic() - _PHYSICAL_KEY_LAST_EDGE_AT.get(target, 0.0)
+            > _STALE_PHYSICAL_OWNER_GRACE_SECONDS
         ):
             return False
         keys = _PHYSICAL_KEYS_BY_DEVICE[snapshot.device_handle]
-        keys.remove(_VK_LWIN)
+        keys.discard(target)
         if not keys:
             _PHYSICAL_KEYS_BY_DEVICE.pop(snapshot.device_handle)
-        _PHYSICAL_KEY_OWNER_HISTORY.pop(_VK_LWIN, None)
-        _PHYSICAL_KEY_REVISIONS[_VK_LWIN] = snapshot.key_revision + 1
-        _PHYSICAL_KEY_LAST_EDGE_AT[_VK_LWIN] = time.monotonic()
+        _PHYSICAL_KEY_OWNER_HISTORY.pop(target, None)
+        _PHYSICAL_KEY_REVISIONS[target] = snapshot.key_revision + 1
+        _PHYSICAL_KEY_LAST_EDGE_AT[target] = time.monotonic()
         return True
 
 

@@ -129,6 +129,25 @@ class PresetStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             presets.validate_mapping(value, self.profile)
 
+    def test_launch_application_action_is_accepted_and_roundtrips(self):
+        # issue #42：启动应用动作带 target 字段，映射校验不能把它当未知字段
+        # 拒掉，否则应用内单独设置和右上角添加应用都会报「按键动作格式无效」。
+        self.bindings["bindings"]["ok"] = {"kind": "open_application", "keys": [],
+                                           "target": "control.exe"}
+        mapping = presets.snapshot(self.bindings, self.profile)
+        presets.validate_mapping(mapping, self.profile)
+        identity = self.store.create("启动应用", self.profile, mapping)
+        self.assertEqual(self.store.get(identity)["mapping"]["bindings"]["ok"]["target"],
+                         "control.exe")
+        # 右上角添加应用的路径：全局映射里有启动应用时也能建应用级配置。
+        app_identity = self.store.ensure_app("菜单", self.profile, "control.exe", mapping)
+        self.assertEqual(self.store.get(app_identity)["process"], "control.exe")
+        # 真正的未知字段仍然要拒绝。
+        stray = copy.deepcopy(mapping)
+        stray["bindings"]["ok"]["extra"] = "x"
+        with self.assertRaises(ValueError):
+            presets.validate_mapping(stray, self.profile)
+
     def test_supported_profiles_and_device_compatibility(self):
         for profile in presets.PROFILES:
             mapping = presets.snapshot(config.default_key_bindings(profile), profile)

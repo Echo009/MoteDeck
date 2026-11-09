@@ -1,7 +1,7 @@
 # Changelog — MoteDeck RC003 (Windows)
 
 候选阶段使用持续递增的 `candidate.N` 测试序号。内部构建版本号唯一来源是
-`src/ovb_rc003/VERSION`（当前 `0.2.2`），程序、冻结构建和
+`src/ovb_rc003/VERSION`（当前 `0.2.3`），程序、冻结构建和
 包装都读取该文件。新发布 tag 为 `v<VERSION>`，历史 tag 与包名保持原样。
 
 正式版把最终采用的候选序号放在最后一位：采用 `candidate.30` 时发布为 `v1.0.30`，
@@ -9,6 +9,12 @@
 正式发布附件为未签名安装包 `MoteDeckSetup-<版本号>-unsigned.exe`、`SHA256SUMS.txt`
 和固定文件名的 `MoteDeck2Vokie.zip`；完整命名规则以
 `VALIDATION-AND-DELIVERY.md` 的“版本与命名规则”为准。
+
+## [0.2.3] — 2026-11-09
+
+- 修复 Issue #42：「启用应用」动作的 `target` 字段（要启动的程序）不再被按键映射校验当成未知字段拒绝；应用内单独设置和右上角添加应用都能正常保存。
+- 修复 Issue #36：应用切换遇到过期按键占用时清理记录并最多重试一次；收紧 Raw Input 与键盘钩子的过期状态清理，避免误释放仍按住的实体键，并消除恢复路径与配置重载之间的锁顺序冲突。
+- 继续裁剪打包依赖：移除未使用的 Qt Multimedia、SpatialAudio、StateMachine、WebView 及未使用的 Labs 模块，清除禁用样式残留的 StyleImpl DLL、QML 调试插件与未加载的 Qt 翻译资源；保留托盘依赖的 Qt.labs.platform、FluentWinUI3/Fusion/Basic、QtWidgets、SVG 与软件 OpenGL 回退。
 
 ## [0.2.2] — 2026-11-08（正式版）
 
