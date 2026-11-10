@@ -378,6 +378,7 @@ class RC003App:
         self._runtime_voice_active = False
         self._runtime_voice_state = bridge_runtime_status.VOICE_RUNTIME_NOT_TESTED
         self._runtime_voice_provider = ""
+        self._runtime_voice_mic_blocked = ""
         self._runtime_voice_updated_at: Optional[float] = None
         self._runtime_battery_level: Optional[int] = None
         # 连上后读到的 GATT 型号串（0x2A24），只用于界面区分 2 / 2 Pro。
@@ -717,6 +718,7 @@ class RC003App:
                     voice_runtime_state=self._runtime_voice_state,
                     voice_runtime_provider=self._runtime_voice_provider,
                     voice_runtime_updated_at=self._runtime_voice_updated_at,
+                    voice_mic_blocked_reason=self._runtime_voice_mic_blocked,
                     battery_level=self._runtime_battery_level,
                     remote_model=self._runtime_remote_model,
                 )
@@ -750,6 +752,21 @@ class RC003App:
             if active == self._runtime_voice_active:
                 return
             self._runtime_voice_active = active
+        self._publish_runtime_status()
+
+    def _set_runtime_voice_mic_blocked(self, reason: str) -> None:
+        """Publish why unsolicited physical-mic audio is being dropped.
+
+        An empty reason means the physical mic button is (or resolves to) a
+        voice action, so audio flows normally. This mirrors the runtime
+        status plumbing so the settings UI can surface the block instead of
+        leaving the drop visible only in the log file.
+        """
+        reason = str(reason)
+        with self._runtime_status_lock:
+            if reason == self._runtime_voice_mic_blocked:
+                return
+            self._runtime_voice_mic_blocked = reason
         self._publish_runtime_status()
 
     def _set_runtime_battery_level(self, level: Optional[int]) -> None:
@@ -7641,6 +7658,10 @@ class RC003App:
                     "mic",
                     mic_action,
                 )
+                if is_mic_voice_button:
+                    # The physical mic resolves to a voice action again; any
+                    # previously published block reason is stale.
+                    self._set_runtime_voice_mic_blocked("")
                 if not self._voice_shortcut.controller.active and not is_mic_voice_button:
                     self._abort_voice_audio_start_locked(
                         "physical mic has an ordinary mapping"
@@ -7648,6 +7669,7 @@ class RC003App:
                     self._logger.info(
                         "unsolicited mic audio ignored: physical mic has an ordinary mapping"
                     )
+                    self._set_runtime_voice_mic_blocked("mic_ordinary_mapping")
                     if (
                         self._ble_session is not None
                         and not self._unsolicited_mic_close_pending

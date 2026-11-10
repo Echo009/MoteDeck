@@ -1266,6 +1266,7 @@ def _load_qt_classes() -> dict:
         bridgeInputStateChanged = Signal()
         remoteBatteryChanged = Signal()
         voiceRuntimeStatusChanged = Signal()
+        voiceMicBlockedChanged = Signal()
         bridgeLaunchPhaseChanged = Signal()
         bridgeLaunchElapsedSecondsChanged = Signal()
         bridgeRestartRecommendedChanged = Signal()
@@ -1534,6 +1535,11 @@ def _load_qt_classes() -> dict:
                 runtime_status.voice_runtime_state
                 if runtime_status is not None
                 else bridge_runtime_status.VOICE_RUNTIME_NOT_TESTED
+            )
+            self._voice_mic_blocked_reason = (
+                getattr(runtime_status, "voice_mic_blocked_reason", "")
+                if runtime_status is not None
+                else ""
             )
             self._bridge_connected = bool(
                 runtime_status is not None
@@ -2561,6 +2567,15 @@ def _load_qt_classes() -> dict:
             if voice_runtime_state != self._voice_runtime_state:
                 self._voice_runtime_state = voice_runtime_state
                 self.voiceRuntimeStatusChanged.emit()
+
+            voice_mic_blocked_reason = (
+                getattr(status, "voice_mic_blocked_reason", "")
+                if status is not None
+                else ""
+            )
+            if voice_mic_blocked_reason != self._voice_mic_blocked_reason:
+                self._voice_mic_blocked_reason = voice_mic_blocked_reason
+                self.voiceMicBlockedChanged.emit()
 
         @staticmethod
         def _runtime_status_requires_restart(
@@ -6346,6 +6361,12 @@ def _load_qt_classes() -> dict:
             str,
             lambda self: self._voice_runtime_state,
             notify=voiceRuntimeStatusChanged,
+        )
+
+        voiceMicBlockedReason = Property(
+            str,
+            lambda self: self._voice_mic_blocked_reason,
+            notify=voiceMicBlockedChanged,
         )
 
         bridgeRestartRecommended = Property(
