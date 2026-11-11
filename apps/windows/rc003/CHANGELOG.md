@@ -1,13 +1,18 @@
 # Changelog — MoteDeck RC003 (Windows)
 
 候选阶段使用持续递增的 `candidate.N` 测试序号。内部构建版本号唯一来源是
-`src/motedeck/VERSION`（当前 `0.2.4`），程序、冻结构建和
+`src/motedeck/VERSION`（当前 `0.2.5`），程序、冻结构建和
 包装都读取该文件。新发布 tag 为 `v<VERSION>`，历史 tag 与包名保持原样。
 
 正式版把最终采用的候选序号放在最后一位：采用 `candidate.30` 时发布为 `v1.0.30`，
 后续候选继续从 `candidate.31` 递增。正式 tag 不带 `windows`、`rc003` 或 `candidate`。
 正式发布附件为未签名安装包 `MoteDeckSetup-<版本号>-unsigned.exe`、`SHA256SUMS.txt`
 和固定文件名的 `MoteDeck2Vokie.zip`。
+
+## [0.2.5] — 2026-11-11
+
+- 修复谷歌遥控器模式下软件方案（应用条）不生效：切到谷歌遥控器后，按键永远走全局映射，应用方案里设置的按键映射（例如确认键改成空格）不被执行。原因是谷歌链路启动时从未启动按前台应用切换方案的循环；现在该链路同样启动/停止软件方案切换，应用方案里的映射对谷歌遥控器照常生效，与小米遥控器行为一致。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.5-unsigned.exe`。
 
 ## [0.2.4] — 2026-11-11
 
