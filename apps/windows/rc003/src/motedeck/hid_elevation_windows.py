@@ -73,8 +73,9 @@ HELPER_PROTOCOL_VERSION = 1
 # added protected script reload and the exclusive-device legacy migration.
 # Protocol 4, the administrator-only helper and LocalService runtime ACLs are
 # unchanged. Generation 20 renames the helper to MoteDeckHidHelper.exe (with
-# the legacy-name cleanup paths kept for upgrades).
-HELPER_GENERATION = 20
+# the legacy-name cleanup paths kept for upgrades). Generation 21 refreshes
+# the helper source digest after the motedeck package refactor.
+HELPER_GENERATION = 21
 TASK_CONTRACT_VERSION = 5
 MANIFEST_FILENAME = "helper-manifest.json"
 INJECTION_RESULT_FILENAME = "hid-injection-result.json"
