@@ -12,7 +12,7 @@
 ## [0.2.5] — 2026-11-11
 
 - 修复谷歌遥控器模式下软件方案（应用条）不生效：切到谷歌遥控器后，按键永远走全局映射，应用方案里设置的按键映射（例如确认键改成空格）不被执行。原因是谷歌链路启动时从未启动按前台应用切换方案的循环；现在该链路同样启动/停止软件方案切换，应用方案里的映射对谷歌遥控器照常生效，与小米遥控器行为一致。
-- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.5-unsigned.exe`。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3531 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.5-unsigned.exe`（99556771 字节，SHA-256 `549071cbb475ce47ec0d3d3b856a9a21a8c84ecaa3f8f737552f9f3d5e1b336a`）。
 
 ## [0.2.4] — 2026-11-11
 
