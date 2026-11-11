@@ -9,9 +9,9 @@ import types
 import unittest
 from unittest import mock
 
-from ovb_rc003 import diagnostic_trace, win32_input
-from ovb_rc003 import voice_interaction_diagnostics_windows as focus
-from ovb_rc003 import shortcut_observation_windows as receiver
+from motedeck import diagnostic_trace, win32_input
+from motedeck import voice_interaction_diagnostics_windows as focus
+from motedeck import shortcut_observation_windows as receiver
 
 
 class ProgramContextTests(unittest.TestCase):

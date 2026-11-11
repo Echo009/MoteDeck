@@ -2,7 +2,7 @@ import os
 import unittest
 from unittest import mock
 
-from ovb_rc003 import preset_switch_windows as switch
+from motedeck import preset_switch_windows as switch
 
 
 class NormalizeVkTests(unittest.TestCase):
@@ -58,7 +58,7 @@ class ListenerTests(unittest.TestCase):
     def test_start_is_refused_when_live_input_is_disabled(self):
         listener, _ = self._listener()
         listener.set_targets({frozenset({0x41}): "a"})
-        with mock.patch.dict(os.environ, {"RC003_DISABLE_LIVE_INPUT": "1"}):
+        with mock.patch.dict(os.environ, {"MOTEDECK_DISABLE_LIVE_INPUT": "1"}):
             with self.assertRaises(switch.PresetSwitchUnavailableError):
                 listener.start()
         self.assertFalse(listener.is_running)

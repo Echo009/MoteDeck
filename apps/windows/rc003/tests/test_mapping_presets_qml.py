@@ -15,7 +15,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QMetaObject, QUrl, QPointF, Qt
 from PySide6.QtGui import QPalette, QColor, QFontDatabase
 from PySide6.QtTest import QTest
-from ovb_rc003 import qt_settings_app as m, config, app_profiles
+from motedeck import qt_settings_app as m, config, app_profiles
 from tests.test_qt_settings_app import SettingsControllerTests
 
 classes = m._load_qt_classes()
@@ -41,7 +41,7 @@ try:
     controller, model = fixture._make_controller()
     diagnostics = classes['DiagnosticsController'](controller, controller._config_root, auto_refresh=False)
     for key, instance in [('SettingsController', controller), ('ButtonMappingModel', model), ('DiagnosticsController', diagnostics)]:
-        classes['qmlRegisterSingletonInstance'](classes[key], 'OvbRc003Settings', 1, 0, key, instance)
+        classes['qmlRegisterSingletonInstance'](classes[key], 'MoteDeckSettings', 1, 0, key, instance)
     engine = classes['QQmlApplicationEngine']()
     warnings = []
     engine.warnings.connect(lambda items: warnings.extend(item.toString() for item in items))
@@ -210,7 +210,7 @@ class MappingPresetsQmlTests(unittest.TestCase):
     def test_real_panel_flow_in_light_dark_scaled_windows(self):
         for profile, scale, dark in (("xiaomi-rc003", "1", "0"), ("xiaomi-rc003", "1.5", "1")):
             with self.subTest(profile=profile, scale=scale, dark=dark):
-                env = dict(os.environ, QT_QPA_PLATFORM="offscreen", RC003_DISABLE_LIVE_INPUT="1",
+                env = dict(os.environ, QT_QPA_PLATFORM="offscreen", MOTEDECK_DISABLE_LIVE_INPUT="1",
                            PRESET_TEST_PROFILE=profile, PRESET_TEST_DARK=dark, QT_SCALE_FACTOR=scale)
                 result = subprocess.run([sys.executable, "-c", PROBE], env=env,
                                         capture_output=True, text=True, encoding="utf-8", timeout=90)

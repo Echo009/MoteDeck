@@ -9,7 +9,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$RC003Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$MoteDeckRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $RunScript = (Resolve-Path (Join-Path $PSScriptRoot "run-dev.ps1")).Path
 $ProductName = "MoteDeck"
 $DevLabel = -join @(
@@ -53,7 +53,7 @@ if ($UsesDefaultShortcutPath) {
                 ) -and
                 [string]::Equals(
                     [System.IO.Path]::GetFullPath($LegacyShortcut.WorkingDirectory),
-                    [System.IO.Path]::GetFullPath($RC003Root),
+                    [System.IO.Path]::GetFullPath($MoteDeckRoot),
                     [System.StringComparison]::OrdinalIgnoreCase
                 ) -and
                 $LegacyShortcut.Arguments -eq $ShortcutArguments
@@ -70,10 +70,10 @@ if ($UsesDefaultShortcutPath) {
 $Shortcut = $Shell.CreateShortcut($ShortcutPath)
 $Shortcut.TargetPath = $PowerShellExe
 $Shortcut.Arguments = $ShortcutArguments
-$Shortcut.WorkingDirectory = $RC003Root
+$Shortcut.WorkingDirectory = $MoteDeckRoot
 $Shortcut.Description = "Open the current $ProductName source checkout"
 
-$AppIcon = Join-Path $RC003Root "src\ovb_rc003\assets\icons\remote-mic.ico"
+$AppIcon = Join-Path $MoteDeckRoot "src\motedeck\assets\icons\remote-mic.ico"
 if (Test-Path -LiteralPath $AppIcon -PathType Leaf) {
     $Shortcut.IconLocation = "$AppIcon,0"
 }

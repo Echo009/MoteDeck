@@ -3,7 +3,7 @@ import threading
 import time
 import unittest
 
-from ovb_rc003 import audio_playback_worker
+from motedeck import audio_playback_worker
 
 
 class PlaybackWriteWorkerTests(unittest.TestCase):

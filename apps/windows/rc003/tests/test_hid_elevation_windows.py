@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import hid_elevation_windows
+from motedeck import hid_elevation_windows
 
 
 SID = "S-1-5-21-111-222-333-1001"
@@ -506,7 +506,7 @@ class TaskSchedulerApiTests(unittest.TestCase):
 
         self.assertIsNone(
             hid_elevation_windows._read_registered_task(
-                r"\RemoteMicRC003-HidTap-missing",
+                r"\MoteDeck-HidTap-missing",
                 _root=root,
             )
         )
@@ -2868,7 +2868,7 @@ class TaskLifecycleTests(unittest.TestCase):
             )
             runtime_cache = owner_root / "runtime" / "loaded-gadget"
             runtime_cache.mkdir(parents=True)
-            cached_dll = runtime_cache / "remote-mic-rc003-gadget.dll"
+            cached_dll = runtime_cache / "motedeck-gadget.dll"
             cached_dll.write_bytes(b"still loaded by WUDFHost")
             task = hid_elevation_windows._RegisteredTaskSnapshot(
                 hid_elevation_windows.task_definition_xml(
@@ -2945,7 +2945,7 @@ class RemovalInspectionTests(unittest.TestCase):
             )
             runtime_cache = owner_root / "runtime" / "loaded-gadget"
             runtime_cache.mkdir(parents=True)
-            (runtime_cache / "remote-mic-rc003-gadget.dll").write_bytes(
+            (runtime_cache / "motedeck-gadget.dll").write_bytes(
                 b"still loaded"
             )
 
@@ -3556,7 +3556,7 @@ class HelperMainTests(unittest.TestCase):
         self.assertGreaterEqual(hid_elevation_windows.TASK_CONTRACT_VERSION, 5)
 
     def test_inject_once_reports_a_stable_failure_stage(self):
-        from ovb_rc003 import frida_hid_tap_injector, frida_hid_tap_runtime
+        from motedeck import frida_hid_tap_injector, frida_hid_tap_runtime
 
         cases = (
             (

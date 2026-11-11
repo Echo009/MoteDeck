@@ -5,7 +5,7 @@ from __future__ import annotations
 import ctypes
 import unittest
 
-from ovb_rc003 import window_chrome_windows
+from motedeck import window_chrome_windows
 
 
 class _Color:

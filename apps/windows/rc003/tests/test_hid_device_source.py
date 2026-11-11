@@ -13,7 +13,7 @@ import sys
 import unittest
 import uuid
 
-from ovb_rc003.frida_hid_tap_runtime import GADGET_SCRIPT
+from motedeck.frida_hid_tap_runtime import GADGET_SCRIPT
 from tests.test_hid_copy_interception import HARNESS
 
 
@@ -176,6 +176,29 @@ rpc.exports.sourcescenario = function (scenario, selected) {
     ensure(!candidateCopy.records.some(r => r.kind === "copy_probe"), "fallback logged raw before client verification");
     handleControl({...candidate, kind: "intercept_control", action: "bind_copy_handle"});
     ensure(deviceCopy(0, RIGHT).kernelCopy === NEUTRAL, "exclusive ownership failed");
+  } else if (scenario === "unowned_hold_release_reaches_windows") {
+    // A hold whose key-down raced the enable request reaches Windows
+    // natively (candidate path) and the client binds the non-neutral
+    // candidate. Erasing that hold's closing release would strand the
+    // already delivered key-down in the foreground app (stuck Enter).
+    enableSelected(selected, true);
+    iidMemory.writeU8(0);
+    const hold = deviceCopy(0, RIGHT);
+    const candidate = hold.records.find(r => r.kind === "copy_candidate");
+    ensure(candidate && candidate.source_kind === "exclusive", "exclusive hold did not announce a candidate");
+    ensure(hold.kernelCopy === RIGHT && !hold.records.some(r => r.kind === "gatt_read"),
+      "pre-arming hold was erased or mapped instead of reaching Windows");
+    handleControl({...candidate, kind: "intercept_control", action: "bind_copy_handle"});
+    ensure(!interceptionReady, "bind of an unowned hold claimed the closing release");
+    const release = deviceCopy(0, NEUTRAL);
+    ensure(release.kernelCopy === NEUTRAL &&
+           !release.records.some(r => r.kind === "gatt_read" || r.kind === "copy_candidate"),
+      "closing release of the unowned hold was erased or mapped");
+    const armed = deviceCopy(0, RIGHT);
+    ensure(armed.kernelCopy === NEUTRAL && armed.records.some(r => r.kind === "gatt_read" && r.raw === RIGHT),
+      "first owned press after the handover was not erased and mapped once");
+    ensure(deviceCopy(0, NEUTRAL).records.some(r => r.kind === "gatt_read"),
+      "owned release after the handover was lost");
   } else if (scenario === "known_other_beats_fallback") {
     enableSelected(selected, true);
     ensure(deviceCopy(1, RIGHT).records.length === 0 && pendingCopyCandidate === null, "exclusive flag overrode contrary device identity");
@@ -358,7 +381,7 @@ class DeviceSourceRuntimeTests(unittest.TestCase):
         cls.child.wait(timeout=5)
 
     def test_source_hash_matches_persisted_physical_identity(self):
-        from ovb_rc003.remote_selection import container_key
+        from motedeck.remote_selection import container_key
 
         expected = [container_key(uuid.UUID(value)) for value in (
             "11223344-5566-7788-99aa-bbccddeeff00", "22334455-6677-8899-aabb-ccddeeff0011")]
@@ -367,7 +390,9 @@ class DeviceSourceRuntimeTests(unittest.TestCase):
     def test_shared_host_copy_routing_and_lifecycle(self):
         selected = hashlib.sha256(b"RemoteMic physical remote v1\0" + uuid.UUID("11223344-5566-7788-99aa-bbccddeeff00").bytes).hexdigest()
         for scenario in ("two_devices", "first_selected_press", "first_selected_press_failure",
-                         "unknown_source", "exclusive_fallback", "known_other_beats_fallback",
+                         "unknown_source", "exclusive_fallback",
+                         "unowned_hold_release_reaches_windows",
+                         "known_other_beats_fallback",
                          "rejected_fallback_recovers", "bound_source_lost",
                          "closed_reused_handle", "changed_selection_inflight", "missing_or_bad_selection"):
             with self.subTest(scenario=scenario):
@@ -378,7 +403,7 @@ class DeviceSourceRuntimeTests(unittest.TestCase):
         self.assertTrue(self.script.exports_sync.sourcevalidation())
 
     def test_device_parameters_resolves_only_its_own_instance(self):
-        from ovb_rc003.remote_selection import container_key
+        from motedeck.remote_selection import container_key
 
         selected = container_key(uuid.UUID("11223344-5566-7788-99aa-bbccddeeff00"))
         for scenario in ("two_parameters", "wrong_subkey_identity", "bad_path", "failures_recover"):

@@ -1,6 +1,6 @@
 #requires -Version 5.1
 
-function Get-RC003PortableStreamSha256 {
+function Get-MoteDeckPortableStreamSha256 {
     param([Parameter(Mandatory = $true)][System.IO.Stream]$Stream)
 
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
@@ -12,7 +12,7 @@ function Get-RC003PortableStreamSha256 {
     return [System.BitConverter]::ToString($bytes).Replace("-", "")
 }
 
-function Get-RC003PortableFileSha256 {
+function Get-MoteDeckPortableFileSha256 {
     param([Parameter(Mandatory = $true)][string]$Path)
 
     $stream = [System.IO.File]::Open(
@@ -22,13 +22,13 @@ function Get-RC003PortableFileSha256 {
         [System.IO.FileShare]::Read
     )
     try {
-        return Get-RC003PortableStreamSha256 -Stream $stream
+        return Get-MoteDeckPortableStreamSha256 -Stream $stream
     } finally {
         $stream.Dispose()
     }
 }
 
-function Get-RC003PortableArchivePathInfo {
+function Get-MoteDeckPortableArchivePathInfo {
     param([Parameter(Mandatory = $true)][string]$EntryName)
 
     $normalized = $EntryName.Replace([char]92, [char]47)
@@ -62,7 +62,7 @@ function Get-RC003PortableArchivePathInfo {
     }
 }
 
-function Add-RC003PortableArchivePathKind {
+function Add-MoteDeckPortableArchivePathKind {
     param(
         [Parameter(Mandatory = $true)][hashtable]$Kinds,
         [Parameter(Mandatory = $true)][string]$Path,
@@ -82,7 +82,7 @@ function Add-RC003PortableArchivePathKind {
     }
 }
 
-function Assert-RC003PortableStagingRoot {
+function Assert-MoteDeckPortableStagingRoot {
     param(
         [Parameter(Mandatory = $true)][string]$StagingDirectory,
         [Parameter(Mandatory = $true)]$ProductPresentation
@@ -112,7 +112,7 @@ function Assert-RC003PortableStagingRoot {
     }
 }
 
-function Assert-RC003PortableZip {
+function Assert-MoteDeckPortableZip {
     param(
         [Parameter(Mandatory = $true)][string]$ZipPath,
         [Parameter(Mandatory = $true)][string]$TopLevelName,
@@ -121,7 +121,7 @@ function Assert-RC003PortableZip {
         [Parameter(Mandatory = $true)]$ProductPresentation
     )
 
-    Assert-RC003PortableStagingRoot `
+    Assert-MoteDeckPortableStagingRoot `
         -StagingDirectory $StagingDirectory `
         -ProductPresentation $ProductPresentation
 
@@ -132,7 +132,7 @@ function Assert-RC003PortableZip {
         $archiveKinds = @{}
         $archiveFiles = @{}
         foreach ($entry in $archive.Entries) {
-            $pathInfo = Get-RC003PortableArchivePathInfo -EntryName $entry.FullName
+            $pathInfo = Get-MoteDeckPortableArchivePathInfo -EntryName $entry.FullName
             $entryPath = [string]$pathInfo.Path
             $entryKind = "File"
             if ($pathInfo.IsDirectory) {
@@ -142,7 +142,7 @@ function Assert-RC003PortableZip {
                 throw "portable ZIP contains a duplicate entry: $entryPath"
             }
             $explicitEntries[$entryPath] = $entryKind
-            Add-RC003PortableArchivePathKind `
+            Add-MoteDeckPortableArchivePathKind `
                 -Kinds $archiveKinds `
                 -Path $entryPath `
                 -Kind $entryKind
@@ -150,7 +150,7 @@ function Assert-RC003PortableZip {
             $segments = @($pathInfo.Segments)
             for ($index = 1; $index -lt $segments.Count; $index++) {
                 $parentPath = [string]::Join("/", $segments[0..($index - 1)])
-                Add-RC003PortableArchivePathKind `
+                Add-MoteDeckPortableArchivePathKind `
                     -Kinds $archiveKinds `
                     -Path $parentPath `
                     -Kind "Directory"
@@ -218,7 +218,7 @@ function Assert-RC003PortableZip {
         if (-not $archiveFiles.ContainsKey($helperEntryName)) {
             throw "portable ZIP is missing the internal HID helper"
         }
-        $versionEntryName = "$TopLevelName/$($ProductPresentation.runtime_directory_name)/ovb_rc003/VERSION"
+        $versionEntryName = "$TopLevelName/$($ProductPresentation.runtime_directory_name)/motedeck/VERSION"
         if (-not $archiveFiles.ContainsKey($versionEntryName)) {
             throw "portable ZIP is missing the frozen VERSION file"
         }
@@ -275,10 +275,10 @@ function Assert-RC003PortableZip {
             if ($entry.Length -ne $stagingFile.Length) {
                 throw "portable ZIP file length mismatch: $($stagingFile.EntryName)"
             }
-            $stagingHash = Get-RC003PortableFileSha256 -Path $stagingFile.FullName
+            $stagingHash = Get-MoteDeckPortableFileSha256 -Path $stagingFile.FullName
             $stream = $entry.Open()
             try {
-                $zipHash = Get-RC003PortableStreamSha256 -Stream $stream
+                $zipHash = Get-MoteDeckPortableStreamSha256 -Stream $stream
             } finally {
                 $stream.Dispose()
             }

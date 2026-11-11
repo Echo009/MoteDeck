@@ -7,7 +7,7 @@ import asyncio
 import threading
 import unittest
 
-from ovb_rc003.connection_supervisor import ConnectionSupervisor
+from motedeck.connection_supervisor import ConnectionSupervisor
 
 
 def _run(coro):

@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003 import atvv_protocol as proto
+from motedeck import atvv_protocol as proto
 
 
 class CapabilitiesParsingTests(unittest.TestCase):

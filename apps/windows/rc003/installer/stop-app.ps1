@@ -374,7 +374,7 @@ if ([string]::IsNullOrWhiteSpace($ConfigRoot)) {
     $localAppData = [Environment]::GetFolderPath(
         [Environment+SpecialFolder]::LocalApplicationData
     )
-    $ConfigRoot = [System.IO.Path]::Combine($localAppData, "RemoteMic", "RC003")
+    $ConfigRoot = [System.IO.Path]::Combine($localAppData, "MoteDeck")
 }
 function Exit-ForRestrictedProcess {
     if (-not $script:isElevated) {

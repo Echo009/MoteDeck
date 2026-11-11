@@ -148,10 +148,10 @@ Set-Location apps/windows/rc003
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 $env:PYTHONPATH = Join-Path (Get-Location) 'src'
-.\.venv\Scripts\python.exe -m ovb_rc003 --settings
+.\.venv\Scripts\python.exe -m motedeck --settings
 ```
 
-构建、测试和发布流程见 [开发者文档](apps/windows/rc003/README.md) 与 [TESTING.md](apps/windows/rc003/TESTING.md)。
+构建、测试和发布流程见 [开发者文档](apps/windows/rc003/README.md)。
 
 ---
 
@@ -163,7 +163,7 @@ $env:PYTHONPATH = Join-Path (Get-Location) 'src'
 
 ## 隐私与安全
 
-- 遥控器地址、按键记录、录音、配置和日志都只保存在本机 `%LOCALAPPDATA%\RemoteMic\RC003`，不会上传到项目服务器。
+- 遥控器地址、按键记录、录音、配置和日志都只保存在本机 `%LOCALAPPDATA%\MoteDeck`，不会上传到项目服务器。
 - 检查更新只向 GitHub 请求公开发布信息，不发送本机数据。
 - 关闭设置窗口默认只是隐藏到通知区域；需要结束时右键通知区域图标并选择“完全退出”。
 - 自定义按键映射需要一次管理员授权安装本机权限助手；取消后自定义映射不会生效。普通按键和语音不受影响。
@@ -250,9 +250,9 @@ Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](h
 
 小米蓝牙遥控器 2（RC001）的实现，以及小米蓝牙遥控器 2 / 2 Pro 的型号判断（先按蓝牙名匹配，再读 GATT `0x2A24`），参考了 [`GetSayAll/remote-mic-app-windows`](https://github.com/GetSayAll/remote-mic-app-windows)（SayAll Windows 版），由 [Echo](https://github.com/HD838A) 提交（PR #7）。感谢他的公开实现。
 
-驱动级注入用的内核驱动是第三方项目 [Interception](https://github.com/oblitum/Interception)（作者 [oblitum / Francisco Lopes](https://github.com/oblitum)）：使用的是官方发布包里未修改的 `interception.dll` 与 `install-interception.exe`（由官方安装程序安装原版驱动），按 LGPL-3.0 用于非商业用途，许可与校验信息见 [第三方说明](THIRD_PARTY_NOTICES.md)。
+一个可选的驱动级注入后端是第三方项目 [Interception](https://github.com/oblitum/Interception)（作者 [oblitum / Francisco Lopes](https://github.com/oblitum)）：使用的是官方发布包里未修改的 `interception.dll` 与 `install-interception.exe`（由官方安装程序安装原版驱动），按 LGPL-3.0 用于非商业用途，许可与校验信息见 [第三方说明](THIRD_PARTY_NOTICES.md)。新用户建议优先使用下文的 WinUHid。
 
-另一个可选的驱动级注入后端是第三方的虚拟 HID 驱动 [WinUHid](https://github.com/cgutman/WinUHid)（作者 [cgutman / Cameron Gutman](https://github.com/cgutman)，MIT 许可）：它把上报的按键变成真实的 HID 设备，长按、组合键和部分不认 `SendInput` 的程序都能用。上游只发布源码，构建脚本在装有 Windows Driver Kit 的机器上按原样编译一次，随包附带的 `WinUHid.dll` 与驱动包未做任何修改；驱动绑定 `Root\WinUHid` 设备，安装与卸载只在设置页由你手动点击并确认 UAC，没装驱动时自动回落到 `SendInput`。
+推荐的驱动级注入后端是第三方的虚拟 HID 驱动 [WinUHid](https://github.com/cgutman/WinUHid)（作者 [cgutman / Cameron Gutman](https://github.com/cgutman)，MIT 许可）：它把上报的按键变成真实的 HID 设备，长按、组合键和部分不认 `SendInput` 的程序都能用。上游只发布源码，构建脚本在装有 Windows Driver Kit 的机器上按原样编译一次，随包附带的 `WinUHid.dll` 与驱动包未做任何修改；驱动绑定 `Root\WinUHid` 设备，安装与卸载只在设置页由你手动点击并确认 UAC，没装驱动时自动回落到 `SendInput`。
 
 离线语音识别用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（Apache-2.0，随包附带并内置 ONNX Runtime）跑 [SenseVoice](https://github.com/QwenAudio/SenseVoice)（MIT，阿里通义实验室）的模型；模型不随包分发，只在用户点击安装时下载，转换后的模型文件由 [csukuangfj](https://github.com/csukuangfj) 提供。
 

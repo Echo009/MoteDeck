@@ -33,8 +33,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import app as app_module
-from ovb_rc003 import (
+from motedeck import app as app_module
+from motedeck import (
+    app_input_channels,
     bridge_runtime_status,
     config,
     frida_compat,
@@ -50,7 +51,7 @@ from ovb_rc003 import (
     win32_input,
     win32_keys,
 )
-from ovb_rc003.atvv_session import AudioStarted, AudioStopped, MicButtonPressed
+from motedeck.atvv_session import AudioStarted, AudioStopped, MicButtonPressed
 
 DEFAULT_VOICE_TOKENS = ("ralt",)
 
@@ -416,7 +417,7 @@ class _AppWiringTestCase(unittest.TestCase):
         _stamp_voice_key(self.app._config, 1, hotkey="ralt")
         self.app._voice_shortcut.hotkey = app_module.hotkey.HotkeySpec.parse("ralt")
         selection_patch = mock.patch(
-            "ovb_rc003.remote_selection.selected_raw_path",
+            "motedeck.remote_selection.selected_raw_path",
             side_effect=lambda paths, _key, **_kwargs: app_module.hid_identity.select_single_device_path(paths),
         )
         selection_patch.start()
@@ -553,8 +554,8 @@ class StartupIdentityLoggingTests(unittest.TestCase):
         asyncio.set_event_loop(loop)
         try:
             with tempfile.TemporaryDirectory() as tmp:
-                package_dir = Path(tmp) / "RemoteMicRC003-localtest"
-                executable = package_dir / "RemoteMicRC003.exe"
+                package_dir = Path(tmp) / "MoteDeck-localtest"
+                executable = package_dir / "MoteDeck.exe"
                 with mock.patch.object(
                     logging_setup, "get_logger", return_value=logger
                 ), mock.patch.object(
@@ -577,7 +578,7 @@ class StartupIdentityLoggingTests(unittest.TestCase):
 
 class LiveSettingsReloadTests(_AppWiringTestCase):
     def test_reload_never_applies_another_entity_settings(self):
-        from ovb_rc003 import remote_selection
+        from motedeck import remote_selection
         original = {"schema": 1, "active": "a" * 64, "devices": [
             {"key": "a" * 64, "profile": "xiaomi-rc003"},
             {"key": "b" * 64, "profile": "xiaomi-rc003"}]}
@@ -7347,6 +7348,225 @@ class HidTapStartupStateTests(_AppWiringTestCase):
                 self.app._start_hid_report_tap()
 
         self.assertIs(self.app._hid_report_tap, instances[0])
+
+
+class HidTapRevertRestartTests(_AppWiringTestCase):
+    """A raw-event revert must latch ownership away from the leaking tap and
+    hand it back only to a fresh tap started by the scheduled restart."""
+
+    def _arm_stale_tap_ownership(self):
+        self.app._direct_hid_interception_ready = True
+        self.app._direct_hid_interception_armed = True
+        self.app._direct_hid_interception_armed_monotonic = (
+            time.monotonic() - 30.0
+        )
+
+    def _restart_timer_factory(self, timers):
+        def factory(delay, callback):
+            timer = _ManualTimer(callback)
+            timers.append((delay, timer))
+            return timer
+
+        return factory
+
+    def test_raw_revert_latches_and_blocks_tap_report_rearm(self):
+        self._arm_stale_tap_ownership()
+        self.app._hid_report_tap = mock.Mock(
+            status=frida_compat.HidTapState.READY.value,
+            native_copy_interception=True,
+        )
+        timers = []
+        self.app._hid_tap_restart_timer_factory = self._restart_timer_factory(
+            timers
+        )
+        usage = next(
+            usage
+            for usage, button_id in frida_compat.TAP_USAGE_TO_BUTTON.items()
+            if button_id == "up"
+        )
+        down_report = usage.to_bytes(2, "little") + b"\x00\x00\x00\x00"
+
+        with mock.patch.object(self.app._button_gestures, "press") as press:
+            self.app._on_raw_button_event("ok", True, "keyboard")
+            # The leaking tap keeps delivering reports; while the revert latch
+            # is set they must not reclaim ownership (the Mode B regression).
+            self.app._on_direct_hid_report(1, down_report)
+            self.app._on_direct_hid_report(1, b"\x00" * 6)
+
+        press.assert_not_called()
+        self.assertFalse(self.app._direct_hid_interception_armed)
+        self.assertFalse(self.app._direct_hid_interception_ready)
+        self.assertTrue(
+            self.app._direct_hid_interception_reverted_pending_restart
+        )
+        self.assertEqual(len(timers), 1)
+
+    def test_latch_blocks_late_tap_status_rearm(self):
+        self._arm_stale_tap_ownership()
+        self.app._hid_report_tap = mock.Mock(
+            status=frida_compat.HidTapState.READY.value,
+            native_copy_interception=True,
+        )
+        self.app._hid_tap_restart_timer_factory = self._restart_timer_factory(
+            []
+        )
+
+        self.app._on_raw_button_event("ok", True, "keyboard")
+        # A stale READY from the leaking tap must not reclaim ownership.
+        self.app._on_hid_tap_status(
+            frida_compat.HidTapState.READY.value,
+            "hid_interception_verified",
+        )
+
+        self.assertFalse(self.app._direct_hid_interception_armed)
+        self.assertFalse(self.app._direct_hid_interception_ready)
+        self.assertTrue(
+            self.app._direct_hid_interception_reverted_pending_restart
+        )
+
+    def test_never_verified_arming_does_not_revert_on_raw_event(self):
+        # The neutral-wait handover deliberately lets the in-flight key
+        # episode reach Windows, so its raw events are expected handover
+        # traffic: they must neither revert ownership nor unblock mapping.
+        self.app._direct_hid_interception_armed = True
+        self.app._direct_hid_interception_ready = False
+        self.app._direct_hid_interception_armed_monotonic = (
+            time.monotonic() - 30.0
+        )
+        timers = []
+        self.app._hid_tap_restart_timer_factory = self._restart_timer_factory(
+            timers
+        )
+
+        with mock.patch.object(self.app._button_gestures, "press") as press:
+            self.app._on_raw_button_event("ok", True, "keyboard")
+
+        press.assert_not_called()
+        self.assertTrue(self.app._direct_hid_interception_armed)
+        self.assertFalse(self.app._direct_hid_interception_ready)
+        self.assertFalse(
+            self.app._direct_hid_interception_reverted_pending_restart
+        )
+        self.assertEqual(timers, [])
+
+    def test_revert_debounces_to_one_pending_restart_timer(self):
+        self._arm_stale_tap_ownership()
+        timers = []
+        self.app._hid_tap_restart_timer_factory = self._restart_timer_factory(
+            timers
+        )
+
+        self.app._on_raw_button_event("ok", True, "keyboard")
+        with self.app._input_arbitration_lock:
+            self.app._schedule_hid_tap_revert_restart_locked()
+
+        self.assertEqual(len(timers), 1)
+        self.assertIs(self.app._hid_tap_restart_timer, timers[0][1])
+        self.assertEqual(
+            timers[0][0],
+            app_input_channels._HID_TAP_REVERT_RESTART_DELAY_SECONDS,
+        )
+
+    def test_auto_restart_stops_old_tap_and_starts_a_fresh_one(self):
+        self._arm_stale_tap_ownership()
+        old_tap = mock.Mock(status=frida_compat.HidTapState.READY.value)
+        self.app._hid_report_tap = old_tap
+        self.app._hid_tap_restart_timer_factory = self._restart_timer_factory(
+            []
+        )
+        instances = []
+
+        class FreshTap:
+            def __init__(
+                self, _report_handler, *, status_handler, diagnostic_trace,
+                selected_key,
+            ):
+                self.status_handler = status_handler
+                self.status = "starting"
+                instances.append(self)
+
+            def start(self):
+                return True
+
+            def stop(self):
+                pass
+
+        self.app._on_raw_button_event("ok", True, "keyboard")
+        self.assertTrue(
+            self.app._direct_hid_interception_reverted_pending_restart
+        )
+
+        with mock.patch.object(
+            app_module.frida_compat, "RC003HidReportTap", FreshTap
+        ):
+            self.app._run_hid_tap_auto_restart()
+
+        old_tap.stop.assert_called_once()
+        self.assertIs(self.app._hid_report_tap, instances[0])
+        self.assertFalse(
+            self.app._direct_hid_interception_reverted_pending_restart
+        )
+        self.assertEqual(
+            instances[0].status_handler, self.app._on_hid_tap_status
+        )
+
+    def test_auto_restart_does_not_start_after_stop_requested(self):
+        self._arm_stale_tap_ownership()
+        old_tap = mock.Mock(status=frida_compat.HidTapState.READY.value)
+        self.app._hid_report_tap = old_tap
+        with self.app._raw_input_lifecycle_lock:
+            self.app._raw_input_stopping = True
+
+        with mock.patch.object(
+            app_module.frida_compat, "RC003HidReportTap"
+        ) as tap_class, mock.patch.object(
+            self.app, "_start_hid_report_tap"
+        ) as start_tap:
+            self.app._run_hid_tap_auto_restart()
+
+        tap_class.assert_not_called()
+        start_tap.assert_not_called()
+        old_tap.stop.assert_not_called()
+        self.assertIs(self.app._hid_report_tap, old_tap)
+
+    def test_restart_cooldown_extends_the_next_delay(self):
+        self.app._hid_tap_auto_restart_last_monotonic = (
+            time.monotonic() - 5.0
+        )
+        timers = []
+        self.app._hid_tap_restart_timer_factory = self._restart_timer_factory(
+            timers
+        )
+
+        with self.app._input_arbitration_lock:
+            self.app._schedule_hid_tap_revert_restart_locked()
+
+        cooldown = (
+            app_input_channels._HID_TAP_REVERT_RESTART_COOLDOWN_SECONDS
+        )
+        self.assertGreaterEqual(timers[0][0], cooldown - 5.0 - 0.5)
+        self.assertLessEqual(timers[0][0], cooldown)
+
+    def test_restart_attempts_capped_per_window(self):
+        self.app._hid_tap_auto_restart_attempts = (
+            app_input_channels._HID_TAP_REVERT_RESTART_MAX_ATTEMPTS
+        )
+        self.app._hid_tap_auto_restart_window_start = time.monotonic()
+        timers = []
+        self.app._hid_tap_restart_timer_factory = self._restart_timer_factory(
+            timers
+        )
+
+        with self.assertLogs(self.app._logger, level="WARNING") as captured:
+            with self.app._input_arbitration_lock:
+                self.app._schedule_hid_tap_revert_restart_locked()
+                self.app._schedule_hid_tap_revert_restart_locked()
+
+        self.assertEqual(timers, [])
+        exhausted = [
+            line for line in captured.output if "exhausted" in line
+        ]
+        self.assertEqual(len(exhausted), 1)
 
 
 class VoiceCleanupFailurePreservesPendingStateTests(_AppWiringTestCase):

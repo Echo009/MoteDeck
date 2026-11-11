@@ -15,8 +15,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from ovb_rc003 import element_navigation_runtime as runtime, log_export, win32_input
-from ovb_rc003.diagnostic_trace import DiagnosticTrace
+from motedeck import element_navigation_runtime as runtime, log_export, win32_input
+from motedeck.diagnostic_trace import DiagnosticTrace
 
 
 prototype = runtime._load_prototype()
@@ -794,7 +794,7 @@ class NavigationDiagnosticsTests(unittest.TestCase):
 
     def test_startup_failure_is_available_before_bridge_trace_exists(self):
         with mock.patch.object(runtime, "_diagnostic_trace", None), \
-                self.assertLogs("ovb_rc003", level="INFO") as logs:
+                self.assertLogs("motedeck", level="INFO") as logs:
             host._NavigationDiagnostics(runtime._emit_diagnostic, runtime._diagnostic_enabled).error(
                 "worker_error", PermissionError("PRIVATE"), command="initialize")
         self.assertIn("PermissionError", logs.output[0])
@@ -804,7 +804,7 @@ class NavigationDiagnosticsTests(unittest.TestCase):
         error = host.MouseInputCleanupIncompleteError("left", "PRIVATE")
         error.__cause__ = ctypes.ArgumentError("PRIVATE INPUT")
         with mock.patch.object(runtime, "_diagnostic_trace", None), \
-                self.assertLogs("ovb_rc003", level="INFO") as logs:
+                self.assertLogs("motedeck", level="INFO") as logs:
             host._NavigationDiagnostics(runtime._emit_diagnostic, runtime._diagnostic_enabled).error(
                 "worker_error", error, command="stop")
         self.assertIn("cause_type=ArgumentError", logs.output[0])

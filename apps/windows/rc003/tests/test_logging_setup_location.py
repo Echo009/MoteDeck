@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import diagnostic_trace, logging_setup
+from motedeck import diagnostic_trace, logging_setup
 
 
 class LogPathHelpersTests(unittest.TestCase):
@@ -41,7 +41,7 @@ class LogPathHelpersTests(unittest.TestCase):
 class PersistentLogPrivacyTests(unittest.TestCase):
     def test_native_exception_text_and_traceback_are_removed(self):
         record = logging.LogRecord(
-            name="ovb_rc003",
+            name="motedeck",
             level=logging.ERROR,
             pathname=__file__,
             lineno=1,
@@ -297,7 +297,7 @@ class OpenLogLocationTests(unittest.TestCase):
         # with os.startfile itself monkeypatched away for this one test.
         import os
 
-        from ovb_rc003 import logging_setup as module_under_test
+        from motedeck import logging_setup as module_under_test
 
         had_startfile = hasattr(os, "startfile")
         original = getattr(os, "startfile", None)

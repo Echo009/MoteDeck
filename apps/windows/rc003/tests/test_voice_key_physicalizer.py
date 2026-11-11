@@ -4,7 +4,7 @@ import types
 import unittest
 from unittest import mock
 
-from ovb_rc003 import voice_key_physicalizer_windows as physicalizer
+from motedeck import voice_key_physicalizer_windows as physicalizer
 
 
 class VoiceKeyPhysicalizerDecisionTests(unittest.TestCase):

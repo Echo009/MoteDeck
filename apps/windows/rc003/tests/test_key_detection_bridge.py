@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import key_detection_bridge
+from motedeck import key_detection_bridge
 
 
 class KeyDetectionBridgeTests(unittest.TestCase):

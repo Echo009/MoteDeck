@@ -4,7 +4,7 @@ import time
 import unittest
 from pathlib import Path
 
-from ovb_rc003.diagnostic_trace import DiagnosticTrace
+from motedeck.diagnostic_trace import DiagnosticTrace
 
 
 class DiagnosticTraceTests(unittest.TestCase):

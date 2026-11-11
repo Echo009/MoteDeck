@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from ovb_rc003 import (
+from motedeck import (
     __main__ as entry, config, dev_session, startup_windows,
     single_instance, settings_ui, hid_elevation_windows,
     bridge_control_windows, element_navigation_control_windows as navigation,

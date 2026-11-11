@@ -11,9 +11,9 @@ import types
 import unittest
 from unittest import mock
 
-from ovb_rc003 import input_environment_diagnostics_windows as env
-from ovb_rc003 import voice_interaction_diagnostics_windows as focus
-from ovb_rc003 import diagnostic_trace, shortcut_observation_windows as receiver
+from motedeck import input_environment_diagnostics_windows as env
+from motedeck import voice_interaction_diagnostics_windows as focus
+from motedeck import diagnostic_trace, shortcut_observation_windows as receiver
 
 
 class TokenMetadataTests(unittest.TestCase):
@@ -228,7 +228,7 @@ class ObservationIntegrationTests(unittest.TestCase):
         self.assertEqual(rows[0]['clipboard']['sequence'], 7)
 
     def test_diagnostic_attempt_uses_recorded_hotkey_provider(self):
-        from ovb_rc003.app import RC003App
+        from motedeck.app import RC003App
         app = RC003App.__new__(RC003App)
         app._voice_shortcut = types.SimpleNamespace()
         app._voice_attempt_id = None
@@ -247,8 +247,8 @@ class ObservationIntegrationTests(unittest.TestCase):
         self.assertEqual(fields['physicalizer_binding'], 'not_required')
 
     def test_voice_attempt_only_observes_tracker_before_dispatch_receipt(self):
-        from ovb_rc003 import remote_selection
-        from ovb_rc003.app import RC003App
+        from motedeck import remote_selection
+        from motedeck.app import RC003App
         app = RC003App.__new__(RC003App)
         app._voice_shortcut = types.SimpleNamespace()
         app._voice_attempt_id = None

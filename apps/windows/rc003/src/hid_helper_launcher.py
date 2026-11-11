@@ -6,7 +6,7 @@ HELPER_EXIT_UNEXPECTED_FAILURE = 5
 
 
 def _load_helper_main():
-    from ovb_rc003.hid_elevation_windows import helper_main
+    from motedeck.hid_elevation_windows import helper_main
 
     return helper_main
 

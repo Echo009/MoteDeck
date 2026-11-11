@@ -8,8 +8,8 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import frida_hid_tap_runtime, hid_elevation_windows
-from ovb_rc003 import frida_hid_tap_injector as injector, hid_injection_diagnostics as diagnostics
+from motedeck import frida_hid_tap_runtime, hid_elevation_windows
+from motedeck import frida_hid_tap_injector as injector, hid_injection_diagnostics as diagnostics
 
 
 SID = "S-1-5-21-111-222-333-1001"

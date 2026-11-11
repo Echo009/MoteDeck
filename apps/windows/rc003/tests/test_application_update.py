@@ -10,7 +10,7 @@ from datetime import date
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import application_update
+from motedeck import application_update
 
 
 class FakeResponse:
@@ -92,8 +92,8 @@ def _release_payload(
     draft: bool = False,
     notes: str = "release notes",
 ) -> tuple[dict, bytes]:
-    installer_name = f"RemoteMicRC003Setup-{version}-unsigned.exe"
-    portable_name = f"RemoteMicRC003-{version}-portable-unsigned.zip"
+    installer_name = f"MoteDeckSetup-{version}-unsigned.exe"
+    portable_name = f"MoteDeck-{version}-portable-unsigned.zip"
     manifest = (
         f"{hashlib.sha256(portable_data).hexdigest()}  {portable_name}\n"
         f"{hashlib.sha256(installer_data).hexdigest()}  {installer_name}\n"
@@ -933,7 +933,7 @@ class UpdateCleanupTests(unittest.TestCase):
     @staticmethod
     def _write_owned_package(directory: Path, version: str) -> None:
         directory.mkdir(parents=True)
-        (directory / f"RemoteMicRC003-{version}-portable-unsigned.zip").write_bytes(
+        (directory / f"MoteDeck-{version}-portable-unsigned.zip").write_bytes(
             b"package"
         )
 

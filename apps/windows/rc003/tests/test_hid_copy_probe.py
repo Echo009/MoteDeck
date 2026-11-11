@@ -4,14 +4,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003.diagnostic_trace import DiagnosticTrace
-from ovb_rc003.frida_compat import RC003HidReportTap
-from ovb_rc003 import frida_hid_tap_runtime
+from motedeck.diagnostic_trace import DiagnosticTrace
+from motedeck.frida_compat import RC003HidReportTap
+from motedeck import frida_hid_tap_runtime
 
 
 class HidCopyProbeTests(unittest.TestCase):
     def make_tap(self, seconds="0", trace=None):
-        with mock.patch.dict("os.environ", {"REMOTE_MIC_RC003_COPY_PROBE_SECONDS": seconds}):
+        with mock.patch.dict("os.environ", {"MOTEDECK_COPY_PROBE_SECONDS": seconds}):
             return RC003HidReportTap(mock.Mock(), enabled=False, diagnostic_trace=trace)
 
     def test_probe_is_opt_in_bounded_and_requires_enabled_trace(self):

@@ -7,7 +7,7 @@
     requirements-dev.txt, run the public-boundary scan, run the test suite
     (gated with ``-W error::ResourceWarning`` plus a complete log scan for
     late resource leaks, matching the CI workflow),
-    invoke PyInstaller against RemoteMicRC003.spec, then smoke-check the
+    invoke PyInstaller against MoteDeck.spec, then smoke-check the
     narrow HID helper with ``--self-check`` and the built executable with
     ``--dry-run`` and ``--qt-runtime-check``. The
     second check loads the real frozen Qt DLL chain and verifies main.qml,
@@ -42,10 +42,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$RC003Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$RepoRoot = (Resolve-Path (Join-Path $RC003Root "..\..\..")).Path
+$MoteDeckRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$RepoRoot = (Resolve-Path (Join-Path $MoteDeckRoot "..\..\..")).Path
 . (Join-Path $PSScriptRoot "build-provenance.ps1")
-$BuildRoot = Join-Path $RC003Root "dist\RemoteMicRC003"
+$BuildRoot = Join-Path $MoteDeckRoot "dist\MoteDeck"
 $BuildProvenancePath = $null
 
 function Assert-LastExitCode {
@@ -163,16 +163,16 @@ function Resolve-BuildPython {
 
 Write-Host "== Remote Mic · RC003 candidate build =="
 
-$BuildGate = Enter-RC003BuildGate -RC003Root $RC003Root
+$BuildGate = Enter-MoteDeckBuildGate -MoteDeckRoot $MoteDeckRoot
 try {
-    Push-Location $RC003Root
+    Push-Location $MoteDeckRoot
     try {
     # Candidate builds run on a developer's interactive desktop. Tests must
     # never install a real keyboard hook or inject an actual key edge there.
-    $env:RC003_DISABLE_LIVE_INPUT = "1"
+    $env:MOTEDECK_DISABLE_LIVE_INPUT = "1"
     $env:RC003_ALLOW_LIVE_INPUT_TESTS = "0"
 
-    $sourceVersionFile = Join-Path $RC003Root "src\ovb_rc003\VERSION"
+    $sourceVersionFile = Join-Path $MoteDeckRoot "src\motedeck\VERSION"
     $sourceVersion = (Get-Content -LiteralPath $sourceVersionFile -Raw).Trim()
     if ($sourceVersion -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
         throw "invalid application version in ${sourceVersionFile}: $sourceVersion"
@@ -196,15 +196,15 @@ try {
     if ($venvVersion -ne "3.12") {
         throw "candidate build virtual environment must use Python 3.12; .venv reported '$venvVersion'"
     }
-    $productPresentation = Get-RC003ProductPresentation `
-        -RC003Root $RC003Root `
+    $productPresentation = Get-MoteDeckProductPresentation `
+        -MoteDeckRoot $MoteDeckRoot `
         -PythonExecutable $venvPython
     $sourceVersion = [string]$productPresentation.version
     # Any failed build attempt must leave the previous dist unable to masquerade
     # as the current source state. Resolve the path from the same presentation
     # contract as the build, after the selected Python 3.12 environment exists.
-    $BuildProvenancePath = Clear-RC003BuildProvenance `
-        -RC003Root $RC003Root `
+    $BuildProvenancePath = Clear-MoteDeckBuildProvenance `
+        -MoteDeckRoot $MoteDeckRoot `
         -BuildRoot $BuildRoot `
         -PythonExecutable $venvPython
 
@@ -219,7 +219,7 @@ try {
 
     # XRBM-031 In-scope item 8: fetch + hash-verify the official VB-CABLE
     # base package BEFORE PyInstaller runs, so the frozen build deterministically
-    # bundles it (see build/RemoteMicRC003.spec) and end users of the
+    # bundles it (see build/MoteDeck.spec) and end users of the
     # built candidate never need their own network access to install the
     # optional driver. A download failure or hash mismatch here must fail
     # this whole build closed, not silently produce a candidate with no
@@ -240,8 +240,8 @@ try {
     & powershell -ExecutionPolicy Bypass -File (Join-Path "build" "fetch-winuhid.ps1")
     Assert-LastExitCode "fetch-winuhid.ps1"
 
-    $inputStateBeforeBuild = Get-RC003BuildInputState `
-        -RC003Root $RC003Root `
+    $inputStateBeforeBuild = Get-MoteDeckBuildInputState `
+        -MoteDeckRoot $MoteDeckRoot `
         -RepoRoot $RepoRoot
 
     Write-Host "-- third-party notice and license inventory --"
@@ -263,7 +263,7 @@ try {
     $env:PYTHONPATH = $cythonSourceRoot
     Write-Host "-- complete native-stage test suite (single pass) --"
     $testLogPath = Join-Path ([System.IO.Path]::GetTempPath()) (
-        "remote-mic-rc003-tests-{0}.log" -f [guid]::NewGuid().ToString("N")
+        "motedeck-tests-{0}.log" -f [guid]::NewGuid().ToString("N")
     )
     try {
         # unittest writes normal progress to stderr. Windows PowerShell turns
@@ -309,7 +309,7 @@ try {
     & $venvPython (Join-Path $cythonSourceRoot "hid_helper_launcher.py") --self-check
     Assert-LastExitCode "compiled HID helper --self-check"
 
-    $env:RC003_BUILD_SOURCE_ROOT = $cythonSourceRoot
+    $env:MOTEDECK_BUILD_SOURCE_ROOT = $cythonSourceRoot
     Write-Host "-- PyInstaller source root: Cython stage --"
     Write-Host "-- PyInstaller build (unsigned candidate) --"
     # PyInstaller logs INFO lines to native stderr. Windows PowerShell turns
@@ -319,7 +319,7 @@ try {
     $previousErrorActionPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Continue"
-        & $venvPython -m PyInstaller (Join-Path "build" "RemoteMicRC003.spec") --distpath dist --workpath build\pyinstaller-work --noconfirm 2>&1 |
+        & $venvPython -m PyInstaller (Join-Path "build" "MoteDeck.spec") --distpath dist --workpath build\pyinstaller-work --noconfirm 2>&1 |
             Tee-Object -FilePath (Join-Path "build" "pyinstaller.log")
         $pyInstallerExitCode = $LASTEXITCODE
     } finally {
@@ -330,8 +330,8 @@ try {
     }
 
     Write-Host "-- built-artifact dry-run smoke check (no GUI/BLE/HID/audio) --"
-    $builtPaths = Get-RC003BuildProductPaths `
-        -RC003Root $RC003Root `
+    $builtPaths = Get-MoteDeckBuildProductPaths `
+        -MoteDeckRoot $MoteDeckRoot `
         -BuildRoot $BuildRoot `
         -PythonExecutable $venvPython
     $builtExe = $builtPaths.MainExecutable
@@ -376,8 +376,8 @@ try {
         -ArgumentList @("--qt-runtime-check") `
         -Step "$builtExe --qt-runtime-check"
 
-    $inputStateAfterBuild = Get-RC003BuildInputState `
-        -RC003Root $RC003Root `
+    $inputStateAfterBuild = Get-MoteDeckBuildInputState `
+        -MoteDeckRoot $MoteDeckRoot `
         -RepoRoot $RepoRoot
     if (
         $inputStateAfterBuild.FileCount -ne $inputStateBeforeBuild.FileCount -or
@@ -385,19 +385,19 @@ try {
     ) {
         throw "build inputs changed while PyInstaller or frozen checks were running"
     }
-    Assert-RC003ExecutableMetadata `
-        -RC003Root $RC003Root `
+    Assert-MoteDeckExecutableMetadata `
+        -MoteDeckRoot $MoteDeckRoot `
         -BuildRoot $BuildRoot `
         -PythonExecutable $venvPython
-    Write-RC003BuildProvenance `
-        -RC003Root $RC003Root `
+    Write-MoteDeckBuildProvenance `
+        -MoteDeckRoot $MoteDeckRoot `
         -RepoRoot $RepoRoot `
         -BuildRoot $BuildRoot `
         -InputState $inputStateBeforeBuild `
         -ExecutableMetadataVerified `
         -PythonExecutable $venvPython | Out-Null
-    Assert-RC003BuildProvenance `
-        -RC003Root $RC003Root `
+    Assert-MoteDeckBuildProvenance `
+        -MoteDeckRoot $MoteDeckRoot `
         -RepoRoot $RepoRoot `
         -BuildRoot $BuildRoot `
         -PythonExecutable $venvPython | Out-Null
@@ -407,9 +407,9 @@ try {
     if ([string]::IsNullOrWhiteSpace($iscc)) {
         throw "Inno Setup 6 is required to build the installer; install it or put ISCC.exe on PATH"
     }
-    & $iscc (Join-Path "installer" "RemoteMicRC003Setup.iss")
+    & $iscc (Join-Path "installer" "MoteDeckSetup.iss")
     Assert-LastExitCode "Inno Setup installer"
-    $installerPath = Join-Path $RC003Root (
+    $installerPath = Join-Path $MoteDeckRoot (
         "dist\installer\MoteDeckSetup-$sourceVersion-unsigned.exe"
     )
     if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
@@ -417,7 +417,7 @@ try {
     }
     Write-Host "installer: $installerPath"
 
-    Write-Host "== build complete: dist\RemoteMicRC003\ (unsigned) =="
+    Write-Host "== build complete: dist\MoteDeck\ (unsigned) =="
     } catch {
         if (-not [string]::IsNullOrWhiteSpace([string]$BuildProvenancePath)) {
             Remove-Item -LiteralPath $BuildProvenancePath -Force -ErrorAction SilentlyContinue
@@ -427,5 +427,5 @@ try {
         Pop-Location
     }
 } finally {
-    Exit-RC003BuildGate -Mutex $BuildGate
+    Exit-MoteDeckBuildGate -Mutex $BuildGate
 }

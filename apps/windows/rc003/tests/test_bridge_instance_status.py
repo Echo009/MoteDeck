@@ -1,7 +1,7 @@
 import inspect
 import unittest
 
-from ovb_rc003 import single_instance
+from motedeck import single_instance
 
 
 class BridgeInstanceStatusTests(unittest.TestCase):

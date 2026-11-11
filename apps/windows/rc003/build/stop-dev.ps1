@@ -15,12 +15,12 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$RC003Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$MoteDeckRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $DevMarker = "--remote-mic-dev-session"
 $CurrentSessionId = [uint32][System.Diagnostics.Process]::GetCurrentProcess().SessionId
 $InterpreterPaths = @(
-    (Join-Path $RC003Root ".venv\Scripts\python.exe"),
-    (Join-Path $RC003Root ".venv\Scripts\pythonw.exe")
+    (Join-Path $MoteDeckRoot ".venv\Scripts\python.exe"),
+    (Join-Path $MoteDeckRoot ".venv\Scripts\pythonw.exe")
 ) | Where-Object {
     Test-Path -LiteralPath $_ -PathType Leaf
 } | ForEach-Object {
@@ -153,7 +153,7 @@ if (
     throw "The marked processes do not own this checkout's V3 desktop window."
 }
 
-$Python = Join-Path $RC003Root ".venv\Scripts\python.exe"
+$Python = Join-Path $MoteDeckRoot ".venv\Scripts\python.exe"
 if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
     throw "The source exit entry point requires .venv\Scripts\python.exe."
 }
@@ -161,8 +161,8 @@ if (-not (Test-Path -LiteralPath $Python -PathType Leaf)) {
 Write-Host "[stop-dev] requesting normal application exit"
 $PreviousPythonPath = $env:PYTHONPATH
 try {
-    $env:PYTHONPATH = Join-Path $RC003Root "src"
-    & $Python -m ovb_rc003 --request-exit
+    $env:PYTHONPATH = Join-Path $MoteDeckRoot "src"
+    & $Python -m motedeck --request-exit
     if ($LASTEXITCODE -ne 0) {
         throw "The source application did not complete normal exit (code $LASTEXITCODE)."
     }

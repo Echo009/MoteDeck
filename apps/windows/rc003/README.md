@@ -17,7 +17,9 @@ Windows 的远程按键和语音输入设备。
 - 运行 `MoteDeckSetup-<版本号>-unsigned.exe`，按提示安装到当前用户目录
   `%LOCALAPPDATA%\MoteDeck`，并创建开始菜单与桌面快捷方式。
 - 卸载：Windows 设置 → 应用 → MoteDeck → 卸载，或开始菜单中的卸载入口；
-  配置、日志和录音保留在 `%LOCALAPPDATA%\RemoteMic\RC003`，需要彻底清理时手动删除。
+  配置、日志和录音保留在 `%LOCALAPPDATA%\MoteDeck`，需要彻底清理时手动删除。
+  旧版本遗留的 `%LOCALAPPDATA%\RemoteMic\RC003` 数据会在首次启动时自动复制到新目录，
+  旧目录不会自动删除。
 - 程序暂未签名，首次运行可能出现 Windows SmartScreen 提示。请从本仓库下载，并用
   同一次发布中的 `SHA256SUMS.txt` 核对安装包。
 - 如果旧版正在运行，先从通知区域图标选择“完全退出”，再运行新安装包。
@@ -82,7 +84,7 @@ Get-FileHash -Algorithm SHA256 .\MoteDeckSetup-<版本号>-unsigned.exe
 - 当前映射含需要调整的旧动作时，仍可查看应用条、管理已有档案及导入有效配置；
   复制／导出前须先在按键页完成调整并保存。如果操作已保存成功但列表未能刷新，
   会提示重新打开面板查看，不把保存成功误报为失败。
-- 默认数据文件为 `%LOCALAPPDATA%\RemoteMic\RC003\app_profiles.json`，不替换原来的
+- 默认数据文件为 `%LOCALAPPDATA%\MoteDeck\app_profiles.json`，不替换原来的
   `config.json`、`key_bindings.json`。导出位置由用户选择，导出的 JSON 可用于备份和导入；
   不允许导出覆盖软件数据目录。开发隔离会话仍使用自己的数据根目录。
 
@@ -93,18 +95,17 @@ Get-FileHash -Algorithm SHA256 .\MoteDeckSetup-<版本号>-unsigned.exe
 
 ### 4. 设置语音
 
-如果要把遥控器声音送进搜狗、微信、豆包或 Chatterfly，需要安装并配置 VB-CABLE：
+如果要把遥控器声音送进搜狗、微信或豆包，需要安装并配置 VB-CABLE：
 
 1. 打开“语音”页，点击“安装音频”，按提示安装后重启电脑。
 2. MoteDeck的“输出端点”选择 `CABLE Input — Windows WASAPI`；没有 WASAPI 时，
    可选 `Windows DirectSound`。
 3. 在输入法的麦克风设置中选择 `CABLE Output`。
-4. 在MoteDeck中选择语音程序，刷新或手动录入该输入法的语音快捷键。Chatterfly
-   使用其设置中的“语音输入”快捷键；首次选择不会继承其它输入法的快捷键。
-   Chatterfly 的快捷键会从它的用户配置自动读取。
-   已保存的手动值须点击刷新才替换；多个账号配置、未启用或读取失败时保留原值。
-   切换设备、切换录音模式或进入语音页时，搜狗、豆包、Chatterfly 的自动值会重新读取；
-   当前正忙时等空闲后补读，手动值保持不变。微信仍须主动刷新，不会自动打开设置窗口。
+4. 打开“语音”页的“音频通路与语音键”，点“管理配置…”进入“语音键配置”：添加语音键，
+   点快捷键框录入该输入法的语音快捷键，必要时改名、调整顺序或单独停用某条。
+   每条语音键还能设置“延迟发送”（推迟约 0.18 秒下发，用于屏蔽输入法自身的短按触发，
+   以实现短按切换模式；若能在输入法设置里直接关掉短按触发，则无需开启）和
+   “TSF 切换”（按下语音键前先切到所选输入法，用于必须成为当前输入法才响应语音的输入法）。
    请避开系统及其它软件已占用的组合键。
 5. 先在记事本中用实体键盘测试这个快捷键，确认输入法能够正常开麦和输入文字。
 6. 保持光标在文字框内，再用遥控器话筒键测试。
@@ -114,15 +115,15 @@ Get-FileHash -Algorithm SHA256 .\MoteDeckSetup-<版本号>-unsigned.exe
 
 小米蓝牙遥控器使用按住型：按住说话，松开结束。
 
-Chatterfly 走的是它已有的录音开始／结束入口，小米按住操作保持原样，已有录音时不重复
-开启。气泡出现后才转发遥控声音，结束后气泡应消失。语音快捷键仍可读取和录入供键盘对照，
-但不再是遥控唤起的前提。
-
 每条语音键可以单独设置录音增益：“自动”按这一段录音的峰值自动拉齐，选“自动”后滑块
 不再生效；关掉“自动”则按 −3 ~ +3 共七档手动调整，0 为不调整。
 
 使用快捷键的按住型录音期间，语音快捷键会一直保持按下，松开话筒键才释放。请避开 Windows 和其它
 软件已经占用的组合键，录音时不要同时操作其它键或鼠标。
+
+已知输入法兼容性：Windows Terminal 等 XAML Islands 窗口获得焦点时，微信输入法（WeType）
+的语音快捷键可能无法触发——其按键预处理不参与该焦点下的 TSF 分发（实测 3.0.1.35）。
+此时可改用系统自带“语音输入”，或换用其它输入法验证。
 
 ## 联动 OpenMexia
 
@@ -195,14 +196,16 @@ UAC；若明确提示需要重启电脑，请保存工作后重启 Windows。
 
 ## 配置、日志与卸载
 
-用户配置和日志位于：
+配置和日志位于：
 
 ```text
-%LOCALAPPDATA%\RemoteMic\RC003
+%LOCALAPPDATA%\MoteDeck
 ```
 
-删除免安装程序文件夹不会自动删除这里的数据。若开启过“随 Windows 启动”，移动或删除
-程序前先在设备页关闭该选项。需要完全清除设置时，先完全退出MoteDeck，再自行删除上述目录。
+从旧版本升级时，首次启动会把原有的 `%LOCALAPPDATA%\RemoteMic\RC003` 数据自动复制到
+上述新目录，旧目录原样保留。删除免安装程序文件夹不会自动删除这里的数据。若开启过
+“随 Windows 启动”，移动或删除程序前先在设备页关闭该选项。需要完全清除设置时，先
+完全退出MoteDeck，再自行删除上述目录。
 
 ## 当前限制
 
@@ -243,7 +246,7 @@ GitHub 当前正式 Release、远端 `main` 与当前源码版本，不使用旧
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 $env:PYTHONPATH = Join-Path (Get-Location) 'src'
-.\.venv\Scripts\python.exe -m ovb_rc003 --settings
+.\.venv\Scripts\python.exe -m motedeck --settings
 ```
 
 运行测试：
@@ -274,7 +277,7 @@ $env:PYTHONPATH = Join-Path (Get-Location) 'src'
 该间隔只是定位规则，输出始终标明“推定”，不能当成用户确认，也不能据此跳过相关前因。
 阅读时先核实本次范围，再读完整相关过程；旧记录按需回查，整包核对不等于重读全部历史。
 工具不会自动判定根因，也不要求用户运行。输出包含诊断元数据，只在开发机临时使用；需要
-保存时放到仓库已忽略的 `.build/log-audit/`，核验结论写入 `TESTING.md` 后可清理。
+保存时放到仓库已忽略的 `.build/log-audit/`，可随时清理。
 脚本随源码维护，不进入程序打包入口；不解压、不改用户文件或设备。
 
 构建候选目录：
@@ -285,11 +288,7 @@ $env:PYTHONPATH = Join-Path (Get-Location) 'src'
 
 维护资料：
 
-- [当前维护与历史证据](MAINTENANCE.md)
-- [测试队列与验收结果](TESTING.md)
-- [Windows 架构账目](WINDOWS-ARCHITECTURE-LEDGER.md)
 - [性能记录](PERFORMANCE.md)
-- [验证与交付规则](VALIDATION-AND-DELIVERY.md)
 - [版本历史](CHANGELOG.md)
 
 </details>

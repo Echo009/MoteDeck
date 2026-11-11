@@ -35,10 +35,10 @@ import unittest
 import uuid
 from unittest import mock
 
-from ovb_rc003 import atvv_protocol as proto
-from ovb_rc003 import atvv_session
-from ovb_rc003 import identity
-from ovb_rc003.ble_transport_winrt import (
+from motedeck import atvv_protocol as proto
+from motedeck import atvv_session
+from motedeck import identity
+from motedeck.ble_transport_winrt import (
     BATTERY_SERVICE_UUID,
     NoReachableCandidateError,
     RC003BleSession,
@@ -125,7 +125,7 @@ class DiscoverCandidatesTests(unittest.TestCase):
             FakeDeviceInformation("PRIVATE-DEVICE-ID", "MI RC")
         )
 
-        with self.assertLogs("ovb_rc003.ble_transport_winrt", level="INFO") as logs:
+        with self.assertLogs("motedeck.ble_transport_winrt", level="INFO") as logs:
             candidates = _run(discover_candidates(winrt=env.build_winrt_modules()))
 
         self.assertEqual(len(candidates), 2)
@@ -142,7 +142,7 @@ class DiscoverCandidatesTests(unittest.TestCase):
             FakeDeviceInformation("private-device-id-b", "MI RC")
         )
 
-        with self.assertLogs("ovb_rc003.ble_transport_winrt", level="INFO") as logs:
+        with self.assertLogs("motedeck.ble_transport_winrt", level="INFO") as logs:
             candidates = _run(discover_candidates(winrt=env.build_winrt_modules()))
 
         self.assertEqual(len(candidates), 2)
@@ -189,7 +189,7 @@ class SelectConnectableCandidateTests(unittest.TestCase):
     def test_real_probe_timeout_does_not_block_later_reachable_candidate(self):
         candidates = self._candidates()
         with mock.patch(
-            "ovb_rc003.ble_transport_winrt."
+            "motedeck.ble_transport_winrt."
             "_candidate_has_voice_service_with_hard_timeout",
             side_effect=[None, True],
         ) as hard_probe:
@@ -314,7 +314,7 @@ class SelectConnectableCandidateTests(unittest.TestCase):
             return env.device
 
         modules.bluetooth_le_device.from_id_async = from_id
-        with self.assertLogs("ovb_rc003.ble_transport_winrt", level="INFO") as logs:
+        with self.assertLogs("motedeck.ble_transport_winrt", level="INFO") as logs:
             chosen = _run(select_connectable_candidate(
                 records, selected_key=selected_key, winrt=modules))
 
@@ -623,7 +623,7 @@ class BatteryMonitorTests(unittest.TestCase):
                 return await original(*args)
 
             battery.battery_characteristic.read_value_with_cache_mode_async = blocked
-            with mock.patch("ovb_rc003.ble_transport_winrt._BATTERY_SETUP_TIMEOUT_SECONDS", 0.05):
+            with mock.patch("motedeck.ble_transport_winrt._BATTERY_SETUP_TIMEOUT_SECONDS", 0.05):
                 session.start_battery_monitor()
             monitor = session._battery_monitor
             try:
@@ -688,7 +688,7 @@ class BatteryMonitorTests(unittest.TestCase):
                 import asyncio
                 import threading
                 from types import SimpleNamespace
-                from ovb_rc003.battery_monitor_winrt import BatteryMonitor
+                from motedeck.battery_monitor_winrt import BatteryMonitor
 
                 entered = threading.Event()
                 async def open_device(_device_id):

@@ -12,9 +12,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-from ovb_rc003 import interception_driver_install as install
+from motedeck import interception_driver_install as install
 
-_RUNTIME = "ovb_rc003.interception_runtime_windows"
+_RUNTIME = "motedeck.interception_runtime_windows"
 
 
 class _FakeLaunch:
@@ -147,7 +147,7 @@ class DriverExclusivityTests(unittest.TestCase):
     """Only one virtual-input driver may be installed at a time."""
 
     def test_installing_removes_the_winuhid_driver_first(self):
-        from ovb_rc003 import winuhid_driver_install as winuhid
+        from motedeck import winuhid_driver_install as winuhid
 
         with mock.patch.object(winuhid, "driver_installed", return_value=True):
             with mock.patch.object(winuhid, "uninstall_driver") as uninstall:
@@ -155,7 +155,7 @@ class DriverExclusivityTests(unittest.TestCase):
         uninstall.assert_called_once_with()
 
     def test_failed_winuhid_uninstall_aborts_the_install(self):
-        from ovb_rc003 import winuhid_driver_install as winuhid
+        from motedeck import winuhid_driver_install as winuhid
 
         failure = winuhid.DriverInstallerError("boom")
         with mock.patch.object(winuhid, "driver_installed", return_value=True):

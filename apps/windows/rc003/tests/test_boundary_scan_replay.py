@@ -56,7 +56,7 @@ def _is_excluded_generated_path(path: Path, root: Path) -> bool:
 
 _FORBIDDEN_BINARY_EXTENSIONS = {".exe", ".dll", ".pyd", ".zip", ".xz"}
 _OPTIONAL_FRIDA_GADGET_RELATIVE_PATH = Path(
-    "src/ovb_rc003/frida_assets/frida-gadget-17.15.3-windows-x86_64.dll.xz"
+    "src/motedeck/frida_assets/frida-gadget-17.15.3-windows-x86_64.dll.xz"
 )
 _OPTIONAL_FRIDA_GADGET_SHA256 = (
     "b566d70189b6d551ad8f4e0bea24de08a3d4c0f559bb35b2bdb67d45182240c2"
@@ -103,29 +103,29 @@ _AUTOSTART_MARKERS = ("CurrentVersion\\Run", "userstartup")
 # exactly - keep both lists in sync. One shared list gates all three
 # categories (branding/elevation/autostart) together, matching the PS1
 # script's own single `$isExempt` flag. XRBM-031 adds
-# src/ovb_rc003/vb_cable_bundle.py: it legitimately requests Windows' own
+# src/motedeck/vb_cable_bundle.py: it legitimately requests Windows' own
 # "runas"/UAC verb to launch the THIRD-PARTY VB-CABLE vendor's setup UI -
 # and only that, only from an explicit user click - which is otherwise
 # forbidden everywhere else in this source tree (see
 # test_vb_cable_bundle_py_is_exempt_only_for_its_documented_elevation_reason
 # below, which proves this exemption is not a blank check).
 _REVIEWED_ELEVATION_MARKERS = {
-    Path("src/ovb_rc003/pipe_windows.py"): {"runas", "ShellExecute"},
-    Path("src/ovb_rc003/hid_source_injector.py"): {"runas", "ShellExecute"},
-    Path("src/ovb_rc003/chromecast_pipe_windows.py"): {"runas", "ShellExecute"},
+    Path("src/motedeck/pipe_windows.py"): {"runas", "ShellExecute"},
+    Path("src/motedeck/hid_source_injector.py"): {"runas", "ShellExecute"},
+    Path("src/motedeck/chromecast_pipe_windows.py"): {"runas", "ShellExecute"},
     # Launches the bundled, SHA-256-pinned third-party Interception installer
     # with Windows' own "runas"/UAC verb, only from an explicit user click in
     # the driver manager dialog (never on startup, never silently).
-    Path("src/ovb_rc003/interception_driver_install.py"): {"runas", "ShellExecute"},
+    Path("src/motedeck/interception_driver_install.py"): {"runas", "ShellExecute"},
     # Launches the bundled WinUHid install script with Windows' own
     # "runas"/UAC verb, only from an explicit user click - see
     # test_winuhid_driver_install_py_is_exempt_only_for_the_bundled_script_
     # launch below, which proves this is not a blank check.
-    Path("src/ovb_rc003/winuhid_driver_install.py"): {"runas", "ShellExecute"},
+    Path("src/motedeck/winuhid_driver_install.py"): {"runas", "ShellExecute"},
     # Starts the hidden, elevated host that owns the virtual HID devices with
     # the app's own executable and the fixed --inject-host flag only - see
     # test_winuhid_host_py_is_exempt_only_for_the_elevated_host_launch below.
-    Path("src/ovb_rc003/winuhid_host_windows.py"): {"runas", "ShellExecute"},
+    Path("src/motedeck/winuhid_host_windows.py"): {"runas", "ShellExecute"},
 }
 _BRANDING_CHECK_EXEMPT_RELATIVE_PATHS = {
     Path("tests/test_privacy_contract.py"),
@@ -133,10 +133,10 @@ _BRANDING_CHECK_EXEMPT_RELATIVE_PATHS = {
     Path("tests/test_boundary_scan_replay.py"),
     Path("tests/test_hid_elevation_windows.py"),
     Path("build/check-public-boundary.ps1"),
-    Path("installer/readme-rc003.txt"),
-    Path("src/ovb_rc003/hid_elevation_windows.py"),
-    Path("installer/RemoteMicRC003Setup.iss"),
-    Path("src/ovb_rc003/vb_cable_bundle.py"),
+    Path("installer/readme-motedeck.txt"),
+    Path("src/motedeck/hid_elevation_windows.py"),
+    Path("installer/MoteDeckSetup.iss"),
+    Path("src/motedeck/vb_cable_bundle.py"),
     # ATTRIBUTION.md documents the vendor's "runas"/UAC launch. The concise
     # README no longer has this marker and must pass the normal scan.
     Path("ATTRIBUTION.md"),
@@ -147,8 +147,8 @@ _AUTOSTART_CHECK_EXEMPT_RELATIVE_PATHS = {
     Path("tests/test_build_artifacts.py"),
     Path("tests/test_boundary_scan_replay.py"),
     Path("build/check-public-boundary.ps1"),
-    Path("src/ovb_rc003/startup_windows.py"),
-    Path("installer/RemoteMicRC003Setup.iss"),
+    Path("src/motedeck/startup_windows.py"),
+    Path("installer/MoteDeckSetup.iss"),
 }
 
 _COMMENT_PREFIX_BY_EXTENSION = {".ps1": "#", ".iss": ";"}
@@ -289,7 +289,7 @@ class BoundaryScanReplayTests(unittest.TestCase):
         # must reference the elevation verb (or the exemption is dead
         # weight), and must never contain a forbidden BRANDING or AUTOSTART
         # term - only elevation is the reason it needed to be added here.
-        path = _RC003_ROOT / "src" / "ovb_rc003" / "vb_cable_bundle.py"
+        path = _RC003_ROOT / "src" / "motedeck" / "vb_cable_bundle.py"
         text = path.read_text(encoding="utf-8")
         self.assertTrue(any(marker in text for marker in _ELEVATION_MARKERS))
         self.assertFalse(any(pattern.search(text) for pattern in _FORBIDDEN_BRANDING_PATTERNS))
@@ -301,7 +301,7 @@ class BoundaryScanReplayTests(unittest.TestCase):
         # never contain a forbidden BRANDING or AUTOSTART term, and must launch
         # only the bundled install-winuhid.ps1 with fixed arguments - never
         # this app's own executable or an arbitrary caller-supplied command.
-        path = _RC003_ROOT / "src" / "ovb_rc003" / "winuhid_driver_install.py"
+        path = _RC003_ROOT / "src" / "motedeck" / "winuhid_driver_install.py"
         text = path.read_text(encoding="utf-8")
         self.assertTrue(any(marker in text for marker in _ELEVATION_MARKERS))
         self.assertFalse(any(pattern.search(text) for pattern in _FORBIDDEN_BRANDING_PATTERNS))
@@ -318,7 +318,7 @@ class BoundaryScanReplayTests(unittest.TestCase):
         # never contain a forbidden BRANDING or AUTOSTART term, and must launch
         # only this application's own executable with fixed --inject-host
         # arguments - never an arbitrary caller-supplied executable or command.
-        path = _RC003_ROOT / "src" / "ovb_rc003" / "winuhid_host_windows.py"
+        path = _RC003_ROOT / "src" / "motedeck" / "winuhid_host_windows.py"
         text = path.read_text(encoding="utf-8")
         self.assertTrue(any(marker in text for marker in _ELEVATION_MARKERS))
         self.assertFalse(any(pattern.search(text) for pattern in _FORBIDDEN_BRANDING_PATTERNS))
@@ -330,12 +330,12 @@ class BoundaryScanReplayTests(unittest.TestCase):
         self.assertNotIn("RequireAdministrator", text)
 
     def test_hid_elevation_module_has_only_the_fixed_on_demand_task_boundary(self):
-        path = _RC003_ROOT / "src" / "ovb_rc003" / "hid_elevation_windows.py"
+        path = _RC003_ROOT / "src" / "motedeck" / "hid_elevation_windows.py"
         text = path.read_text(encoding="utf-8")
         self.assertTrue(any(marker in text for marker in _ELEVATION_MARKERS))
         self.assertFalse(any(pattern.search(text) for pattern in _FORBIDDEN_BRANDING_PATTERNS))
         self.assertFalse(any(marker in text for marker in _AUTOSTART_MARKERS))
-        self.assertIn('TASK_NAME_PREFIX = r"\\RemoteMicRC003-HidTap-"', text)
+        self.assertIn('TASK_NAME_PREFIX = r"\\MoteDeck-HidTap-"', text)
         self.assertIn("def task_name_for_sid", text)
         self.assertIn("TASK_DONT_ADD_PRINCIPAL_ACE", text)
         self.assertIn('INJECT_FLAG = "--inject"', text)
@@ -357,7 +357,7 @@ class BoundaryScanReplayTests(unittest.TestCase):
             self.assertNotIn(marker, text)
 
     def test_installer_elevation_is_not_a_login_trigger_or_admin_manifest(self):
-        path = _RC003_ROOT / "installer" / "RemoteMicRC003Setup.iss"
+        path = _RC003_ROOT / "installer" / "MoteDeckSetup.iss"
         effective = _remove_comment_lines(path.read_text(encoding="utf-8"), ".iss")
         self.assertIn("ShellExec", effective)
         self.assertIn("'runas'", effective)
@@ -418,13 +418,13 @@ class BoundaryScanReplayTests(unittest.TestCase):
             generated_paths = [
                 root / ".venv" / "Scripts" / "python.exe",
                 root / ".venv" / "Lib" / "site-packages" / "something.pyd",
-                root / "dist" / "RemoteMicRC003" / "RemoteMicRC003.exe",
-                root / "dist" / "installer" / "RemoteMicRC003Setup-unsigned.exe",
-                root / "build" / "cython-stage" / "src" / "ovb_rc003" / "core.pyd",
+                root / "dist" / "MoteDeck" / "MoteDeck.exe",
+                root / "dist" / "installer" / "MoteDeckSetup-unsigned.exe",
+                root / "build" / "cython-stage" / "src" / "motedeck" / "core.pyd",
                 root / "build" / "cython-work" / "core.obj",
-                root / "build" / "pyinstaller-work" / "RemoteMicRC003" / "warn.txt.exe",
+                root / "build" / "pyinstaller-work" / "MoteDeck" / "warn.txt.exe",
                 root / "build" / "third_party" / "vendored.dll",
-                root / "build" / "smoke-dist-c23" / "RemoteMicRC003.exe",
+                root / "build" / "smoke-dist-c23" / "MoteDeck.exe",
                 root / "build" / "smoke-work-c23" / "analysis.pyd",
                 root / "build" / "ui-audit-c23" / "settings.png.exe",
                 root / "MoteDeck便携测试包-022.zip",
@@ -433,7 +433,7 @@ class BoundaryScanReplayTests(unittest.TestCase):
                 generated_path.parent.mkdir(parents=True, exist_ok=True)
                 generated_path.write_bytes(b"fake binary content")
 
-            source_tree_exe = root / "src" / "ovb_rc003" / "accidentally_committed.exe"
+            source_tree_exe = root / "src" / "motedeck" / "accidentally_committed.exe"
             source_tree_exe.parent.mkdir(parents=True, exist_ok=True)
             source_tree_exe.write_bytes(b"fake binary content")
 

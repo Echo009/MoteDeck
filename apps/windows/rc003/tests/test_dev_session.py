@@ -4,7 +4,7 @@ import os
 import unittest
 from unittest.mock import patch
 
-from ovb_rc003 import bridge_launcher, dev_session
+from motedeck import bridge_launcher, dev_session
 
 
 class DevSessionTests(unittest.TestCase):
@@ -20,7 +20,7 @@ class DevSessionTests(unittest.TestCase):
 
     def test_inactive_commands_are_unchanged(self):
         with patch.dict(os.environ, {}, clear=True):
-            command = ["python.exe", "-m", "ovb_rc003", "--settings"]
+            command = ["python.exe", "-m", "motedeck", "--settings"]
             self.assertEqual(dev_session.mark_command(command), command)
 
     def test_source_bridge_and_settings_children_keep_the_marker(self):

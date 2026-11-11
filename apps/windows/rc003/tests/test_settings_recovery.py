@@ -9,7 +9,7 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import config, log_export, qt_settings_app, remote_selection
+from motedeck import config, log_export, qt_settings_app, remote_selection
 from tests import test_qt_settings_app as _qt_fixture
 
 
@@ -234,7 +234,7 @@ from pathlib import Path
 from contextlib import ExitStack
 from unittest import mock
 from PySide6.QtCore import QObject, QTimer
-from ovb_rc003 import config, qt_settings_app as m
+from motedeck import config, qt_settings_app as m
 from tests import test_qt_settings_app as fixtures
 classes = m._load_qt_classes()
 classes['QQuickStyle'].setStyle('FluentWinUI3')
@@ -309,7 +309,7 @@ class RecoveryWindowIntegrationTests(unittest.TestCase):
                 result = subprocess.run(
                     [sys.executable, '-X', 'utf8', '-B', '-c', _RECOVERY_WINDOW_PROBE, broken_file],
                     cwd=Path(__file__).resolve().parents[1],
-                    env=dict(os.environ, QT_QPA_PLATFORM='offscreen', RC003_DISABLE_LIVE_INPUT='1'),
+                    env=dict(os.environ, QT_QPA_PLATFORM='offscreen', MOTEDECK_DISABLE_LIVE_INPUT='1'),
                     capture_output=True, text=True, encoding='utf-8', timeout=25,
                 )
                 self.assertEqual(result.returncode, 0, result.stderr)

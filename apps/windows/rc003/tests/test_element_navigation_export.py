@@ -151,7 +151,7 @@ class ElementNavigationExportTests(unittest.TestCase):
         for name in source_names:
             text = (RC003_ROOT / "scripts" / name).read_text(encoding="utf-8")
             with self.subTest(name=name):
-                self.assertNotIn("ovb_rc003", text)
+                self.assertNotIn("motedeck", text)
                 self.assertNotIn("REMOTE_MIC_", text)
 
     def test_export_script_produces_a_self_contained_testable_tree(self):

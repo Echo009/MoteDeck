@@ -23,7 +23,7 @@ class NoResourceWarningAtShutdownTests(unittest.TestCase):
                     if os.environ.get("RC003_NATIVE_STAGE") else _RC003_ROOT / "src")
         env = dict(os.environ, PYTHONPATH=str(src_root),
                    QT_QPA_PLATFORM="offscreen", QML_DISABLE_DISK_CACHE="1",
-                   RC003_DISABLE_LIVE_INPUT="1", RC003_ALLOW_LIVE_INPUT_TESTS="0")
+                   MOTEDECK_DISABLE_LIVE_INPUT="1", RC003_ALLOW_LIVE_INPUT_TESTS="0")
         result = subprocess.run(
             [sys.executable, "-W", "default::ResourceWarning", "-m", "unittest",
              "tests.test_qt_settings_app.ButtonMappingModelTests",

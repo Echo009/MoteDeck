@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ovb_rc003 import hid_identity, key_testing, raw_input_windows
+from motedeck import hid_identity, key_testing, raw_input_windows
 
 
 WM_KEYDOWN = 0x0100

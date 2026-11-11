@@ -1,7 +1,7 @@
 import unittest
 
-from ovb_rc003 import atvv_protocol as proto
-from ovb_rc003 import atvv_session
+from motedeck import atvv_protocol as proto
+from motedeck import atvv_session
 
 
 class _FakeClock:

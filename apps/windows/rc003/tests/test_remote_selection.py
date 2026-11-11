@@ -11,7 +11,7 @@ import uuid
 from types import SimpleNamespace
 from unittest import mock
 
-from ovb_rc003 import (
+from motedeck import (
     audio_output,
     ble_transport_winrt,
     config,
@@ -235,7 +235,7 @@ class SelectionContractTests(unittest.TestCase):
         def child(_command, *, result_path, result_reader, **_kwargs):
             Path(result_path).write_text(json.dumps([{"key": A, "profile": "xiaomi-rc003", "label": "x", "address": "secret"}]))
             return result_reader(result_path, 0)
-        with mock.patch("ovb_rc003.windows_diagnostics._run_ble_diagnostics_subprocess", side_effect=child):
+        with mock.patch("motedeck.windows_diagnostics._run_ble_diagnostics_subprocess", side_effect=child):
             with self.assertRaises(selection.SelectionError):
                 selection.scan_paired()
 
@@ -248,7 +248,7 @@ class SelectionContractTests(unittest.TestCase):
 
     def test_helper_reads_only_selection_without_desktop_dependencies(self):
         import ast
-        spec = Path(__file__).resolve().parents[1] / "build" / "RemoteMicRC003.spec"
+        spec = Path(__file__).resolve().parents[1] / "build" / "MoteDeck.spec"
         tree = ast.parse(spec.read_text(encoding="utf-8"))
         helper = next(node.value for node in tree.body if isinstance(node, ast.Assign)
                       and any(isinstance(target, ast.Name) and target.id == "helper_a"
@@ -273,7 +273,7 @@ class SelectionContractTests(unittest.TestCase):
 import json, sys
 for name in json.loads(sys.argv[1]):
     sys.modules[name] = None
-from ovb_rc003 import remote_selection
+from motedeck import remote_selection
 assert remote_selection.saved_active_key() == sys.argv[2]
 """
         with tempfile.TemporaryDirectory() as directory:
@@ -286,7 +286,7 @@ assert remote_selection.saved_active_key() == sys.argv[2]
             self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_host_resolution_selects_the_matching_container_not_first_pid(self):
-        from ovb_rc003 import frida_hid_tap_runtime as runtime
+        from motedeck import frida_hid_tap_runtime as runtime
         service = runtime.HID_SERVICE_PREFIX + "_" + runtime.RC003_HARDWARE_TOKEN
         prefix = runtime.BTHLE_ENUM_KEY + "\\" + service
         leaves = {
@@ -338,7 +338,7 @@ assert remote_selection.saved_active_key() == sys.argv[2]
             self.assertEqual(evidence["reason"], "shared_host")
 
     def _run_shared_tap(self, messages):
-        from ovb_rc003 import frida_compat, frida_hid_tap_runtime as runtime
+        from motedeck import frida_compat, frida_hid_tap_runtime as runtime
         injector, client, server = mock.Mock(), mock.Mock(), mock.Mock()
         reports, states = [], []
         tap = frida_compat.RC003HidReportTap(
@@ -422,7 +422,7 @@ assert remote_selection.saved_active_key() == sys.argv[2]
         self._check_reload_race(expire=True)
 
     def _check_reload_race(self, *, expire):
-        from ovb_rc003 import frida_compat, frida_hid_tap_runtime as runtime
+        from motedeck import frida_compat, frida_hid_tap_runtime as runtime
         now, states, reports = [0.0], [], []
         injector, client_old, client_new, server = mock.Mock(), mock.Mock(), mock.Mock(), mock.Mock()
         def state_changed(state, detail):
@@ -488,7 +488,7 @@ assert remote_selection.saved_active_key() == sys.argv[2]
         self.assertEqual(reports, [(1, bytes.fromhex("520000000000")), (1, b"\x00" * 6)])
 
     def test_shared_host_rejects_other_device_proof_and_stale_exclusive_fallback(self):
-        from ovb_rc003 import frida_compat, frida_hid_tap_runtime as runtime
+        from motedeck import frida_compat, frida_hid_tap_runtime as runtime
         for key, kind, expected in ((B, "device", None), (A, "exclusive", "reject_copy_handle")):
             with self.subTest(key=key, kind=kind):
                 tap = frida_compat.RC003HidReportTap(lambda *_: None, selected_key=A)
@@ -664,7 +664,7 @@ class SelectionControllerTests(unittest.TestCase):
     def test_failed_stop_keeps_selection_and_never_starts_another_device(self):
         controller = self.seed()
         with mock.patch.object(controller, "_refresh_bridge_status", return_value=True), \
-             mock.patch("ovb_rc003.bridge_control_windows.request_bridge_exit", return_value=mock.Mock(stopped=False)):
+             mock.patch("motedeck.bridge_control_windows.request_bridge_exit", return_value=mock.Mock(stopped=False)):
             controller.useRemoteDevice(B)
         self.assertEqual(controller.activeRemoteKey, A)
         self.assertEqual(selection.saved_active_key(), A)
@@ -729,7 +729,7 @@ class SelectionControllerTests(unittest.TestCase):
     def test_failed_save_rollback_does_not_restart_from_uncertain_settings(self):
         controller = self.seed()
         with mock.patch.object(controller, "_refresh_bridge_status", return_value=True), \
-             mock.patch("ovb_rc003.bridge_control_windows.request_bridge_exit", return_value=mock.Mock(stopped=True)), \
+             mock.patch("motedeck.bridge_control_windows.request_bridge_exit", return_value=mock.Mock(stopped=True)), \
              mock.patch.object(config, "switch_remote_settings", side_effect=config.ConfigTransactionError("rollback failed")), \
              mock.patch("PySide6.QtCore.QTimer.singleShot") as restart:
             controller.useRemoteDevice(B)
@@ -805,9 +805,9 @@ _QML_PROBE = r'''
 import json, os, sys, time
 from pathlib import Path
 from unittest import mock
-from ovb_rc003 import qt_settings_app as m, remote_selection as selection
+from motedeck import qt_settings_app as m, remote_selection as selection
 if os.environ.get('TEST_ISOLATED_ROOT'):
-    from ovb_rc003 import dev_session
+    from motedeck import dev_session
     dev_session.isolated_root = lambda: Path(os.environ['TEST_ISOLATED_ROOT'])
     dev_session.consume_marker([dev_session.ISOLATED_FLAG])
     initial = m.config.default_config()
@@ -840,7 +840,7 @@ controller._refresh_bridge_status = lambda: False
 diagnostics = classes['DiagnosticsController'](controller, m.config.config_root(), auto_refresh=False)
 diagnostics.refreshDiagnostics = lambda: None
 for name, instance in [('SettingsController', controller), ('ButtonMappingModel', model), ('DiagnosticsController', diagnostics)]:
-    classes['qmlRegisterSingletonInstance'](classes[name], 'OvbRc003Settings', 1, 0, name, instance)
+    classes['qmlRegisterSingletonInstance'](classes[name], 'MoteDeckSettings', 1, 0, name, instance)
 engine = classes['QQmlApplicationEngine']()
 warnings = []
 engine.warnings.connect(lambda messages: warnings.extend(str(message) for message in messages))
@@ -1049,7 +1049,7 @@ class SelectionQmlTests(unittest.TestCase):
     def test_isolated_source_data_and_visible_title(self):
         with tempfile.TemporaryDirectory() as directory:
             env = dict(os.environ, QT_QPA_PLATFORM="offscreen", TEST_ISOLATED_ROOT=directory,
-                       RC003_DISABLE_LIVE_INPUT="1", PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+                       MOTEDECK_DISABLE_LIVE_INPUT="1", PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
             result = subprocess.run([sys.executable, "-c", _QML_PROBE], env=env,
                                     capture_output=True, text=True, encoding="utf-8", timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -1058,7 +1058,7 @@ class SelectionQmlTests(unittest.TestCase):
     def test_real_dialog_add_use_switch_remove(self):
         with tempfile.TemporaryDirectory() as directory:
             env = dict(os.environ, LOCALAPPDATA=directory, QT_QPA_PLATFORM="offscreen",
-                       RC003_DISABLE_LIVE_INPUT="1", PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
+                       MOTEDECK_DISABLE_LIVE_INPUT="1", PYTHONUTF8="1", PYTHONIOENCODING="utf-8")
             result = subprocess.run([sys.executable, "-c", _QML_PROBE], env=env,
                                     capture_output=True, text=True, encoding="utf-8", timeout=30)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

@@ -10,7 +10,7 @@ import unittest
 from unittest import mock
 import zipfile
 
-from ovb_rc003 import hotkey, hotkey_capture_windows, win32_keys
+from motedeck import hotkey, hotkey_capture_windows, win32_keys
 
 
 class KeyboardTokenTests(unittest.TestCase):
@@ -478,7 +478,7 @@ class HotkeyCaptureDiagnosticsTests(unittest.TestCase):
         self.assertEqual(state["callback_returns"], 0)
 
     def test_callback_evidence_reaches_the_real_exported_zip(self):
-        from ovb_rc003 import logging_setup, log_export
+        from motedeck import logging_setup, log_export
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             handler = logging_setup.EvidenceFileHandler(

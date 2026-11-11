@@ -11,8 +11,8 @@ import unittest
 import zipfile
 from unittest import mock
 
-from ovb_rc003 import hotkey_capture_process as worker
-from ovb_rc003.hotkey_capture_windows import HotkeyCapture, HotkeyCaptureUnavailableError
+from motedeck import hotkey_capture_process as worker
+from motedeck.hotkey_capture_windows import HotkeyCapture, HotkeyCaptureUnavailableError
 
 
 _PRELUDE = "import sys,json,time\ndef send(**x): print(json.dumps(x),flush=True)\n"
@@ -131,8 +131,8 @@ class ProcessCaptureTests(unittest.TestCase):
         self.assertIn("child_main(sys.argv[1:])", command[2])
 
     def test_child_diagnostics_and_failures_survive_the_final_exported_zip(self):
-        from ovb_rc003 import logging_setup, log_export
-        logger = logging.getLogger("ovb_rc003")
+        from motedeck import logging_setup, log_export
+        logger = logging.getLogger("motedeck")
         previous_level = logger.level
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -189,7 +189,7 @@ class ProcessCaptureTests(unittest.TestCase):
 
 _FAKE_CHILD = r'''
 import os,sys,time
-from ovb_rc003 import hotkey_capture_process as w
+from motedeck import hotkey_capture_process as w
 class FakeCapture:
     def __init__(self, callback, *, accept_injected=False):
         self.callback=callback; self.is_running=False
@@ -250,7 +250,7 @@ class ChildPipeTests(unittest.TestCase):
 
 class EntrypointTests(unittest.TestCase):
     def test_private_mode_routes_before_any_desktop_ownership(self):
-        from ovb_rc003 import __main__ as entry, single_instance
+        from motedeck import __main__ as entry, single_instance
         with mock.patch.object(sys, "argv", ["app", worker.FLAG, "--accept-injected"]), \
                 mock.patch.object(worker, "child_main", return_value=0) as child, \
                 mock.patch.object(single_instance, "ApplicationInstanceGuard") as guard:
@@ -261,7 +261,7 @@ class EntrypointTests(unittest.TestCase):
         guard.assert_not_called()
 
     def test_misplaced_worker_flag_fails_without_starting_worker(self):
-        from ovb_rc003 import __main__ as entry
+        from motedeck import __main__ as entry
         with mock.patch.object(sys, "argv", ["app", "--settings", worker.FLAG]), \
                 mock.patch.object(worker, "child_main") as child:
             with self.assertRaises(SystemExit) as caught:

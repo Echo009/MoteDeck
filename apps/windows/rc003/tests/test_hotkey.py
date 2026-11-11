@@ -1,11 +1,11 @@
 import unittest
 
-from ovb_rc003 import hotkey, key_mapping
+from motedeck import hotkey, key_mapping
 
 
 class HotkeySpecTests(unittest.TestCase):
     def test_visible_names_resolve_to_the_same_physical_keys(self):
-        from ovb_rc003 import win32_keys
+        from motedeck import win32_keys
         for token in win32_keys.VK_CODES:
             if token in {"ctrl", "alt", "shift", "win"}:
                 text = f"{token}+a"
@@ -62,7 +62,7 @@ class HotkeySpecTests(unittest.TestCase):
                     hotkey.HotkeySpec.from_user_text(text, mapping=True)
 
     def test_dynamic_key_display_can_be_edited_without_changing_its_vk(self):
-        from ovb_rc003 import win32_keys
+        from motedeck import win32_keys
         for token in ("vk_e2", "vk_a8", "vk_41", "vk_a5"):
             with self.subTest(token=token):
                 visible = hotkey.format_hotkey_text(f"ctrl+{token}")
@@ -74,7 +74,7 @@ class HotkeySpecTests(unittest.TestCase):
                 )
 
     def test_legacy_raw_vk_chords_keep_their_vk_and_press_order(self):
-        from ovb_rc003 import win32_keys
+        from motedeck import win32_keys
         modifiers = ("ctrl", "shift", "alt", "win", "lctrl", "rctrl",
                      "lshift", "rshift", "lalt", "ralt", "lwin", "rwin")
         for vk in range(256):

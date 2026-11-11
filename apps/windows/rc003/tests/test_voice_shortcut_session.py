@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from ovb_rc003 import (
+from motedeck import (
     injection_backend,
     voice_controller,
     voice_shortcut_session as shortcut,

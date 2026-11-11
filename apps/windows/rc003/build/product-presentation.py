@@ -17,11 +17,11 @@ def _parse_args() -> argparse.Namespace:
 def main() -> int:
     args = _parse_args()
     source_root = args.source_root.resolve()
-    version_path = source_root / "ovb_rc003" / "VERSION"
+    version_path = source_root / "motedeck" / "VERSION"
     if not version_path.is_file():
         raise SystemExit(f"required VERSION file not found: {version_path}")
     sys.path.insert(0, str(source_root))
-    from ovb_rc003 import product_identity  # noqa: PLC0415
+    from motedeck import product_identity  # noqa: PLC0415
 
     version = product_identity.validate_version(
         version_path.read_text(encoding="ascii").strip()

@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "remote-mic-rc003"
+name = "motedeck"
 version = "0.2.3"
 description = "Remote Mic - Xiaomi RC003 Windows client (partially real-device-verified source/build candidate)"
 readme = "README.md"

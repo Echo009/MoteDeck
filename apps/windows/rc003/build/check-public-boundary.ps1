@@ -25,7 +25,7 @@
          MAC-address placeholder fixture, which the separate, unconditional
          MAC allowlist below covers without needing a branding exemption.
       2. Prose that explicitly documents an EXCLUSION rather than an
-         inclusion (installer/readme-rc003.txt's "不包含 T1、V60/PV60..."
+         inclusion (installer/readme-motedeck.txt's "不包含 T1、V60/PV60..."
          line) - exempted the same way, since a "we do not bundle X"
          sentence is exactly the kind of statement this project wants, not
          a violation.
@@ -76,7 +76,7 @@ $ErrorActionPreference = "Stop"
 $violations = New-Object System.Collections.Generic.List[string]
 
 $forbiddenBinaryExtensions = @(".exe", ".dll", ".pyd", ".zip", ".xz")
-$optionalFridaGadgetRelativePath = "src/ovb_rc003/frida_assets/frida-gadget-17.15.3-windows-x86_64.dll.xz"
+$optionalFridaGadgetRelativePath = "src/motedeck/frida_assets/frida-gadget-17.15.3-windows-x86_64.dll.xz"
 $optionalFridaGadgetSha256 = "B566D70189B6D551AD8F4E0BEA24DE08A3D4C0F559BB35B2BDB67D45182240C2"
 $textExtensions = @(".py", ".ps1", ".md", ".txt", ".json", ".yml", ".yaml", ".iss", ".spec", ".toml")
 
@@ -106,24 +106,24 @@ $nonAttributionReferenceExemptRelativePaths = @(
 $elevationMarkers = @("runas", "ShellExecute", "IsUserAnAdmin", "RequireAdministrator", "PrivilegesRequired=admin")
 # Exact reviewed markers only; branding, paths and autostart remain checked.
 $reviewedElevationMarkers = @{
-    "src/ovb_rc003/pipe_windows.py" = @("runas", "ShellExecute")
+    "src/motedeck/pipe_windows.py" = @("runas", "ShellExecute")
     # Source-only one-shot HID worker; fixed launcher and authenticated pipe.
-    "src/ovb_rc003/hid_source_injector.py" = @("runas", "ShellExecute")
+    "src/motedeck/hid_source_injector.py" = @("runas", "ShellExecute")
     # Same reviewed pattern as pipe_windows.py: launches this distribution's
     # own fixed HID worker elevated; never accepts a caller-supplied path.
-    "src/ovb_rc003/chromecast_pipe_windows.py" = @("runas", "ShellExecute")
+    "src/motedeck/chromecast_pipe_windows.py" = @("runas", "ShellExecute")
     # Runs the bundled, SHA-256-pinned THIRD-PARTY Interception installer with
     # Windows' own "runas"/UAC verb, only from an explicit user click in the
     # driver manager dialog (never on startup, never silently).
-    "src/ovb_rc003/interception_driver_install.py" = @("runas", "ShellExecute")
+    "src/motedeck/interception_driver_install.py" = @("runas", "ShellExecute")
     # Runs the bundled WinUHid driver installer script with Windows' own
     # "runas"/UAC verb, only from an explicit user click in the button editor
     # (never on startup, never silently). The desktop process stays asInvoker.
     # Same reviewed pattern as the hidden WinUHid host below.
-    "src/ovb_rc003/winuhid_driver_install.py" = @("runas", "ShellExecute")
+    "src/motedeck/winuhid_driver_install.py" = @("runas", "ShellExecute")
     # Hidden elevated host that owns the virtual HID device; fixed arguments,
     # one generation token and the parent's identity only.
-    "src/ovb_rc003/winuhid_host_windows.py" = @("runas", "ShellExecute")
+    "src/motedeck/winuhid_host_windows.py" = @("runas", "ShellExecute")
 }
 $autostartMarkers = @("CurrentVersion\Run", "userstartup")
 
@@ -169,16 +169,16 @@ $brandingCheckExemptRelativePaths = @(
     # it does not add a second runtime elevation boundary.
     "tests/test_hid_elevation_windows.py",
     "build/check-public-boundary.ps1",
-    "installer/readme-rc003.txt",
+    "installer/readme-motedeck.txt",
     # The desktop app remains asInvoker. This reviewed module is the only
     # project-owned elevation boundary: it installs/runs a fixed, on-demand
     # HID task whose executable lives under Program Files and whose action
     # accepts no PID or executable path from the caller.
-    "src/ovb_rc003/hid_elevation_windows.py",
+    "src/motedeck/hid_elevation_windows.py",
     # The per-user installer invokes only that fixed helper for install and
     # uninstall. PrivilegesRequired remains lowest, so the installer and
     # desktop application do not become permanently elevated.
-    "installer/RemoteMicRC003Setup.iss",
+    "installer/MoteDeckSetup.iss",
     # XRBM-031: scoped third-party elevation for the VB-CABLE installer.
     # This module legitimately requests Windows' own "runas"/UAC verb to launch the
     # THIRD-PARTY VB-CABLE vendor's own setup UI (never to elevate this
@@ -191,7 +191,7 @@ $brandingCheckExemptRelativePaths = @(
     # which both prove this file contains no branding/autostart violation and
     # that the elevation reference is exactly the one disclosed vendor-launch
     # call, not a self-elevation of this project's own process.
-    "src/ovb_rc003/vb_cable_bundle.py",
+    "src/motedeck/vb_cable_bundle.py",
     # ATTRIBUTION.md documents the disclosed "runas"/UAC vendor launch.
     # The concise README no longer contains an elevation implementation
     # marker, so it stays subject to the normal scanner rules.
@@ -206,8 +206,8 @@ $autostartCheckExemptRelativePaths = @(
     "tests/test_build_artifacts.py",
     "tests/test_boundary_scan_replay.py",
     "build/check-public-boundary.ps1",
-    "src/ovb_rc003/startup_windows.py",
-    "installer/RemoteMicRC003Setup.iss"
+    "src/motedeck/startup_windows.py",
+    "installer/MoteDeckSetup.iss"
 )
 
 function Get-NormalizedRelativePath {

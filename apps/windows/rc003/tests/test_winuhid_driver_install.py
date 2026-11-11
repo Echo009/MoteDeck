@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import winuhid_driver_install as installer
+from motedeck import winuhid_driver_install as installer
 
 
 def _write_package(directory: Path, *, skip=()) -> None:
@@ -60,7 +60,7 @@ def _fake_winreg(*, names=(), open_error=None):
 class DriverPackageDiscoveryTests(unittest.TestCase):
     def test_package_dir_follows_the_environment_override(self):
         with tempfile.TemporaryDirectory() as temporary, mock.patch.dict(
-            os.environ, {"RC003_WINUHID_PACKAGE": temporary}
+            os.environ, {"MOTEDECK_WINUHID_PACKAGE": temporary}
         ):
             expected = Path(temporary)
             _write_package(expected)
@@ -73,7 +73,7 @@ class DriverPackageDiscoveryTests(unittest.TestCase):
             skipped = installer.REQUIRED_PACKAGE_FILES[1:]
             _write_package(directory, skip=skipped)
             with mock.patch.dict(
-                os.environ, {"RC003_WINUHID_PACKAGE": temporary}
+                os.environ, {"MOTEDECK_WINUHID_PACKAGE": temporary}
             ):
                 # The message must name the files that are actually absent,
                 # not the whole required set.
@@ -88,8 +88,8 @@ class DriverPackageDiscoveryTests(unittest.TestCase):
             with mock.patch.dict(
                 os.environ,
                 {
-                    "RC003_WINUHID_PACKAGE": str(package),
-                    "RC003_WINUHID_INSTALL_SCRIPT": str(script),
+                    "MOTEDECK_WINUHID_PACKAGE": str(package),
+                    "MOTEDECK_WINUHID_INSTALL_SCRIPT": str(script),
                 },
             ):
                 self.assertTrue(installer.installer_available())
@@ -105,8 +105,8 @@ class DriverPackageDiscoveryTests(unittest.TestCase):
             with mock.patch.dict(
                 os.environ,
                 {
-                    "RC003_WINUHID_PACKAGE": str(package),
-                    "RC003_WINUHID_INSTALL_SCRIPT": str(script),
+                    "MOTEDECK_WINUHID_PACKAGE": str(package),
+                    "MOTEDECK_WINUHID_INSTALL_SCRIPT": str(script),
                 },
             ):
                 self.assertFalse(installer.installer_available())
@@ -123,8 +123,8 @@ class DriverPackageDiscoveryTests(unittest.TestCase):
             with mock.patch.dict(
                 os.environ,
                 {
-                    "RC003_WINUHID_PACKAGE": str(package),
-                    "RC003_WINUHID_INSTALL_SCRIPT": str(root / "absent.ps1"),
+                    "MOTEDECK_WINUHID_PACKAGE": str(package),
+                    "MOTEDECK_WINUHID_INSTALL_SCRIPT": str(root / "absent.ps1"),
                 },
             ):
                 self.assertFalse(installer.installer_available())
@@ -136,13 +136,13 @@ class ScriptPathTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             script = _write_script(Path(temporary))
             with mock.patch.dict(
-                os.environ, {"RC003_WINUHID_INSTALL_SCRIPT": str(script)}
+                os.environ, {"MOTEDECK_WINUHID_INSTALL_SCRIPT": str(script)}
             ):
                 self.assertEqual(Path(installer.script_path()), script)
 
     def test_script_path_falls_back_to_the_module_script(self):
         with mock.patch.dict(os.environ, {}, clear=False):
-            os.environ.pop("RC003_WINUHID_INSTALL_SCRIPT", None)
+            os.environ.pop("MOTEDECK_WINUHID_INSTALL_SCRIPT", None)
             path = installer.script_path()
         self.assertIsNotNone(path)
         self.assertTrue(Path(path).is_file())
@@ -163,8 +163,8 @@ class InstallDriverLaunchTests(unittest.TestCase):
         _write_package(package, skip=() if complete else installer.REQUIRED_PACKAGE_FILES)
         script = _write_script(root)
         return {
-            "RC003_WINUHID_PACKAGE": str(package),
-            "RC003_WINUHID_INSTALL_SCRIPT": str(script),
+            "MOTEDECK_WINUHID_PACKAGE": str(package),
+            "MOTEDECK_WINUHID_INSTALL_SCRIPT": str(script),
             "LOCALAPPDATA": str(root / "local"),
         }
 
@@ -182,7 +182,7 @@ class InstallDriverLaunchTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             environment = self._environment(root)
-            environment["RC003_WINUHID_INSTALL_SCRIPT"] = str(root / "absent.ps1")
+            environment["MOTEDECK_WINUHID_INSTALL_SCRIPT"] = str(root / "absent.ps1")
             with mock.patch.dict(os.environ, environment):
                 with self.assertRaises(installer.DriverInstallerError) as caught:
                     installer.install_driver()
@@ -216,7 +216,7 @@ class InstallDriverLaunchTests(unittest.TestCase):
                 with self.assertRaises(installer.DriverInstallerError) as caught:
                     installer.install_driver()
             message = str(caught.exception)
-            log_path = Path(root) / "local" / "ovb-rc003" / "logs" / "winuhid-install.log"
+            log_path = Path(root) / "local" / "MoteDeck" / "logs" / "winuhid-install.log"
             self.assertIn("5", message)
             self.assertIn(str(log_path), message)
 
@@ -225,10 +225,10 @@ class DriverExclusivityTests(unittest.TestCase):
     """Only one virtual-input driver may be installed at a time."""
 
     def test_installing_removes_the_interception_driver_first(self):
-        from ovb_rc003 import interception_driver_install
+        from motedeck import interception_driver_install
 
         with mock.patch(
-            "ovb_rc003.interception_runtime_windows.driver_installed",
+            "motedeck.interception_runtime_windows.driver_installed",
             return_value=True,
         ), mock.patch.object(
             interception_driver_install, "uninstall_driver"
@@ -237,11 +237,11 @@ class DriverExclusivityTests(unittest.TestCase):
         uninstall.assert_called_once_with()
 
     def test_failed_interception_uninstall_aborts_the_install(self):
-        from ovb_rc003 import interception_driver_install
+        from motedeck import interception_driver_install
 
         failure = interception_driver_install.DriverInstallerError("boom")
         with mock.patch(
-            "ovb_rc003.interception_runtime_windows.driver_installed",
+            "motedeck.interception_runtime_windows.driver_installed",
             return_value=True,
         ), mock.patch.object(
             interception_driver_install, "uninstall_driver", side_effect=failure

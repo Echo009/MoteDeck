@@ -6,10 +6,10 @@ import threading
 import unittest
 from unittest import mock
 
-from ovb_rc003 import frida_compat as compat
-from ovb_rc003 import hid_source_injector as source
-from ovb_rc003 import hid_injection_diagnostics as diagnostics
-from ovb_rc003 import frida_hid_tap_injector as injector
+from motedeck import frida_compat as compat
+from motedeck import hid_source_injector as source
+from motedeck import hid_injection_diagnostics as diagnostics
+from motedeck import frida_hid_tap_injector as injector
 
 
 class SourceInjectorTests(unittest.TestCase):

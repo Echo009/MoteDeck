@@ -2,7 +2,7 @@ from pathlib import Path
 import unittest
 
 
-QML_DIR = Path(__file__).resolve().parents[1] / "src" / "ovb_rc003" / "qml"
+QML_DIR = Path(__file__).resolve().parents[1] / "src" / "motedeck" / "qml"
 
 
 class SystemFontPackagingTests(unittest.TestCase):

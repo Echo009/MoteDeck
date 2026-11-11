@@ -10,10 +10,10 @@ import unittest
 from unittest import mock
 import zipfile
 
-from ovb_rc003 import diagnostic_trace as trace, logging_setup, log_export
-from ovb_rc003 import voice_interaction_diagnostics_windows as focus
-from ovb_rc003.input_environment_diagnostics_windows import EnvironmentSampler
-from ovb_rc003.voice_response_diagnostics_windows import ResponseSampler
+from motedeck import diagnostic_trace as trace, logging_setup, log_export
+from motedeck import voice_interaction_diagnostics_windows as focus
+from motedeck.input_environment_diagnostics_windows import EnvironmentSampler
+from motedeck.voice_response_diagnostics_windows import ResponseSampler
 
 
 def record(message, level=logging.INFO):
@@ -77,7 +77,7 @@ class LoggingEfficiencyTests(unittest.TestCase):
                 handler.close()
 
     def test_disabled_voice_diagnostics_skip_capture_and_preserve_attempt_state(self):
-        from ovb_rc003.app import RC003App
+        from motedeck.app import RC003App
         with tempfile.TemporaryDirectory() as tmp:
             owner = RC003App.__new__(RC003App)
             owner._voice_attempt_id = None

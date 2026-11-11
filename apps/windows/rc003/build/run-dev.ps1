@@ -11,8 +11,8 @@
 #>
 
 $ErrorActionPreference = "Stop"
-$RC003Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$VenvPythonw = Join-Path $RC003Root ".venv\Scripts\pythonw.exe"
+$MoteDeckRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$VenvPythonw = Join-Path $MoteDeckRoot ".venv\Scripts\pythonw.exe"
 $ProductName = -join @(
     [char]0x65E0,
     [char]0x7EBF,
@@ -39,14 +39,14 @@ try {
         throw "The local .venv is missing. Install the development requirements first."
     }
 
-    $env:PYTHONPATH = Join-Path $RC003Root "src"
+    $env:PYTHONPATH = Join-Path $MoteDeckRoot "src"
     $env:REMOTE_MIC_DEV_SESSION = "1"
     $StartArguments = @{
         FilePath = $VenvPythonw
-        WorkingDirectory = $RC003Root
+        WorkingDirectory = $MoteDeckRoot
         ArgumentList = @(
             "-m",
-            "ovb_rc003",
+            "motedeck",
             "--settings",
             "--remote-mic-dev-session"
         )

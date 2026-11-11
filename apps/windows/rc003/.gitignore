@@ -6,7 +6,7 @@ build/pyinstaller-work/
 build/smoke-dist-*/
 build/smoke-work-*/
 build/ui-audit-*/
-src/ovb_rc003/frida_assets/*.xz
+src/motedeck/frida_assets/*.xz
 MiOpention便携测试包-*.zip
 MiOpention+便携测试包-*.zip
 build/build-candidate.log

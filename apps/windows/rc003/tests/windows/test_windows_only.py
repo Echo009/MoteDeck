@@ -45,7 +45,7 @@ def _has_module(name: str) -> bool:
 )
 class Win32InputAvailabilityTests(unittest.TestCase):
     def test_send_key_combo_tap_does_not_raise_on_windows(self):
-        from ovb_rc003 import win32_input
+        from motedeck import win32_input
 
         # A harmless no-op combo (both keyup immediately); not asserting any
         # observable OS effect here, only that SendInput itself succeeds.
@@ -60,7 +60,7 @@ class Win32InputAvailabilityTests(unittest.TestCase):
         the cross-platform struct-shape half of this contract).
         """
 
-        from ovb_rc003 import win32_input, win32_keys
+        from motedeck import win32_input, win32_keys
 
         vk_shift = win32_keys.VK_CODES["shift"]
         sent = win32_input._real_send_input_batch([(vk_shift, False), (vk_shift, True)])
@@ -70,7 +70,7 @@ class Win32InputAvailabilityTests(unittest.TestCase):
 @unittest.skipUnless(not _ON_WINDOWS, "documents the expected non-Windows failure mode")
 class Win32InputUnavailableOffWindowsTests(unittest.TestCase):
     def test_raises_a_clear_error_off_windows(self):
-        from ovb_rc003 import win32_input
+        from motedeck import win32_input
 
         with self.assertRaises(win32_input.Win32InputUnavailableError):
             win32_input.send_key_combo_tap(("a",))
@@ -80,7 +80,7 @@ class Win32InputUnavailableOffWindowsTests(unittest.TestCase):
 class RawInputWindowsTests(unittest.TestCase):
     def test_keyboard_safety_only_reaches_ready_and_restarts_without_remote(self):
         """Native hidden window only; no injection, remote selection or capture log."""
-        from ovb_rc003 import raw_input_windows
+        from motedeck import raw_input_windows
         listener = raw_input_windows.RawInputButtonListener(lambda *_: None)
         for _ in range(2):
             try:
@@ -96,7 +96,7 @@ class RawInputWindowsTests(unittest.TestCase):
     def test_enumerate_matching_device_paths_runs_without_raising(self):
         # No RC003 is paired in CI; this only proves enumeration itself works,
         # not that a real device is found (that's a real-machine 待核验 item).
-        from ovb_rc003 import raw_input_windows
+        from motedeck import raw_input_windows
 
         raw_input_windows.enumerate_matching_device_paths()
 
@@ -112,7 +112,7 @@ class RawInputWindowsTests(unittest.TestCase):
         under test.
         """
 
-        from ovb_rc003 import raw_input_windows
+        from motedeck import raw_input_windows
 
         listener = raw_input_windows.RawInputButtonListener(lambda button, pressed: None)
 
@@ -144,7 +144,7 @@ class RawInputWindowsTests(unittest.TestCase):
         tests/test_raw_input_pure.py.
         """
 
-        from ovb_rc003 import raw_input_windows
+        from motedeck import raw_input_windows
 
         listener = raw_input_windows.RawInputButtonListener(lambda button, pressed: None)
         device_path = r"\\?\HID#VID_0000&PID_0000#0&test#{00000000-0000-0000-0000-000000000000}"
@@ -224,7 +224,7 @@ class BleTransportWinrtTests(unittest.TestCase):
     def test_discover_candidates_runs_without_raising(self):
         import asyncio
 
-        from ovb_rc003 import ble_transport_winrt
+        from motedeck import ble_transport_winrt
 
         asyncio.run(ble_transport_winrt.discover_candidates())
 
@@ -234,7 +234,7 @@ class BleTransportWinrtTests(unittest.TestCase):
 )
 class AudioOutputWindowsTests(unittest.TestCase):
     def test_enumerate_output_endpoints_runs_without_raising(self):
-        from ovb_rc003 import audio_output
+        from motedeck import audio_output
 
         audio_output.enumerate_output_endpoints()
 

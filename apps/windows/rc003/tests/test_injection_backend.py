@@ -7,8 +7,8 @@ import types
 import unittest
 from unittest import mock
 
-from ovb_rc003 import app as app_module
-from ovb_rc003 import (
+from motedeck import app as app_module
+from motedeck import (
     injection_backend,
     interception_runtime_windows,
     key_mapping,
@@ -438,7 +438,7 @@ class InterceptionAssetDiscoveryTests(unittest.TestCase):
 
 class InterceptionRuntimeTests(unittest.TestCase):
     def setUp(self):
-        patcher = mock.patch.dict(os.environ, {"RC003_DISABLE_LIVE_INPUT": "0"})
+        patcher = mock.patch.dict(os.environ, {"MOTEDECK_DISABLE_LIVE_INPUT": "0"})
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -484,7 +484,7 @@ class InterceptionRuntimeTests(unittest.TestCase):
     def test_live_input_gate_blocks_the_driver(self):
         dll = _FakeInterceptionDll()
         runtime = self._runtime(dll)
-        with mock.patch.dict(os.environ, {"RC003_DISABLE_LIVE_INPUT": "1"}):
+        with mock.patch.dict(os.environ, {"MOTEDECK_DISABLE_LIVE_INPUT": "1"}):
             with self.assertRaises(
                 interception_runtime_windows.InterceptionUnavailableError
             ):
@@ -751,7 +751,7 @@ class DriverProbeTests(unittest.TestCase):
     def test_registered_but_not_running_reports_pending_reboot(self):
         dll = _FakeInterceptionDll()
         runtime = InterceptionRuntimeTests._runtime(dll, driver_probe=lambda: False)
-        with mock.patch.dict(os.environ, {"RC003_DISABLE_LIVE_INPUT": "0"}), mock.patch.object(
+        with mock.patch.dict(os.environ, {"MOTEDECK_DISABLE_LIVE_INPUT": "0"}), mock.patch.object(
             interception_runtime_windows, "driver_installed", return_value=True
         ), mock.patch.object(
             interception_runtime_windows, "memory_integrity_state", return_value=False
@@ -777,7 +777,7 @@ class DriverProbeTests(unittest.TestCase):
 
         dll = _FakeInterceptionDll()
         runtime = InterceptionRuntimeTests._runtime(dll, driver_probe=lambda: False)
-        with mock.patch.dict(os.environ, {"RC003_DISABLE_LIVE_INPUT": "0"}), mock.patch.object(
+        with mock.patch.dict(os.environ, {"MOTEDECK_DISABLE_LIVE_INPUT": "0"}), mock.patch.object(
             interception_runtime_windows, "driver_installed", return_value=True
         ), mock.patch.object(
             interception_runtime_windows, "memory_integrity_state", return_value=True

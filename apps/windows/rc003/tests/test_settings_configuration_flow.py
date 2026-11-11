@@ -10,7 +10,7 @@ import time
 import unittest
 from unittest import mock
 
-from ovb_rc003 import config, bridge_runtime_status, key_mapping, qt_settings_app
+from motedeck import config, bridge_runtime_status, key_mapping, qt_settings_app
 from tests import test_qt_settings_app as controller_tests
 
 
@@ -163,7 +163,7 @@ class ConfigurationFlowTests(unittest.TestCase):
         self.assertEqual(saved["bindings"]["up"]["keys"], ["ctrl", "f9"])
         controller._load_bindings_into_model()
         self.assertEqual(model.to_display_map()["power"], "vk_a2+shift")
-        from ovb_rc003 import win32_input, win32_keys
+        from motedeck import win32_input, win32_keys
         sender = mock.Mock(side_effect=lambda events: len(events))
         action = key_mapping.button_action_for(saved, "power", key_mapping.ButtonTrigger.SINGLE_CLICK)
         win32_input.send_key_combo_tap(action.keys, _sender=sender, _key_down_query=lambda vk: False)
@@ -180,7 +180,7 @@ class ConfigurationQmlFlowTests(unittest.TestCase):
         from tests.test_hid_runtime_upgrade_qml import _SETUP
 
         script = _SETUP + r'''
-from ovb_rc003 import bridge_runtime_status
+from motedeck import bridge_runtime_status
 from unittest import mock
 find(window, "bridgeStatusRefreshTimer").setProperty("running", False)
 find(window, "tabBar").setProperty("currentIndex", 2)
@@ -215,7 +215,7 @@ window.hide()
 m._shutdown_diagnostics_workers()
 '''
         with tempfile.TemporaryDirectory() as tmp:
-            env = dict(os.environ, LOCALAPPDATA=tmp, QT_QPA_PLATFORM="offscreen", RC003_DISABLE_LIVE_INPUT="1")
+            env = dict(os.environ, LOCALAPPDATA=tmp, QT_QPA_PLATFORM="offscreen", MOTEDECK_DISABLE_LIVE_INPUT="1")
             result = subprocess.run([sys.executable, "-B", "-c", script], env=env,
                                     capture_output=True, text=True, timeout=60)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

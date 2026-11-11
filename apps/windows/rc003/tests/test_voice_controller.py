@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003.voice_controller import VoiceController, VoiceHostAction
+from motedeck.voice_controller import VoiceController, VoiceHostAction
 
 
 class HoldModeTests(unittest.TestCase):

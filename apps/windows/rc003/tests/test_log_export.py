@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 import zipfile
 
-from ovb_rc003 import __version__, log_export
+from motedeck import __version__, log_export
 
 
 class LogExportTests(unittest.TestCase):

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import bridge_runtime_status
+from motedeck import bridge_runtime_status
 
 
 class BridgeRuntimeStatusTests(unittest.TestCase):
@@ -189,7 +189,7 @@ class BridgeRuntimeStatusTests(unittest.TestCase):
             "_default_status_scope",
             bridge_runtime_status._STATUS_SCOPE_UNSET,
         ), mock.patch(
-            "ovb_rc003.single_instance.current_process_session_id",
+            "motedeck.single_instance.current_process_session_id",
             side_effect=OSError("session unavailable"),
         ):
             path = bridge_runtime_status.status_path(self.root)
@@ -217,7 +217,7 @@ class BridgeRuntimeStatusTests(unittest.TestCase):
                 "_default_status_scope",
                 bridge_runtime_status._STATUS_SCOPE_UNSET,
             ), mock.patch(
-                "ovb_rc003.single_instance.current_process_session_id",
+                "motedeck.single_instance.current_process_session_id",
                 side_effect=(initial, later),
             ) as session_query:
                 first = bridge_runtime_status.status_path(self.root)
@@ -249,7 +249,7 @@ class BridgeRuntimeStatusTests(unittest.TestCase):
             "_default_status_scope",
             bridge_runtime_status._STATUS_SCOPE_UNSET,
         ), mock.patch(
-            "ovb_rc003.single_instance.current_process_session_id",
+            "motedeck.single_instance.current_process_session_id",
             return_value=2,
         ):
             self.assertIsNone(bridge_runtime_status.read_status(self.root))

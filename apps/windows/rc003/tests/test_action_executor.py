@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import action_executor, key_mapping
+from motedeck import action_executor, key_mapping
 
 
 class SemanticApplicationActionTests(unittest.TestCase):

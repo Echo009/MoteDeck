@@ -32,7 +32,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import (
+from motedeck import (
     app_profiles,
     application_update,
     audio_output,
@@ -104,11 +104,16 @@ def setUpModule() -> None:
     特别版默认停用联网更新检查（``APPLICATION_UPDATE_CHECK_ENABLED`` 为
     False）。下面的控制器用例仍在验证检查/下载这套机制，因此本模块运行期间
     临时打开该开关；需要它的 QML 探针脚本在自己的子进程里自行打开。
+    拆分后该开关只被 qt_settings_controller 读取，因此补丁打在那个模块上；
+    无 PySide6 时控制器用例本来就会跳过，无需打补丁。
     """
 
     global _UPDATE_CHECK_ENABLED_PATCH
+    if not _has_pyside6():
+        return
+    from motedeck import qt_settings_controller
     _UPDATE_CHECK_ENABLED_PATCH = mock.patch.object(
-        qt_settings_app, "APPLICATION_UPDATE_CHECK_ENABLED", True
+        qt_settings_controller, "APPLICATION_UPDATE_CHECK_ENABLED", True
     )
     _UPDATE_CHECK_ENABLED_PATCH.start()
 
@@ -173,9 +178,16 @@ class DiagnosticsThreadLifecycleAtExitTests(unittest.TestCase):
         # interpreter shutdown regardless of what the best-effort atexit
         # join above managed to join in time. A static source check (no
         # PySide6 needed) rather than constructing a real DiagnosticsController.
+        # (The controller code was mechanically split into
+        # qt_settings_diagnostics_panel, which now owns the Thread()
+        # construction sites. That module imports PySide6 via
+        # qt_settings_qml_tokens, so source-check its file via a shell
+        # module object instead of importing it.)
+        import types
         from tests.source_contract import source_text
 
-        source = source_text(qt_settings_app)
+        panel = types.ModuleType("motedeck.qt_settings_diagnostics_panel")
+        source = source_text(panel)
         self.assertIn('threading.Thread(target=_run_in_background, daemon=True)', source)
 
     def test_full_exit_budget_covers_background_cleanup_bridge_stop_and_margin(self):
@@ -512,7 +524,7 @@ class SettingsControllerTests(unittest.TestCase):
             os.environ,
             {
                 "LOCALAPPDATA": self._tmpdir.name,
-                "RC003_DISABLE_LIVE_INPUT": "1",
+                "MOTEDECK_DISABLE_LIVE_INPUT": "1",
             },
         )
         self._env_patch.start()
@@ -577,7 +589,7 @@ class SettingsControllerTests(unittest.TestCase):
                 "devices": [{"key": "a" * 64, "profile": "xiaomi-rc003"}],
             }
             selection_patch = mock.patch(
-                "ovb_rc003.remote_selection.selected_raw_path",
+                "motedeck.remote_selection.selected_raw_path",
                 side_effect=lambda paths, _key: qt_settings_app.raw_input_windows.hid_identity.select_single_device_path(paths),
             )
             selection_patch.start()
@@ -599,15 +611,15 @@ class SettingsControllerTests(unittest.TestCase):
             f"releases/download/test-{version}"
         )
         installer = application_update.ReleaseAsset(
-            f"RemoteMicRC003Setup-{version}-unsigned.exe",
+            f"MoteDeckSetup-{version}-unsigned.exe",
             80 * 1024 * 1024,
-            f"{base_url}/RemoteMicRC003Setup-{version}-unsigned.exe",
+            f"{base_url}/MoteDeckSetup-{version}-unsigned.exe",
             "a" * 64,
         )
         portable = application_update.ReleaseAsset(
-            f"RemoteMicRC003-{version}-portable-unsigned.zip",
+            f"MoteDeck-{version}-portable-unsigned.zip",
             130 * 1024 * 1024,
-            f"{base_url}/RemoteMicRC003-{version}-portable-unsigned.zip",
+            f"{base_url}/MoteDeck-{version}-portable-unsigned.zip",
             "b" * 64,
         )
         manifest = application_update.ReleaseAsset(
@@ -879,7 +891,7 @@ class SettingsControllerTests(unittest.TestCase):
             controller.setDiagnosticTraceEnabled(True)
         controller.setCloseBehaviorIndex(1)
 
-        saved = config.load_config(config.config_path(Path(self._tmpdir.name) / "RemoteMic" / "RC003"))
+        saved = config.load_config(config.config_path(Path(self._tmpdir.name) / "MoteDeck"))
         self.assertTrue(saved["launch_bridge_on_app_start"])
         self.assertTrue(saved["diagnostic_trace_enabled"])
         self.assertEqual(saved["close_behavior"], "quit")
@@ -1992,7 +2004,7 @@ class SettingsControllerTests(unittest.TestCase):
 
     def test_navigation_leaves_qt_keyboard_alone_but_accepts_remote_mapping(self):
         from PySide6.QtWidgets import QApplication
-        from ovb_rc003 import element_navigation_runtime
+        from motedeck import element_navigation_runtime
         app = QApplication.instance() or QApplication([])
         host = element_navigation_runtime._load_prototype()._load_element_navigation_windows_host()
         control = qt_settings_app.element_navigation_control_windows
@@ -3007,7 +3019,7 @@ class SettingsControllerTests(unittest.TestCase):
         )
 
     def test_unknown_wetype_capture_is_shown_without_start_failure(self):
-        from ovb_rc003 import remote_selection
+        from motedeck import remote_selection
         controller, _ = self._make_controller()
         status = bridge_runtime_status.BridgeRuntimeStatus(
             schema=bridge_runtime_status.SCHEMA_VERSION,
@@ -5695,8 +5707,9 @@ class SettingsControllerTests(unittest.TestCase):
             lambda: dialogs.append(True)
         )
         controller.applicationUpdateNotificationRequested.connect(notices.append)
+        from motedeck import qt_settings_controller
         with mock.patch.object(
-            qt_settings_app, "APPLICATION_UPDATE_CHECK_ENABLED", False
+            qt_settings_controller, "APPLICATION_UPDATE_CHECK_ENABLED", False
         ), mock.patch.object(application_update, "check_for_update") as check:
             self.assertFalse(controller.checkForApplicationUpdateOnStartup())
             self.assertFalse(controller.checkForApplicationUpdate())
@@ -6853,7 +6866,7 @@ class DiagnosticsControllerTests(unittest.TestCase):
         # call chain. Only the CHILD PROCESS COMMAND itself is replaced
         # (build_ble_diagnostics_subprocess_command()) with one that spawns
         # a genuine, artificially-hanging OS process instead of the real
-        # ovb_rc003 entrypoint - discovery still runs in a real, separate
+        # motedeck entrypoint - discovery still runs in a real, separate
         # process, and the real terminate()/kill()/wait() escalation this
         # RETRY exists for is exercised for real, through the production
         # _shutdown_diagnostics_workers() helper - the same one
@@ -7532,7 +7545,7 @@ class RunSettingsWindowShutdownCoverageTests(unittest.TestCase):
             os.environ,
             {
                 "LOCALAPPDATA": self._tmpdir.name,
-                "RC003_DISABLE_LIVE_INPUT": "1",
+                "MOTEDECK_DISABLE_LIVE_INPUT": "1",
             },
         )
         self._env_patch.start()
@@ -7690,7 +7703,7 @@ class RunSettingsWindowShutdownCoverageTests(unittest.TestCase):
         fake_classes = self._fake_classes(root_objects=[_FakeWindow()], exec_return=0)
         with mock.patch.dict(
             os.environ,
-            {"RC003_DISABLE_LIVE_INPUT": "0"},
+            {"MOTEDECK_DISABLE_LIVE_INPUT": "0"},
         ), mock.patch.object(
             qt_settings_app, "_load_qt_classes", return_value=fake_classes
         ), mock.patch.object(
@@ -7724,7 +7737,7 @@ class RunSettingsWindowShutdownCoverageTests(unittest.TestCase):
         fake_classes = self._fake_classes(root_objects=[object()], exec_return=0)
         with mock.patch.dict(
             os.environ,
-            {"RC003_DISABLE_LIVE_INPUT": "0"},
+            {"MOTEDECK_DISABLE_LIVE_INPUT": "0"},
         ), mock.patch.object(
             qt_settings_app, "_load_qt_classes", return_value=fake_classes
         ), mock.patch.object(
@@ -7792,7 +7805,7 @@ import time
 from types import SimpleNamespace
 
 from PySide6.QtCore import QObject, QTimer
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 
 original_connect_application_exit = m._connect_application_exit
 action = os.environ.get("RC003_EXIT_PROBE_ACTION", "controller")
@@ -7933,7 +7946,7 @@ import time
 # script ever fails again - it costs nothing on the passing path.
 faulthandler.enable()
 
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 from PySide6.QtCore import QMetaObject, QObject
 
 classes = m._load_qt_classes()
@@ -7952,9 +7965,9 @@ m.single_instance.bridge_instance_running = lambda: False
 model = ButtonMappingModel()
 controller = SettingsController(model)
 diagnostics_controller = DiagnosticsController(controller, m.config.config_root())
-qmlRegisterSingletonInstance(SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller)
-qmlRegisterSingletonInstance(ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model)
-qmlRegisterSingletonInstance(DiagnosticsController, "OvbRc003Settings", 1, 0, "DiagnosticsController", diagnostics_controller)
+qmlRegisterSingletonInstance(SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller)
+qmlRegisterSingletonInstance(ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model)
+qmlRegisterSingletonInstance(DiagnosticsController, "MoteDeckSettings", 1, 0, "DiagnosticsController", diagnostics_controller)
 
 engine = QQmlApplicationEngine()
 qml_dir = m._qml_directory()
@@ -8114,8 +8127,8 @@ import os
 
 from PySide6.QtCore import QMetaObject, QPointF, Qt
 from PySide6.QtTest import QTest
-from ovb_rc003 import application_update as u
-from ovb_rc003 import qt_settings_app as m
+from motedeck import application_update as u
+from motedeck import qt_settings_app as m
 
 # This QML probe uses local release fixtures only, including its startup timer.
 u.claim_daily_update_check = lambda _cache: False
@@ -8195,9 +8208,9 @@ controller = SettingsController(model)
 diagnostics_controller = DiagnosticsController(
     controller, m.config.config_root(), auto_refresh=False
 )
-qmlRegisterSingletonInstance(SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller)
-qmlRegisterSingletonInstance(ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model)
-qmlRegisterSingletonInstance(DiagnosticsController, "OvbRc003Settings", 1, 0, "DiagnosticsController", diagnostics_controller)
+qmlRegisterSingletonInstance(SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller)
+qmlRegisterSingletonInstance(ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model)
+qmlRegisterSingletonInstance(DiagnosticsController, "MoteDeckSettings", 1, 0, "DiagnosticsController", diagnostics_controller)
 
 engine = QQmlApplicationEngine()
 qml_dir = m._qml_directory()
@@ -8368,8 +8381,8 @@ release = u.ApplicationRelease(
     u.parse_application_version(version),
     f"https://github.com/{u.REPOSITORY_SLUG}/releases/tag/test",
     "第一项修复。\n第二项改进。",
-    u.ReleaseAsset(f"RemoteMicRC003Setup-{version}-unsigned.exe", 80 * 1024 * 1024, f"{base}/installer.exe", "a" * 64),
-    u.ReleaseAsset(f"RemoteMicRC003-{version}-portable-unsigned.zip", 130 * 1024 * 1024, f"{base}/portable.zip", "b" * 64),
+    u.ReleaseAsset(f"MoteDeckSetup-{version}-unsigned.exe", 80 * 1024 * 1024, f"{base}/installer.exe", "a" * 64),
+    u.ReleaseAsset(f"MoteDeck-{version}-portable-unsigned.zip", 130 * 1024 * 1024, f"{base}/portable.zip", "b" * 64),
     u.ReleaseAsset("SHA256SUMS.txt", 240, f"{base}/SHA256SUMS.txt", "c" * 64),
 )
 controller._application_update_startup_attempted = False
@@ -8500,7 +8513,7 @@ import os
 from types import SimpleNamespace
 
 from PySide6.QtCore import QPointF
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 
 
 def find_child(root, name):
@@ -8556,9 +8569,9 @@ diagnostics_controller._check_rows = [
         "resultCode": "ready",
     }
 ]
-qmlRegisterSingletonInstance(SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller)
-qmlRegisterSingletonInstance(ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model)
-qmlRegisterSingletonInstance(DiagnosticsController, "OvbRc003Settings", 1, 0, "DiagnosticsController", diagnostics_controller)
+qmlRegisterSingletonInstance(SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller)
+qmlRegisterSingletonInstance(ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model)
+qmlRegisterSingletonInstance(DiagnosticsController, "MoteDeckSettings", 1, 0, "DiagnosticsController", diagnostics_controller)
 
 engine = QQmlApplicationEngine()
 qml_dir = m._qml_directory()
@@ -8847,7 +8860,7 @@ import os
 
 from PySide6.QtCore import QPointF
 from PySide6.QtTest import QTest
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 
 
 def find_child(root, name):
@@ -8904,9 +8917,9 @@ m.single_instance.bridge_instance_running = lambda: bridge_state["running"]
 model = ButtonMappingModel()
 controller = SettingsController(model)
 diagnostics_controller = DiagnosticsController(controller, m.config.config_root())
-qmlRegisterSingletonInstance(SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller)
-qmlRegisterSingletonInstance(ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model)
-qmlRegisterSingletonInstance(DiagnosticsController, "OvbRc003Settings", 1, 0, "DiagnosticsController", diagnostics_controller)
+qmlRegisterSingletonInstance(SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller)
+qmlRegisterSingletonInstance(ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model)
+qmlRegisterSingletonInstance(DiagnosticsController, "MoteDeckSettings", 1, 0, "DiagnosticsController", diagnostics_controller)
 
 engine = QQmlApplicationEngine()
 qml_dir = m._qml_directory()
@@ -9142,7 +9155,7 @@ import json
 
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtTest import QTest
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 
 
 def find_child(root, name):
@@ -9209,9 +9222,9 @@ app = QGuiApplication.instance() or QGuiApplication([])
 model = ButtonMappingModel()
 controller = SettingsController(model)
 diagnostics_controller = DiagnosticsController(controller, m.config.config_root())
-qmlRegisterSingletonInstance(SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller)
-qmlRegisterSingletonInstance(ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model)
-qmlRegisterSingletonInstance(DiagnosticsController, "OvbRc003Settings", 1, 0, "DiagnosticsController", diagnostics_controller)
+qmlRegisterSingletonInstance(SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller)
+qmlRegisterSingletonInstance(ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model)
+qmlRegisterSingletonInstance(DiagnosticsController, "MoteDeckSettings", 1, 0, "DiagnosticsController", diagnostics_controller)
 
 engine = QQmlApplicationEngine()
 qml_dir = m._qml_directory()
@@ -9279,7 +9292,7 @@ print(json.dumps(result))
 _SELECTION_COMBO_STATE_PROBE_SCRIPT = r"""
 import json
 
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 from PySide6.QtCore import QObject, QMetaObject, Qt, QUrl
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlComponent, QQmlEngine
@@ -9402,7 +9415,7 @@ import json
 import os
 
 from PySide6.QtCore import QMetaObject, QPointF, Qt
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 
 
 def find_child(root, name):
@@ -9485,14 +9498,14 @@ model = ButtonMappingModel()
 controller = SettingsController(model)
 diagnostics_controller = DiagnosticsController(controller, m.config.config_root())
 qmlRegisterSingletonInstance(
-    SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller
+    SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller
 )
 qmlRegisterSingletonInstance(
-    ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model
+    ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model
 )
 qmlRegisterSingletonInstance(
     DiagnosticsController,
-    "OvbRc003Settings",
+    "MoteDeckSettings",
     1,
     0,
     "DiagnosticsController",
@@ -11068,7 +11081,7 @@ class ApplicationExitIntegrationTests(unittest.TestCase):
             env = dict(os.environ)
             env.setdefault("QT_QPA_PLATFORM", "offscreen")
             env["LOCALAPPDATA"] = tmpdir
-            env["RC003_DISABLE_LIVE_INPUT"] = "1"
+            env["MOTEDECK_DISABLE_LIVE_INPUT"] = "1"
             result = subprocess.run(
                 [sys.executable, "-c", _APPLICATION_EXIT_PROBE_SCRIPT],
                 env=env,
@@ -11093,7 +11106,7 @@ class ApplicationExitIntegrationTests(unittest.TestCase):
             env = dict(os.environ)
             env.setdefault("QT_QPA_PLATFORM", "offscreen")
             env["LOCALAPPDATA"] = tmpdir
-            env["RC003_DISABLE_LIVE_INPUT"] = "1"
+            env["MOTEDECK_DISABLE_LIVE_INPUT"] = "1"
             env["RC003_EXIT_PROBE_ACTION"] = "window_close_hide"
             result = subprocess.run(
                 [sys.executable, "-c", _APPLICATION_EXIT_PROBE_SCRIPT],
@@ -11122,7 +11135,7 @@ class ApplicationExitIntegrationTests(unittest.TestCase):
             env = dict(os.environ)
             env.setdefault("QT_QPA_PLATFORM", "offscreen")
             env["LOCALAPPDATA"] = tmpdir
-            env["RC003_DISABLE_LIVE_INPUT"] = "1"
+            env["MOTEDECK_DISABLE_LIVE_INPUT"] = "1"
             env["RC003_EXIT_PROBE_ACTION"] = "window_close_quit"
             result = subprocess.run(
                 [sys.executable, "-c", _APPLICATION_EXIT_PROBE_SCRIPT],
@@ -11149,7 +11162,7 @@ class ApplicationExitIntegrationTests(unittest.TestCase):
             env = dict(os.environ)
             env.setdefault("QT_QPA_PLATFORM", "offscreen")
             env["LOCALAPPDATA"] = tmpdir
-            env["RC003_DISABLE_LIVE_INPUT"] = "1"
+            env["MOTEDECK_DISABLE_LIVE_INPUT"] = "1"
             env["RC003_EXIT_PROBE_ACTION"] = "window_close_quit_mixed_dirty"
             result = subprocess.run(
                 [sys.executable, "-c", _APPLICATION_EXIT_PROBE_SCRIPT],
@@ -11178,7 +11191,7 @@ class ApplicationExitIntegrationTests(unittest.TestCase):
             env = dict(os.environ)
             env.setdefault("QT_QPA_PLATFORM", "offscreen")
             env["LOCALAPPDATA"] = tmpdir
-            env["RC003_DISABLE_LIVE_INPUT"] = "1"
+            env["MOTEDECK_DISABLE_LIVE_INPUT"] = "1"
             env["RC003_EXIT_PROBE_ACTION"] = "window_close_quit_running_bridge"
             result = subprocess.run(
                 [sys.executable, "-c", _APPLICATION_EXIT_PROBE_SCRIPT],
@@ -11272,7 +11285,7 @@ class OffscreenQmlLoadTests(unittest.TestCase):
                 env = dict(os.environ)
                 env.setdefault("QT_QPA_PLATFORM", "offscreen")
                 env["LOCALAPPDATA"] = tmpdir
-                env["RC003_DISABLE_LIVE_INPUT"] = "1"
+                env["MOTEDECK_DISABLE_LIVE_INPUT"] = "1"
                 env["PROBE_WIDTH"] = str(width)
                 env["PROBE_HEIGHT"] = str(height)
                 env["PYTHONIOENCODING"] = "utf-8"
@@ -12120,7 +12133,7 @@ import os
 import sys
 import time
 
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 from PySide6.QtCore import (
     QByteArray, QBuffer, QIODevice, QMetaObject, QObject, QPoint, QPointF, Qt,
 )
@@ -12289,9 +12302,9 @@ app = QGuiApplication.instance() or QGuiApplication([])
 model = ButtonMappingModel()
 controller = SettingsController(model)
 diagnostics_controller = DiagnosticsController(controller, m.config.config_root())
-qmlRegisterSingletonInstance(SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller)
-qmlRegisterSingletonInstance(ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model)
-qmlRegisterSingletonInstance(DiagnosticsController, "OvbRc003Settings", 1, 0, "DiagnosticsController", diagnostics_controller)
+qmlRegisterSingletonInstance(SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller)
+qmlRegisterSingletonInstance(ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model)
+qmlRegisterSingletonInstance(DiagnosticsController, "MoteDeckSettings", 1, 0, "DiagnosticsController", diagnostics_controller)
 
 engine = QQmlApplicationEngine()
 qml_dir = m._qml_directory()
@@ -12844,7 +12857,7 @@ _CONTRAST_PROBE_SCRIPT = r"""
 import json
 import sys
 
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 from PySide6.QtCore import QPointF, QObject
 
 
@@ -12886,9 +12899,9 @@ app = QGuiApplication.instance() or QGuiApplication([])
 model = ButtonMappingModel()
 controller = SettingsController(model)
 diagnostics_controller = DiagnosticsController(controller, m.config.config_root())
-qmlRegisterSingletonInstance(SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller)
-qmlRegisterSingletonInstance(ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model)
-qmlRegisterSingletonInstance(DiagnosticsController, "OvbRc003Settings", 1, 0, "DiagnosticsController", diagnostics_controller)
+qmlRegisterSingletonInstance(SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller)
+qmlRegisterSingletonInstance(ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model)
+qmlRegisterSingletonInstance(DiagnosticsController, "MoteDeckSettings", 1, 0, "DiagnosticsController", diagnostics_controller)
 
 engine = QQmlApplicationEngine()
 qml_dir = m._qml_directory()
@@ -13018,7 +13031,7 @@ _MAPPING_CARD_BOARD_PROBE_SCRIPT = r"""
 import json
 import os
 
-from ovb_rc003 import qt_settings_app as m, remote_layout
+from motedeck import qt_settings_app as m, remote_layout
 from PySide6.QtCore import QMetaObject, QPoint, QPointF, Qt
 from PySide6.QtTest import QTest
 
@@ -13074,9 +13087,9 @@ app = QGuiApplication.instance() or QGuiApplication([])
 model = ButtonMappingModel()
 controller = SettingsController(model)
 diagnostics_controller = DiagnosticsController(controller, m.config.config_root())
-qmlRegisterSingletonInstance(SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller)
-qmlRegisterSingletonInstance(ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model)
-qmlRegisterSingletonInstance(DiagnosticsController, "OvbRc003Settings", 1, 0, "DiagnosticsController", diagnostics_controller)
+qmlRegisterSingletonInstance(SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller)
+qmlRegisterSingletonInstance(ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model)
+qmlRegisterSingletonInstance(DiagnosticsController, "MoteDeckSettings", 1, 0, "DiagnosticsController", diagnostics_controller)
 
 engine = QQmlApplicationEngine()
 qml_dir = m._qml_directory()

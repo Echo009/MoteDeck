@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003 import hid_identity
+from motedeck import hid_identity
 
 
 def _report(usages):

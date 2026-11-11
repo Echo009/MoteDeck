@@ -10,7 +10,7 @@ import sys
 import tempfile
 import unittest
 
-from ovb_rc003 import frida_hid_tap_runtime as runtime
+from motedeck import frida_hid_tap_runtime as runtime
 
 
 @unittest.skipUnless(os.name == "nt", "Windows Gadget runtime")

@@ -18,7 +18,7 @@ if errorlevel 1 (
 set "PYTHONPATH=%CD%\src"
 set "PYTHONUTF8=1"
 set "PYTHONIOENCODING=utf-8"
-".venv\Scripts\python.exe" -m ovb_rc003 --settings --isolated-test
+".venv\Scripts\python.exe" -m motedeck --settings --isolated-test
 set "test_exit=%ERRORLEVEL%"
 if not "%test_exit%"=="0" pause
 popd

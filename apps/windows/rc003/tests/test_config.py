@@ -4,14 +4,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import config, key_mapping
+from motedeck import config, key_mapping
 
 
 class ConfigRootTests(unittest.TestCase):
     def test_uses_localappdata_when_set(self):
         with mock.patch.dict("os.environ", {"LOCALAPPDATA": "/tmp/fake-appdata"}):
             root = config.config_root()
-        self.assertEqual(root, Path("/tmp/fake-appdata") / "RemoteMic" / "RC003")
+        self.assertEqual(root, Path("/tmp/fake-appdata") / config.APP_ID)
 
     def test_falls_back_to_home_without_localappdata(self):
         with mock.patch.dict("os.environ", {}, clear=False):
@@ -19,7 +19,68 @@ class ConfigRootTests(unittest.TestCase):
 
             os.environ.pop("LOCALAPPDATA", None)
             root = config.config_root()
-        self.assertEqual(root, Path.home() / "RemoteMic" / "RC003")
+        self.assertEqual(root, Path.home() / config.APP_ID)
+
+
+class ConfigRootMigrationTests(unittest.TestCase):
+    def _prepare_legacy_tree(self, base: Path) -> tuple[Path, Path]:
+        legacy = base.joinpath(*config.LEGACY_CONFIG_ROOT_SEGMENTS)
+        (legacy / "logs").mkdir(parents=True)
+        (legacy / "config.json").write_text("{}", encoding="utf-8")
+        (legacy / "logs" / "app.log").write_text("old", encoding="utf-8")
+        return base / config.APP_ID, legacy
+
+    def test_migrates_legacy_tree_into_new_root_and_keeps_old_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            root, legacy = self._prepare_legacy_tree(base)
+            with mock.patch.dict("os.environ", {"LOCALAPPDATA": str(base)}):
+                self.assertEqual(config.config_root(), root)
+            self.assertEqual((root / "config.json").read_text(encoding="utf-8"), "{}")
+            self.assertEqual(
+                (root / "logs" / "app.log").read_text(encoding="utf-8"), "old"
+            )
+            self.assertTrue(legacy.is_dir())
+            self.assertTrue((root / config.CONFIG_ROOT_MIGRATION_MARKER).exists())
+
+    def test_existing_new_files_are_never_overwritten(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            root, _legacy = self._prepare_legacy_tree(base)
+            root.mkdir()
+            (root / "config.json").write_text('{"new": 1}', encoding="utf-8")
+            with mock.patch.dict("os.environ", {"LOCALAPPDATA": str(base)}):
+                config.config_root()
+            self.assertEqual(
+                (root / "config.json").read_text(encoding="utf-8"), '{"new": 1}'
+            )
+
+    def test_marker_prevents_repeat_scan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            root, legacy = self._prepare_legacy_tree(base)
+            with mock.patch.dict("os.environ", {"LOCALAPPDATA": str(base)}):
+                config.config_root()
+            (root / "config.json").unlink()
+            (legacy / "config.json").write_text("changed", encoding="utf-8")
+            with mock.patch.dict("os.environ", {"LOCALAPPDATA": str(base)}):
+                config.config_root()
+            self.assertFalse((root / "config.json").exists())
+
+    def test_failure_leaves_no_marker_for_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            root, legacy = self._prepare_legacy_tree(base)
+            with mock.patch.dict(
+                "os.environ", {"LOCALAPPDATA": str(base)}
+            ), mock.patch("shutil.copy2", side_effect=OSError("locked")):
+                config.config_root()
+            self.assertFalse((root / config.CONFIG_ROOT_MIGRATION_MARKER).exists())
+            self.assertFalse((root / "config.json").exists())
+            with mock.patch.dict("os.environ", {"LOCALAPPDATA": str(base)}):
+                config.config_root()
+            self.assertEqual((root / "config.json").read_text(encoding="utf-8"), "{}")
+            self.assertTrue((root / config.CONFIG_ROOT_MIGRATION_MARKER).exists())
 
 
 class DefaultConfigPrivacyTests(unittest.TestCase):

@@ -4,7 +4,7 @@ at all, so these run identically whether or not PySide6 is installed.
 
 import unittest
 
-from ovb_rc003 import device_profile, remote_layout
+from motedeck import device_profile, remote_layout
 
 
 class ButtonHotspotTableTests(unittest.TestCase):

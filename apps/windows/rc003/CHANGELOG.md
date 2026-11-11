@@ -1,14 +1,13 @@
 # Changelog — MoteDeck RC003 (Windows)
 
 候选阶段使用持续递增的 `candidate.N` 测试序号。内部构建版本号唯一来源是
-`src/ovb_rc003/VERSION`（当前 `0.2.3`），程序、冻结构建和
+`src/motedeck/VERSION`（当前 `0.2.3`），程序、冻结构建和
 包装都读取该文件。新发布 tag 为 `v<VERSION>`，历史 tag 与包名保持原样。
 
 正式版把最终采用的候选序号放在最后一位：采用 `candidate.30` 时发布为 `v1.0.30`，
 后续候选继续从 `candidate.31` 递增。正式 tag 不带 `windows`、`rc003` 或 `candidate`。
 正式发布附件为未签名安装包 `MoteDeckSetup-<版本号>-unsigned.exe`、`SHA256SUMS.txt`
-和固定文件名的 `MoteDeck2Vokie.zip`；完整命名规则以
-`VALIDATION-AND-DELIVERY.md` 的“版本与命名规则”为准。
+和固定文件名的 `MoteDeck2Vokie.zip`。
 
 ## [0.2.3] — 2026-11-09
 

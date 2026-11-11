@@ -8,7 +8,7 @@ tests/test_single_instance.py's injected ``_create_mutex``/etc.).
 import unittest
 from unittest import mock
 
-from ovb_rc003 import bridge_launcher, single_instance
+from motedeck import bridge_launcher, single_instance
 
 
 class BuildLaunchCommandTests(unittest.TestCase):
@@ -36,7 +36,7 @@ class BuildLaunchCommandTests(unittest.TestCase):
             [
                 r"C:\Python312\python.exe",
                 "-m",
-                "ovb_rc003",
+                "motedeck",
                 "--bridge",
                 bridge_launcher.SETTINGS_LAUNCH_FLAG,
             ],
@@ -59,7 +59,7 @@ class BuildLaunchCommandTests(unittest.TestCase):
         )
         self.assertEqual(
             command,
-            [r"C:\Python312\python.exe", "-m", "ovb_rc003", "--settings"],
+            [r"C:\Python312\python.exe", "-m", "motedeck", "--settings"],
         )
 
     def test_empty_executable_fails_closed(self):
@@ -297,7 +297,7 @@ class InProcessBridgeHandleTests(unittest.TestCase):
         with mock.patch.object(
             bridge_launcher.single_instance,
             "BridgeInstanceGuard",
-        ), mock.patch("ovb_rc003.app.main") as app_main:
+        ), mock.patch("motedeck.app.main") as app_main:
             bridge_launcher._run_in_process_bridge(handle)
 
         app_main.assert_called_once_with(
@@ -420,7 +420,7 @@ class InProcessBridgeHandleTests(unittest.TestCase):
                 single_instance,
                 "BridgeInstanceGuard",
                 return_value=CleanupFailingGuard(),
-            ), mock.patch("ovb_rc003.app.main"):
+            ), mock.patch("motedeck.app.main"):
                 bridge_launcher._run_in_process_bridge(handle)
 
             self.assertEqual(
@@ -447,7 +447,7 @@ class InProcessBridgeHandleTests(unittest.TestCase):
         with mock.patch.object(
             bridge_launcher.single_instance,
             "BridgeInstanceGuard",
-        ), mock.patch("ovb_rc003.app.main", side_effect=SystemExit(7)):
+        ), mock.patch("motedeck.app.main", side_effect=SystemExit(7)):
             bridge_launcher._run_in_process_bridge(handle)
 
         self.assertEqual(handle.poll(), 1)

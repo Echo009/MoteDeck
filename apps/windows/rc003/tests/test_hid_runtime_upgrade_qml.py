@@ -16,7 +16,7 @@ import shiboken6
 
 from PySide6.QtCore import QPointF, Qt
 from PySide6.QtTest import QTest
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 
 
 def find(root, name):
@@ -82,14 +82,14 @@ model = ButtonMappingModel()
 controller = SettingsController(model)
 diagnostics = DiagnosticsController(controller, m.config.config_root())
 qmlRegisterSingletonInstance(
-    SettingsController, "OvbRc003Settings", 1, 0, "SettingsController", controller
+    SettingsController, "MoteDeckSettings", 1, 0, "SettingsController", controller
 )
 qmlRegisterSingletonInstance(
-    ButtonMappingModel, "OvbRc003Settings", 1, 0, "ButtonMappingModel", model
+    ButtonMappingModel, "MoteDeckSettings", 1, 0, "ButtonMappingModel", model
 )
 qmlRegisterSingletonInstance(
     DiagnosticsController,
-    "OvbRc003Settings",
+    "MoteDeckSettings",
     1,
     0,
     "DiagnosticsController",
@@ -123,7 +123,7 @@ _SETUP = _BASE_SETUP.replace(
     "engine = QQmlApplicationEngine()",
 )
 _PROBE = _SETUP + r'''
-from ovb_rc003 import bridge_runtime_status, frida_compat
+from motedeck import bridge_runtime_status, frida_compat
 
 find(window, "bridgeStatusRefreshTimer").setProperty("running", False)
 tab_bar = find(window, "tabBar")

@@ -8,7 +8,7 @@ import unittest
 from unittest import mock
 import zipfile
 
-from ovb_rc003 import bridge_launcher, diagnostic_trace, log_export
+from motedeck import bridge_launcher, diagnostic_trace, log_export
 
 
 class ShutdownDiagnosticsTests(unittest.TestCase):
@@ -22,7 +22,7 @@ class ShutdownDiagnosticsTests(unittest.TestCase):
 
     def test_snapshot_exports_code_locations_without_source_or_locals(self):
         code = SimpleNamespace(co_name='stop', co_filename='C:/PRIVATE/user/program.py')
-        frame = SimpleNamespace(f_globals={'__name__': 'ovb_rc003.pipe_windows'},
+        frame = SimpleNamespace(f_globals={'__name__': 'motedeck.pipe_windows'},
             f_code=code, f_lineno=105, f_back=None, f_locals={'token': 'PRIVATE_TOKEN'})
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -40,18 +40,18 @@ class ShutdownDiagnosticsTests(unittest.TestCase):
             self.assertEqual(log_export.export_logs(destination, root=root).outcome, 'exported')
             with zipfile.ZipFile(destination) as archive:
                 output = archive.read('app.log').decode('utf-8')
-            self.assertIn('ovb_rc003.pipe_windows:stop:105', output)
+            self.assertIn('motedeck.pipe_windows:stop:105', output)
             self.assertNotIn('PRIVATE', output)
 
     def test_snapshot_failure_is_diagnostic_only(self):
         with mock.patch('sys._current_frames', side_effect=RuntimeError('PRIVATE')):
-            with self.assertLogs('ovb_rc003', level='WARNING') as captured:
-                diagnostic_trace.log_shutdown_threads(logging.getLogger('ovb_rc003'))
+            with self.assertLogs('motedeck', level='WARNING') as captured:
+                diagnostic_trace.log_shutdown_threads(logging.getLogger('motedeck'))
         self.assertIn('error_type=RuntimeError', '\n'.join(captured.output))
         self.assertNotIn('PRIVATE', '\n'.join(captured.output))
 
     def test_compiled_frame_absence_still_reports_cleanup_and_collection_result(self):
-        logger = logging.getLogger('ovb_rc003')
+        logger = logging.getLogger('motedeck')
         progress = diagnostic_trace.CleanupProgress(logger, 'receiver', 'a' * 12)
         progress.update('pipe_close', 'begin')
         progress.update('pipe_close', 'done')
@@ -61,7 +61,7 @@ class ShutdownDiagnosticsTests(unittest.TestCase):
             f_code=SimpleNamespace(co_name='wait'), f_lineno=331, f_back=None)
         for frames in ({}, {threading.get_ident(): frame}):
             with mock.patch('sys._current_frames', return_value=frames), \
-                 self.assertLogs('ovb_rc003', level='WARNING') as captured:
+                 self.assertLogs('motedeck', level='WARNING') as captured:
                 diagnostic_trace.log_shutdown_threads(logger)
             output = '\n'.join(captured.output)
             self.assertIn('business_locations=unavailable', output)
@@ -80,10 +80,10 @@ class ShutdownDiagnosticsTests(unittest.TestCase):
         self.assertEqual(progress.state[3], 'pipe_close')
 
     def test_stop_origin_is_recorded_and_arbitrary_text_is_not(self):
-        from ovb_rc003 import bridge_control_windows as control
+        from motedeck import bridge_control_windows as control
         with mock.patch.object(bridge_launcher, 'stop_in_process_bridge', return_value=True) as stop, \
              mock.patch.object(control.bridge_runtime_status, 'read_status', return_value=None), \
-             self.assertLogs('ovb_rc003', level='INFO') as captured:
+             self.assertLogs('motedeck', level='INFO') as captured:
             self.assertTrue(control.request_bridge_exit(reason='user_restart').stopped)
         stop.assert_called_once_with(timeout=5.0, reason='user_restart')
         self.assertIn('reason=user_restart', '\n'.join(captured.output))

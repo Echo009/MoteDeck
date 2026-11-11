@@ -8,7 +8,7 @@ import unittest
 import types
 from unittest import mock
 
-from ovb_rc003 import win32_input, win32_keys
+from motedeck import win32_input, win32_keys
 
 
 class RejectedInputTraceTests(unittest.TestCase):
@@ -97,7 +97,7 @@ class LiveInputSafetyGateTests(unittest.TestCase):
     def test_real_input_backends_are_blocked_when_build_gate_is_enabled(self):
         with mock.patch.dict(
             "os.environ",
-            {"RC003_DISABLE_LIVE_INPUT": "1"},
+            {"MOTEDECK_DISABLE_LIVE_INPUT": "1"},
         ):
             with self.assertRaises(win32_input.Win32InputUnavailableError):
                 win32_input._real_send_input_batch([(0x41, False)])

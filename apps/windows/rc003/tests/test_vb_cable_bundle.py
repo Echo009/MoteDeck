@@ -5,7 +5,7 @@ import unittest.mock as mock
 import zipfile
 from pathlib import Path
 
-from ovb_rc003 import vb_cable_bundle as vcb
+from motedeck import vb_cable_bundle as vcb
 
 
 def _make_zip(path: Path, members: dict, *, symlink_members=()) -> None:

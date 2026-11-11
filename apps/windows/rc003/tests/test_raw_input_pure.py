@@ -20,7 +20,7 @@ from ctypes import wintypes
 from types import SimpleNamespace
 from unittest import mock
 
-from ovb_rc003 import hid_identity, raw_input_windows
+from motedeck import hid_identity, raw_input_windows
 
 WM_KEYDOWN = 0x0100
 WM_KEYUP = 0x0101
@@ -661,7 +661,7 @@ class KeyboardBodyTests(unittest.TestCase):
         self.assertEqual(rec.events, [("up", False)])
 
     def test_every_table_entry_resolves_to_a_known_button(self):
-        from ovb_rc003 import device_profile
+        from motedeck import device_profile
 
         for vk, button in raw_input_windows.KEYBOARD_VK_TO_BUTTON.items():
             self.assertIn(button, device_profile.ALL_BUTTON_IDS, msg=f"vk={vk:#x}")

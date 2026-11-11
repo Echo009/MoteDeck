@@ -19,7 +19,7 @@ Issue 模板；安全漏洞按 [`SECURITY.md`](SECURITY.md) 私密报告。
 
 ## 本地开发
 
-在 Windows PowerShell 中进入 `apps/windows/rc003`：
+在 Windows PowerShell 中进入 `apps/windows/rc003`（需要 Windows 10/11 与 Python 3.12）：
 
 ```powershell
 py -3.12 -m venv .venv
@@ -30,9 +30,13 @@ $env:PYTHONIOENCODING = 'utf-8'
 .\.venv\Scripts\python.exe -m unittest discover -s tests -t . -p 'test_*.py' -v
 ```
 
-完整构建、真机验收和发布不是每个改动的默认步骤。验证深度按
-[`VALIDATION-AND-DELIVERY.md`](apps/windows/rc003/VALIDATION-AND-DELIVERY.md)
-选择，真实 RC003、语音输入、音频端点和长期运行仍需人工检查。
+完整构建、真机验收和发布不是每个改动的默认步骤。真实 RC003、语音输入、
+音频端点和长期运行仍需人工检查。
+
+真机联调与完整构建还需要第三方资源：Frida Gadget、Interception、VB-CABLE 与
+WinUHID，分别用 `build/fetch-frida-gadget.ps1`、`build/fetch-interception.ps1`、
+`build/fetch-vb-cable.ps1`、`build/fetch-winuhid.ps1` 下载（脚本内置版本与哈希校验）。
+完整安装包用 `build/build-candidate.ps1` 生成。
 
 ## 提交修改
 
