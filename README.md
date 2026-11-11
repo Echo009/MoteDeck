@@ -250,7 +250,7 @@ Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](h
 
 小米蓝牙遥控器 2（RC001）的实现，以及小米蓝牙遥控器 2 / 2 Pro 的型号判断（先按蓝牙名匹配，再读 GATT `0x2A24`），参考了 [`GetSayAll/remote-mic-app-windows`](https://github.com/GetSayAll/remote-mic-app-windows)（SayAll Windows 版），由 [Echo](https://github.com/HD838A) 提交（PR #7）。感谢他的公开实现。
 
-按键与语音页的元素导航与上游的独立项目 [`ZSTDJan/orthofocus`](https://github.com/ZSTDJan/orthofocus)（GPL-3.0-only）共源，两边使用同一套导航源码，导出快照与来源记录见 [OrthoFocus 项目说明](apps/windows/orthofocus/README.md)。感谢上游对 OrthoFocus 的维护。
+元素导航与上游的独立项目 [`ZSTDJan/orthofocus`](https://github.com/ZSTDJan/orthofocus)（GPL-3.0-only）共源，两边使用同一套导航源码，导出快照与来源记录见 [OrthoFocus 项目说明](apps/windows/orthofocus/README.md)。感谢上游对 OrthoFocus 的维护。
 
 一个可选的驱动级注入后端是第三方项目 [Interception](https://github.com/oblitum/Interception)（作者 [oblitum / Francisco Lopes](https://github.com/oblitum)）：使用的是官方发布包里未修改的 `interception.dll` 与 `install-interception.exe`（由官方安装程序安装原版驱动），按 LGPL-3.0 用于非商业用途，许可与校验信息见 [第三方说明](THIRD_PARTY_NOTICES.md)。新用户建议优先使用下文的 WinUHid。
 
