@@ -104,7 +104,7 @@ Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适�
 
 到 [Releases](https://github.com/HZDavy/MoteDeck/releases) 下载最新的 `MoteDeckSetup-<版本号>-unsigned.exe`，也可以先在 [官网](https://hzdavy.github.io/MoteDeck/) 查看当前版本与更新说明。
 
-当前正式版为 **0.2.2**。直接下载 [MoteDeckSetup-0.2.2-unsigned.exe](https://github.com/HZDavy/MoteDeck/releases/download/v0.2.2/MoteDeckSetup-0.2.2-unsigned.exe)，或到[本版发布页](https://github.com/HZDavy/MoteDeck/releases/tag/v0.2.2)查看版本说明与后续更新。发布页同时提供 `SHA256SUMS.txt`，下载后可用 `Get-FileHash -Algorithm SHA256` 核对文件。
+当前正式版为 **0.2.4**。直接下载 [MoteDeckSetup-0.2.4-unsigned.exe](https://github.com/HZDavy/MoteDeck/releases/download/v0.2.4/MoteDeckSetup-0.2.4-unsigned.exe)，或到[本版发布页](https://github.com/HZDavy/MoteDeck/releases/tag/v0.2.4)查看版本说明与后续更新。发布页同时提供 `SHA256SUMS.txt`，下载后可用 `Get-FileHash -Algorithm SHA256` 核对文件。
 
 需要 Vokie 插件时，下载[最新版 MoteDeck2Vokie.zip](https://github.com/HZDavy/MoteDeck/releases/latest/download/MoteDeck2Vokie.zip)，也可以直接在软件「语音」页的「外部应用程序支持」里点「下载插件」。
 
