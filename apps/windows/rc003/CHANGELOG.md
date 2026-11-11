@@ -1,13 +1,20 @@
 # Changelog — MoteDeck RC003 (Windows)
 
 候选阶段使用持续递增的 `candidate.N` 测试序号。内部构建版本号唯一来源是
-`src/motedeck/VERSION`（当前 `0.2.3`），程序、冻结构建和
+`src/motedeck/VERSION`（当前 `0.2.4`），程序、冻结构建和
 包装都读取该文件。新发布 tag 为 `v<VERSION>`，历史 tag 与包名保持原样。
 
 正式版把最终采用的候选序号放在最后一位：采用 `candidate.30` 时发布为 `v1.0.30`，
 后续候选继续从 `candidate.31` 递增。正式 tag 不带 `windows`、`rc003` 或 `candidate`。
 正式发布附件为未签名安装包 `MoteDeckSetup-<版本号>-unsigned.exe`、`SHA256SUMS.txt`
 和固定文件名的 `MoteDeck2Vokie.zip`。
+
+## [0.2.4] — 2026-11-11
+
+- 修复 Issue #44：未做预绑定（prebind）的机器上，布防窗口内的按键会泄漏给系统——按下被透传、抬起却被抹除流程吞掉，宿主应用收到只按下不抬起的键（如 Edge 的回车）就会持续连发；程序同时误判按键钩子失效并反复回退重试。现在门开启时的中性报告直接透传给 Windows，未验证拦截的布防期间不再因原始输入事件触发回退。
+- 按 Issue #47 修正文档：README 的语音键配置流程改写为「管理配置…」弹窗的实际操作（录入快捷键、排序、停用、改名），补上每条语音键的「延迟发送」与「TSF 切换」说明，并新增微信输入法在 Windows Terminal 等 XAML Islands 窗口获得焦点时语音快捷键可能无法触发的兼容性说明；CONTRIBUTING 补全本地开发环境要求（Windows 10/11、Python 3.12）与 Frida Gadget、Interception、VB-CABLE、WinUHID 资源获取脚本；清理 CHANGELOG 中指向已删除文档的引用。
+- 修复 native 测试门禁：构建脚本把测试阶段环境变量改名为 `MOTEDECK_NATIVE_STAGE` 后，四个测试文件仍在读旧名 `RC003_NATIVE_STAGE`，编译产物测试阶段因此出现模块同名冲突与误报；统一为新名。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3530 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.4-unsigned.exe`（99555292 字节，SHA-256 `dd80c8a888ae522c23de3fd0a405954175166917dcdac57a8d44385db0364d59`）。
 
 ## [0.2.3] — 2026-11-09
 
