@@ -1,7 +1,7 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-    Safely stops the installed RemoteMicRC003.exe before upgrade, uninstall,
+    Safely stops the installed MoteDeck.exe before upgrade, uninstall,
     or an explicit user-requested stop.
 
 .DESCRIPTION
@@ -38,7 +38,14 @@ $exitOtherSessionRunning = 24
 $applicationExitRejectedExitCode = 21
 $maintenanceExitTimeoutSeconds = 50
 $legacyBridgeExitTimeoutSeconds = 10
-$targetExecutableName = "RemoteMicRC003.exe"
+# 主程序命名经历过三代：现行固定 MoteDeck.exe、文件名冻结前的
+# "MoteDeck <版本>.exe"、最初的 RemoteMicRC003.exe。停止逻辑必须
+# 三代都识别，否则升级时找不到正在运行的旧版进程，旧进程会存活到
+# 安装结束并留下无法清理的隔离目录。
+$targetExecutableNames = @("MoteDeck.exe", "RemoteMicRC003.exe")
+$targetVersionedExecutableNamePattern = "^MoteDeck .+\.exe$"
+$targetProcessNameFilter =
+    "Name = 'MoteDeck.exe' OR Name = 'RemoteMicRC003.exe' OR Name LIKE 'MoteDeck %.exe'"
 $v3ExitCapabilityProperty = "RemoteMicRC003.ApplicationExitRequestV3"
 $windowExitCapabilityProperty = "RemoteMicRC003.ApplicationExitWindowSignalV1"
 $windowExitRequestProperty = "RemoteMicRC003.ApplicationExitWindowRequestV1"
@@ -366,9 +373,6 @@ try {
     Write-StopError "$productName application path could not be normalized."
     exit $exitProbeFailed
 }
-$targetExecutablePath = [System.IO.Path]::GetFullPath(
-    [System.IO.Path]::Combine($root, $targetExecutableName)
-)
 
 if ([string]::IsNullOrWhiteSpace($ConfigRoot)) {
     $localAppData = [Environment]::GetFolderPath(
@@ -391,7 +395,7 @@ function Get-TargetSnapshot {
     try {
         $processes = @(
             Get-CimInstance Win32_Process `
-                -Filter "Name = '$targetExecutableName'" `
+                -Filter $script:targetProcessNameFilter `
                 -ErrorAction Stop
         )
     } catch {
@@ -414,9 +418,17 @@ function Get-TargetSnapshot {
             $unknownCount += 1
             continue
         }
-        $matchesTargetPath = $executable.Equals(
-            $script:targetExecutablePath,
-            [System.StringComparison]::OrdinalIgnoreCase
+        $executableName = [System.IO.Path]::GetFileName($executable)
+        $matchesTargetName = (
+            $script:targetExecutableNames -contains $executableName -or
+            $executableName -match $script:targetVersionedExecutableNamePattern
+        )
+        $matchesTargetPath = (
+            $matchesTargetName -and
+            [System.IO.Path]::GetDirectoryName($executable).Equals(
+                $script:root,
+                [System.StringComparison]::OrdinalIgnoreCase
+            )
         )
         $target = [PSCustomObject]@{
             ProcessId = [uint32]$process.ProcessId

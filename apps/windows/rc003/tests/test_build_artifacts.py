@@ -1158,8 +1158,14 @@ class InnoSetupScriptTests(unittest.TestCase):
         self.assertIn("$exitOtherSessionRunning = 24", script)
         self.assertIn("CreationDate", script)
         self.assertIn("Get-CurrentTargetProcess", script)
-        self.assertIn('$targetExecutableName = "RemoteMicRC003.exe"', script)
-        self.assertIn("$targetExecutablePath", script)
+        self.assertIn(
+            '$targetExecutableNames = @("MoteDeck.exe", "RemoteMicRC003.exe")',
+            script,
+        )
+        self.assertIn("$targetVersionedExecutableNamePattern", script)
+        self.assertIn("Name LIKE 'MoteDeck %.exe'", script)
+        self.assertIn("[System.IO.Path]::GetDirectoryName($executable)", script)
+        self.assertNotIn("$targetExecutablePath", script)
         self.assertIn("[switch]$BlockOtherLocations", script)
         self.assertIn("$exitOtherLocationRunning = 23", script)
         self.assertNotIn("Resolve-Path -LiteralPath $AppPath", script)
