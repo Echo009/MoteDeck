@@ -38,6 +38,10 @@ class RuntimeStatusMixin:
         try:
             if self._chromecast_real:
                 self._chromecast_runtime = self._create_chromecast_runtime()
+                # 软件方案（按前台应用/切换快捷键覆盖映射）在谷歌遥控器链路
+                # 同样要生效；chromecast_runtime 自己不管 preset，循环必须在
+                # 这里启动，否则切到该机型后永远只用全局映射。
+                self._start_preset_switching()
                 await self._chromecast_runtime.run()
                 return
             self._start_input_channels()
@@ -45,8 +49,8 @@ class RuntimeStatusMixin:
             await self._supervisor.run_forever()
         finally:
             try:
+                await self._stop_preset_switching()
                 if not self._chromecast_real:
-                    await self._stop_preset_switching()
                     self._stop_input_channels()
                 self._voice_mode_toast_watch.stop()
                 self._voice_mode_toast.stop()

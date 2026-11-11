@@ -5768,6 +5768,39 @@ class InputLifecycleTests(_AppWiringTestCase):
         self.assertEqual(calls, ["input_start", "supervisor", "input_stop"])
         self.assertIsNone(app_module.element_navigation_runtime._diagnostic_trace)
 
+    def test_chromecast_mode_still_switches_app_profile_presets(self):
+        calls = []
+        self.app._chromecast_real = True
+
+        class Runtime:
+            async def run(self):
+                calls.append("chromecast")
+
+        async def stop_preset_switching():
+            calls.append("preset_stop")
+
+        with mock.patch.object(
+            self.app,
+            "_create_chromecast_runtime",
+            side_effect=lambda: Runtime(),
+        ), mock.patch.object(
+            self.app,
+            "_start_preset_switching",
+            side_effect=lambda: calls.append("preset_start"),
+        ), mock.patch.object(
+            self.app,
+            "_stop_preset_switching",
+            side_effect=stop_preset_switching,
+        ), mock.patch.object(
+            self.app,
+            "_stop_input_channels",
+            side_effect=lambda: calls.append("input_stop"),
+        ):
+            self._loop.run_until_complete(self.app.run_forever())
+
+        # 谷歌遥控器链路不跑 RC003 输入通道，但软件方案切换必须照常启动/停止。
+        self.assertEqual(calls, ["preset_start", "chromecast", "preset_stop"])
+
     def test_input_channels_are_started_once_as_one_owned_group(self):
         calls = []
         with mock.patch.object(
