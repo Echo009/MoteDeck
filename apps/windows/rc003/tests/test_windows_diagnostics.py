@@ -1887,8 +1887,8 @@ class RunOutputEndpointPreflightSubprocessTests(unittest.TestCase):
 def _spawn_motedeck(*args: str) -> "list[str]":
     env = dict(os.environ)
     repo_src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
-    if os.environ.get("RC003_NATIVE_STAGE"):
-        repo_src = os.path.join(os.environ["RC003_NATIVE_STAGE"], "src")
+    if os.environ.get("MOTEDECK_NATIVE_STAGE"):
+        repo_src = os.path.join(os.environ["MOTEDECK_NATIVE_STAGE"], "src")
     env["PYTHONPATH"] = repo_src
     from tests.source_contract import entry_command
     return entry_command(*args), env

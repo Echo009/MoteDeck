@@ -36,8 +36,8 @@ from motedeck import (
 
 class DryRunCoverageTests(unittest.TestCase):
     def test_dry_run_imports_every_top_level_first_party_module_in_a_fresh_process(self):
-        src_root = (Path(os.environ["RC003_NATIVE_STAGE"]) / "src"
-                    if os.environ.get("RC003_NATIVE_STAGE") else
+        src_root = (Path(os.environ["MOTEDECK_NATIVE_STAGE"]) / "src"
+                    if os.environ.get("MOTEDECK_NATIVE_STAGE") else
                     Path(__file__).resolve().parents[1] / "src")
         script = """
 import pkgutil

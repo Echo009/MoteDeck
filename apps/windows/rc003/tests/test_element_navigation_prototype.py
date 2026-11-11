@@ -23,7 +23,7 @@ TARGETING_CORE_PATH = SCRIPT_PATH.with_name("element_targeting_core.py")
 SUPPORT_PATH = SCRIPT_PATH.with_name("element_navigation_support.py")
 WINDOWS_HOST_PATH = SCRIPT_PATH.with_name("element_navigation_windows_host.py")
 def runtime_navigation_path(source_path):
-    stage = os.environ.get("RC003_NATIVE_STAGE")
+    stage = os.environ.get("MOTEDECK_NATIVE_STAGE")
     if not stage:
         return source_path
     directory = Path(stage) / "scripts"
