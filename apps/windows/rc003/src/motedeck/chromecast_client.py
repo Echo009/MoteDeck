@@ -66,6 +66,7 @@ class Client:
         self.failure_stage = "initializing"
         self.failure_code = ""
         self._first_worker_failure = ""
+        self._launch_pending = False
 
     def _observe_diagnostic(self, event):
         if event["phase"] == "failed":
@@ -123,10 +124,20 @@ class Client:
             return
         if threading.current_thread() is self.thread:
             raise RuntimeError("停止接收必须由资源所有者完成。")
-        self.thread.join(5)
-        if not self.thread.is_alive():
-            self._confirm_exit()
-        if self.thread.is_alive() or not self.cleanup_confirmed:
+        if self.thread.is_alive() and self._launch_pending:
+            # The thread is blocked inside ShellExecuteExW waiting for the UAC
+            # prompt, so it can never observe cancel. No receiver process
+            # exists yet, and an approval after exit spawns a worker whose
+            # pipe connection fails and which self-terminates; teardown may
+            # proceed. Joining would only burn its full timeout.
+            logging.getLogger("motedeck").warning(
+                "Chromecast stop while elevation pending: confirming cleanup without thread exit")
+            self.cleanup_confirmed = True
+        else:
+            self.thread.join(5)
+            if not self.thread.is_alive():
+                self._confirm_exit()
+        if (self.thread.is_alive() and not self._launch_pending) or not self.cleanup_confirmed:
             snapshot = (self.thread.is_alive(), self.cleanup_confirmed, self._process is not None,
                         self._worker_process is not None)
             if snapshot != getattr(self, "_last_stop_snapshot", None):
@@ -188,7 +199,15 @@ class Client:
             if self.cancel.is_set() or (self._external_cancel and self._external_cancel.is_set()):
                 return
             self.failure_stage = "launch"
-            child = launch_worker(self.identity, parent)
+            # ShellExecuteExW blocks on the UAC elevation prompt with no
+            # timeout and cannot observe cancel. While it is pending no
+            # receiver process exists yet, so stop() may confirm teardown
+            # without waiting for this thread.
+            self._launch_pending = True
+            try:
+                child = launch_worker(self.identity, parent)
+            finally:
+                self._launch_pending = False
             kernel, _ = api()
             launched = inspect_peer(kernel.GetProcessId(child))
             self.failure_stage = "pipe_connect"
