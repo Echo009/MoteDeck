@@ -1,13 +1,18 @@
 # Changelog — MoteDeck RC003 (Windows)
 
 候选阶段使用持续递增的 `candidate.N` 测试序号。内部构建版本号唯一来源是
-`src/motedeck/VERSION`（当前 `0.2.6`），程序、冻结构建和
+`src/motedeck/VERSION`（当前 `0.2.7`），程序、冻结构建和
 包装都读取该文件。新发布 tag 为 `v<VERSION>`，历史 tag 与包名保持原样。
 
 正式版把最终采用的候选序号放在最后一位：采用 `candidate.30` 时发布为 `v1.0.30`，
 后续候选继续从 `candidate.31` 递增。正式 tag 不带 `windows`、`rc003` 或 `candidate`。
 正式发布附件为未签名安装包 `MoteDeckSetup-<版本号>-unsigned.exe`、`SHA256SUMS.txt`
 和固定文件名的 `MoteDeck2Vokie.zip`。
+
+## [0.2.7] — 2026-11-12
+
+- 修复 Issue #44：单应用方案下双击与长按不生效。长按连发此前调用带物理键预检的按键下发，预检的 GetAsyncKeyState 兜底分不清按键是本进程自己注入的，长按连发被自己连续拒绝，长按动作完全失效；现在连发只通过 `key_repeat` 重发最后的按键，不再做物理键预检。同时修复设置页保存时静默丢弃按键页待保存的应用方案：保存设置前先把待提交方案按方案路径写入，再回读全局配置文件，双击/长按等方案配置不再丢失。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3531 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.7-unsigned.exe`（99559822 字节，SHA-256 `9579fd3e8d171f855c8fae8a401fd0c89e186c6c73111b25c08f369f7990fbc3`），插件包 `MoteDeck2Vokie.zip`（0.1.5，20262 字节，SHA-256 `e3e852759b34bd365216a7da63a911962ad298590a1dd938e2624c172bc26e3e`，与 0.2.6 相同，插件本次无变更）。
 
 ## [0.2.6] — 2026-11-12
 
