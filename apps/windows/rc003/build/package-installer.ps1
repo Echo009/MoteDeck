@@ -79,15 +79,12 @@ try {
     Copy-Item -LiteralPath $installerPath -Destination $outputFullPath -Force
     $installerHash = (Get-FileHash -LiteralPath $outputFullPath -Algorithm SHA256).Hash
     $manifestPath = Join-Path $outputDirectory "SHA256SUMS.txt"
+    # The in-app updater requires one manifest line per update package
+    # (installer and/or portable). Extra lines such as the Vokie plugin
+    # ZIP make every client reject the release with an invalid manifest.
     $manifestLines = @(
         ("{0}  {1}" -f $installerHash.ToLowerInvariant(), (Split-Path -Leaf $outputFullPath))
     )
-    $repoRoot = (Resolve-Path (Join-Path $MoteDeckRoot "..\..\..")).Path
-    $pluginPath = Join-Path $repoRoot "dist-archive\MoteDeck2Vokie.zip"
-    if (Test-Path -LiteralPath $pluginPath -PathType Leaf) {
-        $pluginHash = (Get-FileHash -LiteralPath $pluginPath -Algorithm SHA256).Hash
-        $manifestLines += "{0}  MoteDeck2Vokie.zip" -f $pluginHash.ToLowerInvariant()
-    }
     Set-Content `
         -LiteralPath $manifestPath `
         -Value $manifestLines `
