@@ -29,6 +29,10 @@ _LOGGER = logging.getLogger(__name__)
 PROTOCOL_NAME = "motedeck-vokie-bridge"
 BRIDGE_VERSION = 1
 DISCOVERY_FILE_NAME = "vokie-bridge.json"
+# 0.2.4 之前配置根目录是 %LOCALAPPDATA%\RemoteMic\RC003。已经安装的旧版插件
+# 仍按旧路径查找发现文件，所以新路径之外再写一份到旧位置，旧插件升级程序后
+# 无需重新下载插件也能连上。
+LEGACY_DISCOVERY_ROOT_SEGMENTS = ("RemoteMic", "RC003")
 MAX_LINE_BYTES = 64 * 1024
 MAX_MODES = 32
 _POLL_SECONDS = 0.25
@@ -55,6 +59,23 @@ def discovery_path(config_root: Path) -> Path:
     """Return the file the plugin worker polls for connection details."""
 
     return Path(config_root) / DISCOVERY_FILE_NAME
+
+
+def legacy_discovery_path(config_root: Path) -> Path:
+    """Return the discovery path old plugin builds still poll."""
+
+    root = Path(config_root)
+    return root.parent.joinpath(*LEGACY_DISCOVERY_ROOT_SEGMENTS) / DISCOVERY_FILE_NAME
+
+
+def discovery_paths(config_root: Path) -> List[Path]:
+    """Return every discovery file location, primary first."""
+
+    primary = discovery_path(config_root)
+    legacy = legacy_discovery_path(config_root)
+    if legacy == primary:
+        return [primary]
+    return [primary, legacy]
 
 
 def normalize_modes(raw: object) -> List[Dict[str, str]]:
@@ -280,19 +301,28 @@ class VokieBridge(QObject):
         }
         path = discovery_path(self._config_root)
         path.parent.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(payload, ensure_ascii=False, indent=2)
         temporary = path.with_name(path.name + ".tmp")
-        temporary.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
+        temporary.write_text(line, encoding="utf-8")
         temporary.replace(path)
+        for legacy_path in discovery_paths(self._config_root)[1:]:
+            try:
+                legacy_path.parent.mkdir(parents=True, exist_ok=True)
+                legacy_temporary = legacy_path.with_name(legacy_path.name + ".tmp")
+                legacy_temporary.write_text(line, encoding="utf-8")
+                legacy_temporary.replace(legacy_path)
+            except OSError as exc:
+                # 旧目录写不进去不影响主路径，新版插件仍可连接。
+                _LOGGER.info("vokie bridge legacy discovery file skipped: %s", exc)
 
     def _remove_discovery(self) -> None:
-        try:
-            discovery_path(self._config_root).unlink()
-        except FileNotFoundError:
-            pass
-        except OSError:
-            pass
+        for path in discovery_paths(self._config_root):
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
 
     def _close_connection(self) -> Optional[socket.socket]:
         with self._lock:
