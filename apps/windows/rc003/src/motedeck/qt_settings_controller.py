@@ -3250,6 +3250,11 @@ class SettingsController(QObject):
             # The button page is editing one application's layout. Saving
             # the settings page must never write that layout into the
             # global key_bindings.json, so fall back to the global file.
+            if self._mapping_dirty and not self._save_mapping():
+                # Commit the pending application layout through the profile
+                # path first; the global-file reload below would otherwise
+                # silently discard it.
+                return finish(False)
             try:
                 new_bindings = config.load_key_bindings(
                     config.key_bindings_path(self._config_root)

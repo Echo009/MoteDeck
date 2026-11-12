@@ -2310,12 +2310,16 @@ class OrdinaryButtonGestureWiringTests(_AppWiringTestCase):
             backend_for.assert_called_once_with(key_mapping.INJECT_MODE_WINUHID)
             tokens = fake_backend.key_down.call_args.args[0]
             self.assertEqual(fake_backend.key_down.call_count, 1)
+            self.assertEqual(fake_backend.key_repeat.call_count, 0)
             fake_backend.key_up.assert_not_called()
             tap.assert_not_called()
-            # Each repeat re-sends only the key-down, keeping one sustained press.
+            # Each repeat re-sends only the key-down through key_repeat, which
+            # never runs the physical-key preflight: the held key-down is this
+            # process's own injection.
             timers[-1].fire()
-            self.assertEqual(fake_backend.key_down.call_count, 2)
-            self.assertEqual(fake_backend.key_down.call_args.args[0], tokens)
+            self.assertEqual(fake_backend.key_repeat.call_count, 1)
+            self.assertEqual(fake_backend.key_repeat.call_args.args[0], tokens)
+            self.assertEqual(fake_backend.key_down.call_count, 1)
             fake_backend.key_up.assert_not_called()
             tap.assert_not_called()
             # The single matching key-up is delivered only on release.
@@ -2341,12 +2345,16 @@ class OrdinaryButtonGestureWiringTests(_AppWiringTestCase):
             backend_for.assert_called_once_with(key_mapping.INJECT_MODE_INTERCEPTION)
             tokens = fake_backend.key_down.call_args.args[0]
             self.assertEqual(fake_backend.key_down.call_count, 1)
+            self.assertEqual(fake_backend.key_repeat.call_count, 0)
             fake_backend.key_up.assert_not_called()
             tap.assert_not_called()
-            # Each repeat re-sends only the key-down, keeping one sustained press.
+            # Each repeat re-sends only the key-down through key_repeat, which
+            # never runs the physical-key preflight: the held key-down is this
+            # process's own injection.
             timers[-1].fire()
-            self.assertEqual(fake_backend.key_down.call_count, 2)
-            self.assertEqual(fake_backend.key_down.call_args.args[0], tokens)
+            self.assertEqual(fake_backend.key_repeat.call_count, 1)
+            self.assertEqual(fake_backend.key_repeat.call_args.args[0], tokens)
+            self.assertEqual(fake_backend.key_down.call_count, 1)
             fake_backend.key_up.assert_not_called()
             tap.assert_not_called()
             # The single matching key-up is delivered only on release.
