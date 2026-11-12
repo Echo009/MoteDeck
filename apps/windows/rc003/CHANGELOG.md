@@ -1,13 +1,19 @@
 # Changelog — MoteDeck RC003 (Windows)
 
 候选阶段使用持续递增的 `candidate.N` 测试序号。内部构建版本号唯一来源是
-`src/motedeck/VERSION`（当前 `0.2.5`），程序、冻结构建和
+`src/motedeck/VERSION`（当前 `0.2.6`），程序、冻结构建和
 包装都读取该文件。新发布 tag 为 `v<VERSION>`，历史 tag 与包名保持原样。
 
 正式版把最终采用的候选序号放在最后一位：采用 `candidate.30` 时发布为 `v1.0.30`，
 后续候选继续从 `candidate.31` 递增。正式 tag 不带 `windows`、`rc003` 或 `candidate`。
 正式发布附件为未签名安装包 `MoteDeckSetup-<版本号>-unsigned.exe`、`SHA256SUMS.txt`
 和固定文件名的 `MoteDeck2Vokie.zip`。
+
+## [0.2.6] — 2026-11-12
+
+- 修复 Issue #55：0.2.4 起配置根目录迁到 `%LOCALAPPDATA%\MoteDeck`，而 MoteDeck2Vokie 0.1.4 仍在旧目录 `%LOCALAPPDATA%\RemoteMic\RC003` 查找发现文件，升级后插件一直停在等待/正在连接。现在程序同时向新旧两个目录写入发现文件，退出时一并清理，已安装旧版插件的用户只升级程序即可恢复；插件升级到 0.1.5，优先读取新目录、找不到再回退旧目录，继续兼容 0.2.3 及更早版本。
+- 修复谷歌遥控器停止服务时卡住：管理员授权弹窗仍未确认时请求停止，接收线程阻塞在提权启动调用里无法响应取消，停止流程会一直等到超时。现在授权尚未完成时直接确认清理，不再等待线程退出；授权后启动的接收进程会因为管道连接失败自行退出，不会残留。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3531 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.6-unsigned.exe`（99552396 字节，SHA-256 `7910e6759b73c12a9de8b21f8839f6e49657adb12c6f7627cc70f41035da8a7e`），插件包 `MoteDeck2Vokie.zip`（0.1.5，20262 字节，SHA-256 `e3e852759b34bd365216a7da63a911962ad298590a1dd938e2624c172bc26e3e`）。
 
 ## [0.2.5] — 2026-11-11
 
