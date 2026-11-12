@@ -125,11 +125,11 @@ class Client:
         if threading.current_thread() is self.thread:
             raise RuntimeError("停止接收必须由资源所有者完成。")
         if self.thread.is_alive() and self._launch_pending:
-            # The thread is blocked inside ShellExecuteExW waiting for the UAC
-            # prompt, so it can never observe cancel. No receiver process
-            # exists yet, and an approval after exit spawns a worker whose
-            # pipe connection fails and which self-terminates; teardown may
-            # proceed. Joining would only burn its full timeout.
+            # The thread is blocked inside the elevated launch call waiting for
+            # the UAC prompt, so it can never observe cancel. No receiver
+            # process exists yet, and an approval after exit spawns a worker
+            # whose pipe connection fails and which self-terminates; teardown
+            # may proceed. Joining would only burn its full timeout.
             logging.getLogger("motedeck").warning(
                 "Chromecast stop while elevation pending: confirming cleanup without thread exit")
             self.cleanup_confirmed = True
@@ -199,7 +199,7 @@ class Client:
             if self.cancel.is_set() or (self._external_cancel and self._external_cancel.is_set()):
                 return
             self.failure_stage = "launch"
-            # ShellExecuteExW blocks on the UAC elevation prompt with no
+            # The elevated launch call blocks on the UAC prompt with no
             # timeout and cannot observe cancel. While it is pending no
             # receiver process exists yet, so stop() may confirm teardown
             # without waiting for this thread.
