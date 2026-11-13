@@ -10,9 +10,9 @@ import unittest
 from unittest import mock
 import zipfile
 
-from ovb_rc003 import frida_compat as compat, frida_hid_tap_injector as injector
-from ovb_rc003 import hid_elevation_windows as helper, hid_injection_diagnostics as diag
-from ovb_rc003 import diagnostic_trace, logging_setup, log_export
+from motedeck import frida_compat as compat, frida_hid_tap_injector as injector
+from motedeck import hid_elevation_windows as helper, hid_injection_diagnostics as diag
+from motedeck import diagnostic_trace, logging_setup, log_export
 
 
 def stage_error(stage='remote_write', api='WriteProcessMemory', code=5):
@@ -155,7 +155,7 @@ class InjectionDiagnosticsTests(unittest.TestCase):
         # Runs the source child and its Windows stdout handle, never an injector API.
         script = """
 from unittest.mock import patch
-from ovb_rc003 import frida_hid_tap_injector as injector
+from motedeck import frida_hid_tap_injector as injector
 error = injector.HidInjectionStageError('hid_helper_remote_thread_failed')
 error.winerror = 5
 with patch.object(injector, 'inject_current_process', side_effect=error):

@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003 import identity
+from motedeck import identity
 
 
 class SelectSingleCandidateTests(unittest.TestCase):

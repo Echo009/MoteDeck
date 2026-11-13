@@ -1,6 +1,6 @@
 # Runtime dependencies for the Remote Mic · RC003 Windows client.
 #
-# All of these are optional at import time within ovb_rc003 (every module
+# All of these are optional at import time within motedeck (every module
 # that needs one guards the import and raises a clear "*Unavailable* error
 # instead of failing to import) - this lets the package's cross-platform
 # pure-logic modules and their tests can run on non-Windows hosts without any of
@@ -22,7 +22,7 @@ numpy==2.4.3
 # qt_settings_app.py's module docstring) - importing any other module in
 # this package, or running ``--dry-run``, never requires it. The frozen
 # PyInstaller build always bundles its own Qt runtime (see
-# build/RemoteMicRC003.spec), so end users of a packaged release never
+# build/MoteDeck.spec), so end users of a packaged release never
 # need to separately install this themselves.
 PySide6-Essentials==6.11.1
 

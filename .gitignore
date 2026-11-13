@@ -6,6 +6,8 @@ __pycache__/
 .pytest_cache/
 apps/windows/rc003/build/cython-stage/
 apps/windows/rc003/build/cython-work/
+apps/windows/rc003/build/*.log
+dist-archive/
 
 # Local project-control records are not part of the public source release.
 docs/*

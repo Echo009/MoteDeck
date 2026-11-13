@@ -12,7 +12,7 @@ import zipfile
 from types import SimpleNamespace
 from unittest import mock
 
-from ovb_rc003 import diagnostic_trace as trace, logging_setup, log_export
+from motedeck import diagnostic_trace as trace, logging_setup, log_export
 
 
 class LoggingRecoveryTests(unittest.TestCase):

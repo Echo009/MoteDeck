@@ -19,19 +19,19 @@ class NativeInventoryTests(unittest.TestCase):
         root = BUILD.parent
         sources = inventory.module_sources(root)
         self.assertEqual(set(sources.values()),
-                         set((root / "src/ovb_rc003").glob("*.py"))
-                         - {root / "src/ovb_rc003/__init__.py"}
+                         set((root / "src/motedeck").glob("*.py"))
+                         - {root / "src/motedeck/__init__.py"}
                          | {root / "scripts" / f"{n}.py" for n in inventory.NAVIGATION_MODULES})
-        self.assertEqual(sources["ovb_rc003._native_main"].name, "__main__.py")
+        self.assertEqual(sources["motedeck._native_main"].name, "__main__.py")
         self.assertTrue(set(inventory.LEGACY_MODULES) <= set(sources))
 
     def test_helper_closure_excludes_desktop_and_preserves_its_own_dependencies(self):
         names = inventory.import_closure(
-            BUILD.parent, ["ovb_rc003.hid_elevation_windows"],
-            excludes=("ovb_rc003.app", "ovb_rc003.qt_settings_app", "PySide6"))
-        self.assertIn("ovb_rc003.frida_hid_tap_injector", names)
+            BUILD.parent, ["motedeck.hid_elevation_windows"],
+            excludes=("motedeck.app", "motedeck.qt_settings_app", "PySide6"))
+        self.assertIn("motedeck.frida_hid_tap_injector", names)
         self.assertIn("ctypes", names)
-        self.assertNotIn("ovb_rc003.qt_settings_app", names)
+        self.assertNotIn("motedeck.qt_settings_app", names)
 
 
 class NativeReceiptTests(unittest.TestCase):
@@ -42,21 +42,21 @@ class NativeReceiptTests(unittest.TestCase):
         self.source = root / "source.py"
         self.source.write_text("VALUE = 1\n", encoding="utf-8")
         self.stage = root / "stage"
-        package = self.stage / "src/ovb_rc003"
+        package = self.stage / "src/motedeck"
         package.mkdir(parents=True)
         (package / "__main__.py").write_text(inventory.MAIN_BOOTSTRAP, encoding="utf-8")
         self.binary = package / ("unit" + importlib.machinery.EXTENSION_SUFFIXES[0])
         self.binary.write_bytes(b"test extension placeholder")
         self.receipt = {
             "scope": "full", "python": sys.version,
-            "modules": {"ovb_rc003.unit": {
+            "modules": {"motedeck.unit": {
                 "source_sha256": hashlib.sha256(self.source.read_bytes()).hexdigest(),
                 "output": self.binary.relative_to(self.stage).as_posix(),
                 "sha256": hashlib.sha256(self.binary.read_bytes()).hexdigest(),
             }},
         }
         self.patch = mock.patch.object(check_native, "module_sources",
-                                      return_value={"ovb_rc003.unit": self.source})
+                                      return_value={"motedeck.unit": self.source})
         self.patch.start()
         self.addCleanup(self.patch.stop)
 
@@ -93,11 +93,11 @@ class NativeReceiptTests(unittest.TestCase):
             self.verify()
 
     def test_changed_bootstrap_is_rejected(self):
-        (self.stage / "src/ovb_rc003/__main__.py").write_text("pass\n", encoding="utf-8")
+        (self.stage / "src/motedeck/__main__.py").write_text("pass\n", encoding="utf-8")
         with self.assertRaisesRegex(RuntimeError, "bootstrap"):
             self.verify()
 
     def test_path_outside_stage_is_rejected(self):
-        self.receipt["modules"]["ovb_rc003.unit"]["output"] = "../source.py"
+        self.receipt["modules"]["motedeck.unit"]["output"] = "../source.py"
         with self.assertRaisesRegex(RuntimeError, "output path"):
             self.verify()

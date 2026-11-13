@@ -12,8 +12,8 @@ import unittest
 import zipfile
 from unittest import mock
 
-from ovb_rc003 import ble_candidate_probe_process as worker
-from ovb_rc003 import ble_transport_winrt, identity
+from motedeck import ble_candidate_probe_process as worker
+from motedeck import ble_transport_winrt, identity
 
 
 async def wait_until(predicate):
@@ -29,7 +29,7 @@ def fake_command(marker, blocked=False, windowed=False, failure=None):
     script = f'''
 import ctypes, json, os, sys
 from pathlib import Path
-from ovb_rc003 import ble_transport_winrt as transport, __main__ as entry
+from motedeck import ble_transport_winrt as transport, __main__ as entry
 async def query(candidate, winrt=None):
     Path({str(marker)!r}).write_text(json.dumps({{"pid": os.getpid(), "executable": sys.executable, "prefix": sys.prefix}}))
     if {blocked!r}:
@@ -55,7 +55,7 @@ entry.main()
 
 class CommandTests(unittest.TestCase):
     def test_internal_flag_never_falls_through_to_desktop(self):
-        from ovb_rc003 import __main__ as entry
+        from motedeck import __main__ as entry
 
         def exit_with_code(code):
             raise SystemExit(code)
@@ -178,7 +178,7 @@ class NativeProcessTests(unittest.TestCase):
         self.assertTrue(all(process.poll() is not None for process in self.processes))
 
     def test_application_stop_restart_reconnect_and_exit(self):
-        from ovb_rc003 import app as app_module, bridge_runtime_status, config
+        from motedeck import app as app_module, bridge_runtime_status, config
 
         root = Path(self.directory.name)
         key = "a" * 64
@@ -248,12 +248,12 @@ class NativeProcessTests(unittest.TestCase):
             asyncio.run(scenario())
 
     def test_child_failure_diagnostics_survive_real_export_without_private_text(self):
-        from ovb_rc003 import log_export, logging_setup
+        from motedeck import log_export, logging_setup
 
         root = Path(self.directory.name)
         logs = root / "logs"
         logs.mkdir()
-        logger = logging.getLogger("ovb_rc003.ble_transport_winrt")
+        logger = logging.getLogger("motedeck.ble_transport_winrt")
         previous_level = logger.level
         handler = logging_setup.EvidenceFileHandler(
             logs / "app.log", asynchronous=True, encoding="utf-8")
@@ -283,7 +283,7 @@ class NativeProcessTests(unittest.TestCase):
         parent_script = f'''
 import asyncio, os
 from pathlib import Path
-from ovb_rc003 import ble_candidate_probe_process as w
+from motedeck import ble_candidate_probe_process as w
 w._command = lambda: ({command!r}, dict(os.environ))
 async def main():
     task = asyncio.create_task(w.probe("private-live-record", timeout=30))
@@ -333,7 +333,7 @@ class CleanupFailureTests(unittest.TestCase):
 
         try:
             with mock.patch.object(worker.subprocess, "Popen", return_value=process), \
-                    self.assertLogs("ovb_rc003.ble_transport_winrt", level="ERROR") as logs:
+                    self.assertLogs("motedeck.ble_transport_winrt", level="ERROR") as logs:
                 asyncio.run(scenario())
             self.assertIn("cleanup unconfirmed", logs.output[0])
             self.assertIs(worker._owners["cancel-cleanup"].process, process)

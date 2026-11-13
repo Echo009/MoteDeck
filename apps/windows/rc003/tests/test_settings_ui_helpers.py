@@ -9,8 +9,8 @@ import unittest
 import tempfile
 from pathlib import Path
 
-from ovb_rc003 import audio_output, bridge_launcher, config, device_catalog, hotkey, key_mapping, logging_setup, settings_ui, single_instance
-from ovb_rc003.settings_ui import (
+from motedeck import audio_output, bridge_launcher, config, device_catalog, hotkey, key_mapping, logging_setup, settings_ui, single_instance
+from motedeck.settings_ui import (
     LAUNCH_ALREADY_RUNNING_TEXT,
     LAUNCH_NOT_STARTED_TEXT,
     LAUNCH_STATUS_UNKNOWN_TEXT,
@@ -963,8 +963,8 @@ class BuildSaveModelTests(unittest.TestCase):
 
 class DefaultDisplayStateTests(unittest.TestCase):
     def test_covers_every_user_facing_button(self):
-        from ovb_rc003 import device_profile
-        from ovb_rc003.settings_ui import _USER_FACING_BUTTON_IDS
+        from motedeck import device_profile
+        from motedeck.settings_ui import _USER_FACING_BUTTON_IDS
 
         state = default_display_state()
         self.assertEqual(set(state.button_display_map.keys()), _USER_FACING_BUTTON_IDS)

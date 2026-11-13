@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import bridge_runtime_status
+from motedeck import bridge_runtime_status
 
 
 class BridgeRuntimeStatusTests(unittest.TestCase):
@@ -55,39 +55,7 @@ class BridgeRuntimeStatusTests(unittest.TestCase):
         self.assertEqual(written.voice_runtime_provider, "wetype")
         self.assertEqual(written.voice_runtime_updated_at, 41.0)
         self.assertEqual(written.battery_level, 59)
-        self.assertEqual(
-            bridge_runtime_status.read_status(self.root), written
-        )
-
-    def test_voice_mic_blocked_reason_round_trips_and_defaults_empty(self):
-        identity = bridge_runtime_status.current_runtime_identity(
-            "test-version",
-            frozen=False,
-            source_root=self.root,
-        )
-        written = bridge_runtime_status.publish_status(
-            self.root,
-            bridge_runtime_status.BridgeConnectionState.CONNECTED,
-            pid=1234,
-            identity=identity,
-            voice_mic_blocked_reason="mic_ordinary_mapping",
-            now=lambda: 42.5,
-        )
-        self.assertEqual(
-            written.voice_mic_blocked_reason, "mic_ordinary_mapping"
-        )
-        read_back = bridge_runtime_status.read_status(self.root)
-        self.assertEqual(read_back.voice_mic_blocked_reason, "mic_ordinary_mapping")
-
-        # A status file written by a build without the new field must still
-        # read back with the empty default (forward compatibility).
-        path = bridge_runtime_status.status_path(self.root)
-        payload = json.loads(path.read_text(encoding="utf-8"))
-        payload.pop("voice_mic_blocked_reason")
-        path.write_text(json.dumps(payload), encoding="utf-8")
-        legacy = bridge_runtime_status.read_status(self.root)
-        self.assertIsNotNone(legacy)
-        self.assertEqual(legacy.voice_mic_blocked_reason, "")
+        self.assertEqual(bridge_runtime_status.read_status(self.root), written)
 
     def test_unconfirmed_capture_round_trips_as_nonfailure_state(self):
         written = bridge_runtime_status.publish_status(
@@ -221,7 +189,7 @@ class BridgeRuntimeStatusTests(unittest.TestCase):
             "_default_status_scope",
             bridge_runtime_status._STATUS_SCOPE_UNSET,
         ), mock.patch(
-            "ovb_rc003.single_instance.current_process_session_id",
+            "motedeck.single_instance.current_process_session_id",
             side_effect=OSError("session unavailable"),
         ):
             path = bridge_runtime_status.status_path(self.root)
@@ -249,7 +217,7 @@ class BridgeRuntimeStatusTests(unittest.TestCase):
                 "_default_status_scope",
                 bridge_runtime_status._STATUS_SCOPE_UNSET,
             ), mock.patch(
-                "ovb_rc003.single_instance.current_process_session_id",
+                "motedeck.single_instance.current_process_session_id",
                 side_effect=(initial, later),
             ) as session_query:
                 first = bridge_runtime_status.status_path(self.root)
@@ -281,7 +249,7 @@ class BridgeRuntimeStatusTests(unittest.TestCase):
             "_default_status_scope",
             bridge_runtime_status._STATUS_SCOPE_UNSET,
         ), mock.patch(
-            "ovb_rc003.single_instance.current_process_session_id",
+            "motedeck.single_instance.current_process_session_id",
             return_value=2,
         ):
             self.assertIsNone(bridge_runtime_status.read_status(self.root))

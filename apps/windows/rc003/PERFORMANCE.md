@@ -15,9 +15,8 @@
 - 优化方案、验证指标、回退边界和不建议进行的过度优化；
 - Python、PySide6/QML、WinRT BLE 和 PortAudio 同类实现的可复用经验。
 
-本文不替代 `WINDOWS-ARCHITECTURE-LEDGER.md` 的架构边界，不记录逐次修复流水，
-也不表示已经进入候选构建或发布。实施结果和真机验收仍分别写入
-`MAINTENANCE.md`、`TESTING.md` 或对应故障记录。
+本文不记录逐次修复流水，
+也不表示已经进入候选构建或发布；实施结果和真机验收以对应版本的实际体验为准。
 
 `scripts/element_navigation_prototype.py` 仍是元素识别与空间导航的单一算法来源，
 现在由桌面主进程内的元素导航运行对象加载，不再按正常产品路径启动独立伴随进程。
@@ -59,7 +58,7 @@ UI Automation 扫描与界面动作回到 Qt 事件循环执行；性能继续�
 
 | 项目 | 当前结果 | 判断 |
 | --- | ---: | --- |
-| 导入 `ovb_rc003.qt_settings_app` | 约 207 至 250 ms | 可继续剖析，但不是单一主因 |
+| 导入 `motedeck.qt_settings_app` | 约 207 至 250 ms | 可继续剖析，但不是单一主因 |
 | 首次加载 Qt 类 | 约 75 至 84 ms | Qt 运行时固定成本 |
 | 创建 `SettingsController` | 约 219 至 234 ms | 主要被首次 PortAudio 端点枚举占用 |
 | 创建 `DiagnosticsController` | 约 1.5 ms | 构造很轻，但会立刻启动后台全量诊断 |
@@ -295,7 +294,7 @@ PERF-001 代码、队列、屏障、关闭和重连检查已完成。剩余的 R
 元素导航已通过“元素导航开关”进入按键映射，当前运行在桌面主进程内。
 旧伴随进程的测量不能作为当前进程隔离或性能保证。桥接线程提交请求，Qt 事件循环
 承担导航扫描与界面动作；目标窗口枚举、UIA 树遍历和跨进程属性读取仍需控制耗时，
-不能声称导航卡顿不会影响设置窗口。当前架构见 `WINDOWS-ARCHITECTURE-LEDGER.md`。
+不能声称导航卡顿不会影响设置窗口。
 
 Microsoft 明确指出逐元素、逐属性读取会产生大量跨进程调用；应使用
 [UI Automation 缓存请求](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-cachingforclients)

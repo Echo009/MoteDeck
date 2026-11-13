@@ -9,7 +9,7 @@ import unittest
 from unittest import mock
 import zipfile
 
-from ovb_rc003 import diagnostic_trace as trace, log_export, logging_setup
+from motedeck import diagnostic_trace as trace, log_export, logging_setup
 
 
 class RetentionTests(unittest.TestCase):
@@ -105,7 +105,7 @@ class IntegrationTests(unittest.TestCase):
             logs.mkdir()
             handler = logging_setup.EvidenceFileHandler(logs / 'app.log', maxBytes=256, backupCount=1, encoding='utf-8')
             handler.addFilter(logging_setup.PrivacySafeExceptionFilter())
-            logger = logging.Logger('ovb_rc003.retention-test')
+            logger = logging.Logger('motedeck.retention-test')
             logger.addHandler(handler)
             detailed = trace.DiagnosticTrace(root, enabled=True)
             try:

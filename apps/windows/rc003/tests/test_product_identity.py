@@ -5,7 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 
-from ovb_rc003 import (
+from motedeck import (
     bridge_tray_windows,
     key_mapping,
     product_identity,
@@ -26,7 +26,13 @@ class ProductIdentityTests(unittest.TestCase):
         )
         self.assertEqual(
             product_identity.windows_executable_name(version),
-            "MoteDeck 1.0.51-candidate.51.exe",
+            "MoteDeck.exe",
+        )
+        # 主程序文件名跨版本固定：升级后 exe 路径不变，Windows 才会保留
+        # 用户摆放过的托盘图标位置。
+        self.assertEqual(
+            product_identity.windows_executable_name("9.9.9"),
+            "MoteDeck.exe",
         )
         self.assertEqual(
             product_identity.windows_portable_folder_name(version),
@@ -42,6 +48,8 @@ class ProductIdentityTests(unittest.TestCase):
         cases = {
             "RemoteMicRC003.exe": "legacy",
             "REMOTEMICRC003.EXE": "legacy",
+            "MoteDeck.exe": "current",
+            "MOTEDECK.EXE": "current",
             "MoteDeck 1.0.51-candidate.51.exe": "current",
             "MIOPENTION 1.0.51-CANDIDATE.51.EXE": "current",
             "MoteDeck 1.0.51.exe": "current",
@@ -58,10 +66,12 @@ class ProductIdentityTests(unittest.TestCase):
 
         for name in (
             "RemoteMicRC003-old.exe",
-            "MoteDeck.exe",
+            "MoteDeck.exe.bak",
             "MoteDeck 1.0.exe",
             "MoteDeck 01.0.51.exe",
             "MoteDeck 1.0.51-.exe",
+            "C:\\Apps\\MoteDeck.exe",
+            "..\\MoteDeck.exe",
             "C:\\Apps\\MoteDeck 1.0.51.exe",
             "..\\MoteDeck 1.0.51.exe",
             "MoteDeck 1.0.51.exe.bak",
@@ -80,6 +90,12 @@ class ProductIdentityTests(unittest.TestCase):
         self.assertEqual(
             product_identity.windows_runtime_relative_directory_for_executable(
                 "MoteDeck 1.0.51-candidate.51.exe"
+            ),
+            Path("app"),
+        )
+        self.assertEqual(
+            product_identity.windows_runtime_relative_directory_for_executable(
+                "MoteDeck.exe"
             ),
             Path("app"),
         )
@@ -116,7 +132,7 @@ class ProductIdentityTests(unittest.TestCase):
         )
         payload = json.loads(completed.stdout)
         version = (
-            _RC003_ROOT / "src" / "ovb_rc003" / "VERSION"
+            _RC003_ROOT / "src" / "motedeck" / "VERSION"
         ).read_text(encoding="ascii").strip()
         self.assertEqual(payload["version"], version)
         self.assertEqual(
@@ -134,10 +150,10 @@ class ProductIdentityTests(unittest.TestCase):
             "1.0.51-candidate.51"
         )
         self.assertEqual(main["file_description"], "MoteDeck 1.0.51-candidate.51")
-        self.assertEqual(main["original_filename"], "MoteDeck 1.0.51-candidate.51.exe")
-        self.assertEqual(main["internal_name"], "RemoteMicRC003")
+        self.assertEqual(main["original_filename"], "MoteDeck.exe")
+        self.assertEqual(main["internal_name"], "MoteDeck")
         self.assertEqual(helper["file_description"], "MoteDeck 权限助手")
-        self.assertEqual(helper["original_filename"], "RemoteMicRC003HidHelper.exe")
+        self.assertEqual(helper["original_filename"], "MoteDeckHidHelper.exe")
         self.assertTrue(main["prerelease"])
 
     def test_user_visible_name_has_one_runtime_source(self):
@@ -155,7 +171,7 @@ class ProductIdentityTests(unittest.TestCase):
         self.assertEqual(tooltip_default, "MoteDeck · 小米蓝牙遥控器 2 Pro")
 
     def test_qml_reads_the_controller_identity_instead_of_copying_the_name(self):
-        qml_dir = _RC003_ROOT / "src" / "ovb_rc003" / "qml"
+        qml_dir = _RC003_ROOT / "src" / "motedeck" / "qml"
         main_qml = (qml_dir / "main.qml").read_text(encoding="utf-8")
         self.assertIn("SettingsController.applicationDisplayName", main_qml)
         self.assertIn("SettingsController.applicationPresentationLabel", main_qml)
@@ -189,18 +205,37 @@ class ProductIdentityTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         self.assertIn('app.setApplicationName("元素导航")', navigation_host)
-        self.assertNotIn("from ovb_rc003 import product_identity", navigation_host)
+        self.assertNotIn("from motedeck import product_identity", navigation_host)
         self.assertNotIn("product_identity.DISPLAY_NAME", navigation_host)
         self.assertNotIn("Remote Mic Element Navigation", navigation_host)
 
     def test_installer_changes_only_user_visible_identity_and_cleans_old_shortcuts(self):
         installer = (
-            _RC003_ROOT / "installer" / "RemoteMicRC003Setup.iss"
+            _RC003_ROOT / "installer" / "MoteDeckSetup.iss"
         ).read_text(encoding="utf-8")
         self.assertIn('#define AppName "MoteDeck"', installer)
         self.assertIn("DefaultGroupName=MoteDeck", installer)
         self.assertIn("UsePreviousGroup=no", installer)
-        self.assertNotIn("[InstallDelete]", installer)
+        install_delete = installer.index("[InstallDelete]")
+        install_delete_section = installer[
+            install_delete : installer.index("[UninstallDelete]")
+        ]
+        # 固定命名前升级会残留带版本号的主程序，升级时统一清理；
+        # 固定命名的 MoteDeck.exe 本身不能被这些通配符误删。
+        self.assertIn(r'Type: files; Name: "{app}\MoteDeck *.exe"', install_delete_section)
+        self.assertIn(
+            r'Type: files; Name: "{app}\MoteDeck *.exe.installing-previous"',
+            install_delete_section,
+        )
+        self.assertIn(
+            r'Type: files; Name: "{app}\MiOpention* *.exe"',
+            install_delete_section,
+        )
+        self.assertIn(
+            r'Type: files; Name: "{app}\RemoteMicRC003.exe"',
+            install_delete_section,
+        )
+        self.assertNotIn(r'Name: "{app}\MoteDeck.exe"', install_delete_section)
         cleanup_start = installer.index("procedure DeleteObsoleteShortcuts;")
         cleanup_end = installer.index("\nend;", cleanup_start)
         cleanup = installer[cleanup_start:cleanup_end]
@@ -243,7 +278,8 @@ class ProductIdentityTests(unittest.TestCase):
         self.assertLess(commit, files_completed)
         self.assertLess(files_completed, cleanup_call)
         self.assertLess(cleanup_call, helper_install)
-        self.assertIn('#define AppExeName AppName + " " + AppVersion + ".exe"', installer)
+        self.assertIn('#define AppExeName AppName + ".exe"', installer)
+        self.assertNotIn('+ " " + AppVersion + ".exe"', installer)
         self.assertIn("DefaultDirName={localappdata}\\MoteDeck", installer)
         self.assertIn("'RemoteMicRC003'", installer)
 

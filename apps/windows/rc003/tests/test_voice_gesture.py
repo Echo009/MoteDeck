@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003.voice_gesture import (
+from motedeck.voice_gesture import (
     VoiceGestureDecision,
     VoiceGestureLatch,
     VoiceGestureState,

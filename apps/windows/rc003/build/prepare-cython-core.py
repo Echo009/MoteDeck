@@ -109,14 +109,14 @@ def main() -> int:
     navigation = stage / "scripts"
     navigation.mkdir(parents=True, exist_ok=True)
     for name, source in sources.items():
-        if not name.startswith("ovb_rc003."):
+        if not name.startswith("motedeck."):
             shutil.copy2(source, navigation / source.name)
     staged = {name: (stage / "src" / Path(*name.split(".")).with_suffix(".py")
-                     if name.startswith("ovb_rc003.") else navigation / f"{name}.py")
+                     if name.startswith("motedeck.") else navigation / f"{name}.py")
               for name in names}
     if args.scope == "full":
-        shutil.copy2(sources["ovb_rc003._native_main"], staged["ovb_rc003._native_main"])
-        (stage / "src/ovb_rc003/__main__.py").write_text(MAIN_BOOTSTRAP, encoding="utf-8")
+        shutil.copy2(sources["motedeck._native_main"], staged["motedeck._native_main"])
+        (stage / "src/motedeck/__main__.py").write_text(MAIN_BOOTSTRAP, encoding="utf-8")
     expected_stems = {path.stem for path in staged.values()}
     for native in stage.rglob("*.pyd"):
         if native.name.split(".")[0] not in expected_stems:
@@ -169,7 +169,7 @@ def main() -> int:
         if len(matches) != 1:
             raise RuntimeError(f"expected one compiled extension: {name}: {matches}")
         native = matches[0]
-        if not name.startswith("ovb_rc003."):
+        if not name.startswith("motedeck."):
             target = navigation / native.name
             shutil.move(str(native), target)
             native = target

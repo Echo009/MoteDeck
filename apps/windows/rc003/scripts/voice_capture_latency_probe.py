@@ -33,8 +33,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from ovb_rc003 import voice_playback_session_windows as audio
-from ovb_rc003 import win32_keys
+from motedeck import voice_playback_session_windows as audio
+from motedeck import win32_keys
 
 SHORTCUT = ("lctrl", "lwin")
 _VKS = frozenset(win32_keys.VK_CODES[token] for token in SHORTCUT)

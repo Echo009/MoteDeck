@@ -5,7 +5,7 @@ from contextlib import ExitStack
 from types import SimpleNamespace
 from unittest import mock
 
-from ovb_rc003 import voice_playback_session_windows as subject
+from motedeck import voice_playback_session_windows as subject
 
 
 def state(*, muted=False, instance="session-1"):

@@ -1,20 +1,20 @@
 #requires -Version 5.1
 
-$script:RC003_BUILD_PROVENANCE_SCHEMA_VERSION = 2
-$script:RC003_BUILD_LAYOUT_ID = "windows-portable-v2"
+$script:MOTEDECK_BUILD_PROVENANCE_SCHEMA_VERSION = 2
+$script:MOTEDECK_BUILD_LAYOUT_ID = "windows-portable-v2"
 
-function Get-RC003ProductPresentation {
+function Get-MoteDeckProductPresentation {
     param(
-        [Parameter(Mandatory = $true)][string]$RC003Root,
+        [Parameter(Mandatory = $true)][string]$MoteDeckRoot,
         [string]$PythonExecutable = ""
     )
 
     $python = $PythonExecutable
     if ([string]::IsNullOrWhiteSpace($python)) {
-        $python = [string]$env:RC003_PYTHON_EXECUTABLE
+        $python = [string]$env:MOTEDECK_PYTHON_EXECUTABLE
     }
     if ([string]::IsNullOrWhiteSpace($python)) {
-        $projectPython = Join-Path $RC003Root ".venv\Scripts\python.exe"
+        $projectPython = Join-Path $MoteDeckRoot ".venv\Scripts\python.exe"
         if (Test-Path -LiteralPath $projectPython -PathType Leaf) {
             $python = $projectPython
         } else {
@@ -23,8 +23,8 @@ function Get-RC003ProductPresentation {
         }
     }
 
-    $adapter = Join-Path $RC003Root "build\product-presentation.py"
-    $sourceRoot = Join-Path $RC003Root "src"
+    $adapter = Join-Path $MoteDeckRoot "build\product-presentation.py"
+    $sourceRoot = Join-Path $MoteDeckRoot "src"
     if (-not (Test-Path -LiteralPath $adapter -PathType Leaf -ErrorAction Stop)) {
         throw "product presentation adapter not found: $adapter"
     }
@@ -82,15 +82,15 @@ function Get-RC003ProductPresentation {
     return $presentation
 }
 
-function Get-RC003BuildProductPaths {
+function Get-MoteDeckBuildProductPaths {
     param(
-        [Parameter(Mandatory = $true)][string]$RC003Root,
+        [Parameter(Mandatory = $true)][string]$MoteDeckRoot,
         [Parameter(Mandatory = $true)][string]$BuildRoot,
         [string]$PythonExecutable = ""
     )
 
-    $presentation = Get-RC003ProductPresentation `
-        -RC003Root $RC003Root `
+    $presentation = Get-MoteDeckProductPresentation `
+        -MoteDeckRoot $MoteDeckRoot `
         -PythonExecutable $PythonExecutable
     $runtimeRoot = Join-Path $BuildRoot ([string]$presentation.runtime_directory_name)
     return [pscustomobject]@{
@@ -98,14 +98,14 @@ function Get-RC003BuildProductPaths {
         MainExecutable = Join-Path $BuildRoot ([string]$presentation.main_executable_name)
         RuntimeRoot = $runtimeRoot
         HidHelper = Join-Path $runtimeRoot ([string]$presentation.hid_helper_executable_name)
-        VersionFile = Join-Path $runtimeRoot "ovb_rc003\VERSION"
+        VersionFile = Join-Path $runtimeRoot "motedeck\VERSION"
         ProvenanceFile = Join-Path $runtimeRoot "build-provenance.json"
     }
 }
 
-function Clear-RC003BuildProvenance {
+function Clear-MoteDeckBuildProvenance {
     param(
-        [Parameter(Mandatory = $true)][string]$RC003Root,
+        [Parameter(Mandatory = $true)][string]$MoteDeckRoot,
         [Parameter(Mandatory = $true)][string]$BuildRoot,
         [string]$PythonExecutable = ""
     )
@@ -113,8 +113,8 @@ function Clear-RC003BuildProvenance {
     # Resolve the complete current presentation contract before mutating the
     # build output. If naming initialization fails, an existing receipt stays
     # untouched and the caller cannot proceed with a partly resolved layout.
-    $paths = Get-RC003BuildProductPaths `
-        -RC003Root $RC003Root `
+    $paths = Get-MoteDeckBuildProductPaths `
+        -MoteDeckRoot $MoteDeckRoot `
         -BuildRoot $BuildRoot `
         -PythonExecutable $PythonExecutable
     Remove-Item `
@@ -124,15 +124,15 @@ function Clear-RC003BuildProvenance {
     return $paths.ProvenanceFile
 }
 
-function Assert-RC003ExecutableMetadata {
+function Assert-MoteDeckExecutableMetadata {
     param(
-        [Parameter(Mandatory = $true)][string]$RC003Root,
+        [Parameter(Mandatory = $true)][string]$MoteDeckRoot,
         [Parameter(Mandatory = $true)][string]$BuildRoot,
         [string]$PythonExecutable = ""
     )
 
-    $paths = Get-RC003BuildProductPaths `
-        -RC003Root $RC003Root `
+    $paths = Get-MoteDeckBuildProductPaths `
+        -MoteDeckRoot $MoteDeckRoot `
         -BuildRoot $BuildRoot `
         -PythonExecutable $PythonExecutable
     $checks = @(
@@ -167,10 +167,10 @@ function Assert-RC003ExecutableMetadata {
     }
 }
 
-function Get-RC003BuildGateName {
-    param([Parameter(Mandatory = $true)][string]$RC003Root)
+function Get-MoteDeckBuildGateName {
+    param([Parameter(Mandatory = $true)][string]$MoteDeckRoot)
 
-    $normalized = [System.IO.Path]::GetFullPath($RC003Root).TrimEnd(
+    $normalized = [System.IO.Path]::GetFullPath($MoteDeckRoot).TrimEnd(
         [System.IO.Path]::DirectorySeparatorChar,
         [System.IO.Path]::AltDirectorySeparatorChar
     ).ToUpperInvariant()
@@ -183,15 +183,15 @@ function Get-RC003BuildGateName {
     } finally {
         $sha256.Dispose()
     }
-    return "Global\RemoteMicRC003_BuildGate_$($digest.Substring(0, 32))"
+    return "Global\MoteDeck_BuildGate_$($digest.Substring(0, 32))"
 }
 
-function Enter-RC003BuildGate {
-    param([Parameter(Mandatory = $true)][string]$RC003Root)
+function Enter-MoteDeckBuildGate {
+    param([Parameter(Mandatory = $true)][string]$MoteDeckRoot)
 
     $mutex = [System.Threading.Mutex]::new(
         $false,
-        (Get-RC003BuildGateName -RC003Root $RC003Root)
+        (Get-MoteDeckBuildGateName -MoteDeckRoot $MoteDeckRoot)
     )
     $acquired = $false
     try {
@@ -210,7 +210,7 @@ function Enter-RC003BuildGate {
     }
 }
 
-function Exit-RC003BuildGate {
+function Exit-MoteDeckBuildGate {
     param([Parameter(Mandatory = $true)][System.Threading.Mutex]$Mutex)
 
     try {
@@ -220,7 +220,7 @@ function Exit-RC003BuildGate {
     }
 }
 
-function Get-RC003FileState {
+function Get-MoteDeckFileState {
     param([Parameter(Mandatory = $true)][string]$Path)
 
     $stream = [System.IO.File]::Open(
@@ -245,7 +245,7 @@ function Get-RC003FileState {
     }
 }
 
-function Get-RC003NormalizedRelativePath {
+function Get-MoteDeckNormalizedRelativePath {
     param(
         [Parameter(Mandatory = $true)][string]$BasePath,
         [Parameter(Mandatory = $true)][string]$FilePath
@@ -266,7 +266,7 @@ function Get-RC003NormalizedRelativePath {
     )
 }
 
-function Get-RC003ContentState {
+function Get-MoteDeckContentState {
     param(
         [Parameter(Mandatory = $true)][string]$BasePath,
         [Parameter(Mandatory = $true)][System.IO.FileInfo[]]$Files
@@ -277,10 +277,10 @@ function Get-RC003ContentState {
             if (-not $file.Exists) {
                 throw "fingerprinted file is missing: $($file.FullName)"
             }
-            $relative = Get-RC003NormalizedRelativePath `
+            $relative = Get-MoteDeckNormalizedRelativePath `
                 -BasePath $BasePath `
                 -FilePath $file.FullName
-            $fileState = Get-RC003FileState -Path $file.FullName
+            $fileState = Get-MoteDeckFileState -Path $file.FullName
             "$relative`0$($fileState.Length)`0$($fileState.Sha256)"
         }
     )
@@ -300,14 +300,14 @@ function Get-RC003ContentState {
     }
 }
 
-function Get-RC003BuildInputFiles {
+function Get-MoteDeckBuildInputFiles {
     param(
-        [Parameter(Mandatory = $true)][string]$RC003Root,
+        [Parameter(Mandatory = $true)][string]$MoteDeckRoot,
         [Parameter(Mandatory = $true)][string]$RepoRoot
     )
 
     $files = [System.Collections.Generic.List[System.IO.FileInfo]]::new()
-    $sourceRoot = Join-Path $RC003Root "src"
+    $sourceRoot = Join-Path $MoteDeckRoot "src"
     if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container -ErrorAction Stop)) {
         throw "required source directory not found: $sourceRoot"
     }
@@ -321,7 +321,7 @@ function Get-RC003BuildInputFiles {
         $files.Add($file)
     }
 
-    $testsRoot = Join-Path $RC003Root "tests"
+    $testsRoot = Join-Path $MoteDeckRoot "tests"
     if (-not (Test-Path -LiteralPath $testsRoot -PathType Container -ErrorAction Stop)) {
         throw "required test directory not found: $testsRoot"
     }
@@ -336,41 +336,41 @@ function Get-RC003BuildInputFiles {
     }
 
     $requiredFiles = @(
-        (Join-Path $RC003Root "build\build-candidate.ps1"),
-        (Join-Path $RC003Root "build\package-local-test.ps1"),
-        (Join-Path $RC003Root "build\package-installer.ps1"),
-        (Join-Path $RC003Root "build\build-provenance.ps1"),
-        (Join-Path $RC003Root "build\portable-layout.ps1"),
-        (Join-Path $RC003Root "build\product-presentation.py"),
-        (Join-Path $RC003Root "build\check-public-boundary.ps1"),
-        (Join-Path $RC003Root "build\check-release-readiness.py"),
-        (Join-Path $RC003Root "build\check-third-party-notices.py"),
-        (Join-Path $RC003Root "build\prepare-cython-core.py"),
-        (Join-Path $RC003Root "build\native_inventory.py"),
-        (Join-Path $RC003Root "build\check_native.py"),
-        (Join-Path $RC003Root "build\fetch-frida-gadget.ps1"),
-        (Join-Path $RC003Root "build\fetch-interception.ps1"),
-        (Join-Path $RC003Root "build\fetch-winuhid.ps1"),
-        (Join-Path $RC003Root "build\fetch-vb-cable.ps1"),
-        (Join-Path $RC003Root "build\stop-dev.ps1"),
-        (Join-Path $RC003Root "build\RemoteMicRC003.spec"),
-        (Join-Path $RC003Root "build\generate-app-icon.py"),
-        (Join-Path $RC003Root "build\third_party\VBCABLE_Driver_Pack45.zip"),
-        (Join-Path $RC003Root "build\third_party\interception\interception.dll"),
-        (Join-Path $RC003Root "build\third_party\interception\install-interception.exe"),
-        (Join-Path $RC003Root "build\third_party\winuhid\WinUHid.dll"),
-        (Join-Path $RC003Root "src\ovb_rc003\scripts\install-winuhid.ps1"),
-        (Join-Path $RC003Root "requirements.txt"),
-        (Join-Path $RC003Root "requirements-dev.txt"),
-        (Join-Path $RC003Root "pyproject.toml"),
-        (Join-Path $RC003Root "scripts\element_navigation_prototype.py"),
-        (Join-Path $RC003Root "scripts\element_navigation_command_windows.py"),
-        (Join-Path $RC003Root "scripts\element_navigation_support.py"),
-        (Join-Path $RC003Root "scripts\element_navigation_windows_host.py"),
-        (Join-Path $RC003Root "scripts\element_targeting_core.py"),
-        (Join-Path $RC003Root "scripts\spatial_navigation_core.py"),
-        (Join-Path $RC003Root "ATTRIBUTION.md"),
-        (Join-Path $RC003Root "README.md"),
+        (Join-Path $MoteDeckRoot "build\build-candidate.ps1"),
+        (Join-Path $MoteDeckRoot "build\package-local-test.ps1"),
+        (Join-Path $MoteDeckRoot "build\package-installer.ps1"),
+        (Join-Path $MoteDeckRoot "build\build-provenance.ps1"),
+        (Join-Path $MoteDeckRoot "build\portable-layout.ps1"),
+        (Join-Path $MoteDeckRoot "build\product-presentation.py"),
+        (Join-Path $MoteDeckRoot "build\check-public-boundary.ps1"),
+        (Join-Path $MoteDeckRoot "build\check-release-readiness.py"),
+        (Join-Path $MoteDeckRoot "build\check-third-party-notices.py"),
+        (Join-Path $MoteDeckRoot "build\prepare-cython-core.py"),
+        (Join-Path $MoteDeckRoot "build\native_inventory.py"),
+        (Join-Path $MoteDeckRoot "build\check_native.py"),
+        (Join-Path $MoteDeckRoot "build\fetch-frida-gadget.ps1"),
+        (Join-Path $MoteDeckRoot "build\fetch-interception.ps1"),
+        (Join-Path $MoteDeckRoot "build\fetch-winuhid.ps1"),
+        (Join-Path $MoteDeckRoot "build\fetch-vb-cable.ps1"),
+        (Join-Path $MoteDeckRoot "build\stop-dev.ps1"),
+        (Join-Path $MoteDeckRoot "build\MoteDeck.spec"),
+        (Join-Path $MoteDeckRoot "build\generate-app-icon.py"),
+        (Join-Path $MoteDeckRoot "build\third_party\VBCABLE_Driver_Pack45.zip"),
+        (Join-Path $MoteDeckRoot "build\third_party\interception\interception.dll"),
+        (Join-Path $MoteDeckRoot "build\third_party\interception\install-interception.exe"),
+        (Join-Path $MoteDeckRoot "build\third_party\winuhid\WinUHid.dll"),
+        (Join-Path $MoteDeckRoot "src\motedeck\scripts\install-winuhid.ps1"),
+        (Join-Path $MoteDeckRoot "requirements.txt"),
+        (Join-Path $MoteDeckRoot "requirements-dev.txt"),
+        (Join-Path $MoteDeckRoot "pyproject.toml"),
+        (Join-Path $MoteDeckRoot "scripts\element_navigation_prototype.py"),
+        (Join-Path $MoteDeckRoot "scripts\element_navigation_command_windows.py"),
+        (Join-Path $MoteDeckRoot "scripts\element_navigation_support.py"),
+        (Join-Path $MoteDeckRoot "scripts\element_navigation_windows_host.py"),
+        (Join-Path $MoteDeckRoot "scripts\element_targeting_core.py"),
+        (Join-Path $MoteDeckRoot "scripts\spatial_navigation_core.py"),
+        (Join-Path $MoteDeckRoot "ATTRIBUTION.md"),
+        (Join-Path $MoteDeckRoot "README.md"),
         (Join-Path $RepoRoot ".github\workflows\windows-rc003-ci.yml"),
         (Join-Path $RepoRoot "README.md"),
         (Join-Path $RepoRoot "Resources\RC003-remote-photo.png"),
@@ -396,7 +396,7 @@ function Get-RC003BuildInputFiles {
         $files.Add($file)
     }
 
-    $installerRoot = Join-Path $RC003Root "installer"
+    $installerRoot = Join-Path $MoteDeckRoot "installer"
     if (-not (Test-Path -LiteralPath $installerRoot -PathType Container -ErrorAction Stop)) {
         throw "required installer directory not found: $installerRoot"
     }
@@ -421,17 +421,17 @@ function Get-RC003BuildInputFiles {
     return @($unique.Values)
 }
 
-function Get-RC003BuildInputState {
+function Get-MoteDeckBuildInputState {
     param(
-        [Parameter(Mandatory = $true)][string]$RC003Root,
+        [Parameter(Mandatory = $true)][string]$MoteDeckRoot,
         [Parameter(Mandatory = $true)][string]$RepoRoot
     )
 
-    $files = Get-RC003BuildInputFiles -RC003Root $RC003Root -RepoRoot $RepoRoot
-    return Get-RC003ContentState -BasePath $RepoRoot -Files $files
+    $files = Get-MoteDeckBuildInputFiles -MoteDeckRoot $MoteDeckRoot -RepoRoot $RepoRoot
+    return Get-MoteDeckContentState -BasePath $RepoRoot -Files $files
 }
 
-function Get-RC003ArtifactState {
+function Get-MoteDeckArtifactState {
     param(
         [Parameter(Mandatory = $true)][string]$BuildRoot,
         [string]$ProvenanceFile = ""
@@ -442,7 +442,7 @@ function Get-RC003ArtifactState {
     }
     $excludedRelativePath = ""
     if (-not [string]::IsNullOrWhiteSpace($ProvenanceFile)) {
-        $excludedRelativePath = Get-RC003NormalizedRelativePath `
+        $excludedRelativePath = Get-MoteDeckNormalizedRelativePath `
             -BasePath $BuildRoot `
             -FilePath $ProvenanceFile
     }
@@ -450,19 +450,19 @@ function Get-RC003ArtifactState {
     if ($excludedRelativePath) {
         $files = @(
             $files | Where-Object {
-                (Get-RC003NormalizedRelativePath `
+                (Get-MoteDeckNormalizedRelativePath `
                     -BasePath $BuildRoot `
                     -FilePath $_.FullName) -ne $excludedRelativePath
             }
         )
     }
-    return Get-RC003ContentState -BasePath $BuildRoot -Files $files
+    return Get-MoteDeckContentState -BasePath $BuildRoot -Files $files
 }
 
-function Get-RC003SourceVersion {
-    param([Parameter(Mandatory = $true)][string]$RC003Root)
+function Get-MoteDeckSourceVersion {
+    param([Parameter(Mandatory = $true)][string]$MoteDeckRoot)
 
-    $path = Join-Path $RC003Root "src\ovb_rc003\VERSION"
+    $path = Join-Path $MoteDeckRoot "src\motedeck\VERSION"
     if (-not (Test-Path -LiteralPath $path -PathType Leaf -ErrorAction Stop)) {
         throw "required VERSION file not found: $path"
     }
@@ -473,9 +473,9 @@ function Get-RC003SourceVersion {
     return $version
 }
 
-function Write-RC003BuildProvenance {
+function Write-MoteDeckBuildProvenance {
     param(
-        [Parameter(Mandatory = $true)][string]$RC003Root,
+        [Parameter(Mandatory = $true)][string]$MoteDeckRoot,
         [Parameter(Mandatory = $true)][string]$RepoRoot,
         [Parameter(Mandatory = $true)][string]$BuildRoot,
         [Parameter(Mandatory = $true)]$InputState,
@@ -489,8 +489,8 @@ function Write-RC003BuildProvenance {
     ) {
         throw "invalid build input state"
     }
-    $currentInputState = Get-RC003BuildInputState `
-        -RC003Root $RC003Root `
+    $currentInputState = Get-MoteDeckBuildInputState `
+        -MoteDeckRoot $MoteDeckRoot `
         -RepoRoot $RepoRoot
     if (
         $currentInputState.FileCount -ne [int]$InputState.FileCount -or
@@ -502,8 +502,8 @@ function Write-RC003BuildProvenance {
     if (-not $ExecutableMetadataVerified) {
         throw "executable metadata must be verified before writing provenance"
     }
-    $paths = Get-RC003BuildProductPaths `
-        -RC003Root $RC003Root `
+    $paths = Get-MoteDeckBuildProductPaths `
+        -MoteDeckRoot $MoteDeckRoot `
         -BuildRoot $BuildRoot `
         -PythonExecutable $PythonExecutable
     $mainExe = $paths.MainExecutable
@@ -513,12 +513,12 @@ function Write-RC003BuildProvenance {
             throw "required built executable not found: $path"
         }
     }
-    $artifactState = Get-RC003ArtifactState `
+    $artifactState = Get-MoteDeckArtifactState `
         -BuildRoot $BuildRoot `
         -ProvenanceFile $paths.ProvenanceFile
     $manifest = [ordered]@{
-        schema_version = $script:RC003_BUILD_PROVENANCE_SCHEMA_VERSION
-        build_layout_id = $script:RC003_BUILD_LAYOUT_ID
+        schema_version = $script:MOTEDECK_BUILD_PROVENANCE_SCHEMA_VERSION
+        build_layout_id = $script:MOTEDECK_BUILD_LAYOUT_ID
         app_version = [string]$paths.Presentation.version
         main_executable_name = [string]$paths.Presentation.main_executable_name
         runtime_directory_name = [string]$paths.Presentation.runtime_directory_name
@@ -528,8 +528,8 @@ function Write-RC003BuildProvenance {
         input_file_count = $InputState.FileCount
         artifact_fingerprint_sha256 = $artifactState.FingerprintSha256
         artifact_file_count = $artifactState.FileCount
-        main_exe_sha256 = (Get-RC003FileState -Path $mainExe).Sha256
-        hid_helper_sha256 = (Get-RC003FileState -Path $hidHelper).Sha256
+        main_exe_sha256 = (Get-MoteDeckFileState -Path $mainExe).Sha256
+        hid_helper_sha256 = (Get-MoteDeckFileState -Path $hidHelper).Sha256
     }
     $path = $paths.ProvenanceFile
     $temporary = "$path.$PID.$([guid]::NewGuid().ToString('N')).tmp"
@@ -547,7 +547,7 @@ function Write-RC003BuildProvenance {
     return [pscustomobject]$manifest
 }
 
-function Assert-RC003BuildProvenanceMatches {
+function Assert-MoteDeckBuildProvenanceMatches {
     param(
         [Parameter(Mandatory = $true)]$Expected,
         [Parameter(Mandatory = $true)]$Actual,
@@ -576,16 +576,16 @@ function Assert-RC003BuildProvenanceMatches {
     }
 }
 
-function Assert-RC003BuildProvenance {
+function Assert-MoteDeckBuildProvenance {
     param(
-        [Parameter(Mandatory = $true)][string]$RC003Root,
+        [Parameter(Mandatory = $true)][string]$MoteDeckRoot,
         [Parameter(Mandatory = $true)][string]$RepoRoot,
         [Parameter(Mandatory = $true)][string]$BuildRoot,
         [string]$PythonExecutable = ""
     )
 
-    $paths = Get-RC003BuildProductPaths `
-        -RC003Root $RC003Root `
+    $paths = Get-MoteDeckBuildProductPaths `
+        -MoteDeckRoot $MoteDeckRoot `
         -BuildRoot $BuildRoot `
         -PythonExecutable $PythonExecutable
     $path = $paths.ProvenanceFile
@@ -618,12 +618,12 @@ function Assert-RC003BuildProvenance {
             throw "built output source fingerprint is missing field: $name"
         }
     }
-    if ([int]$manifest.schema_version -ne $script:RC003_BUILD_PROVENANCE_SCHEMA_VERSION) {
+    if ([int]$manifest.schema_version -ne $script:MOTEDECK_BUILD_PROVENANCE_SCHEMA_VERSION) {
         throw "built output source fingerprint schema is unsupported"
     }
     $presentation = $paths.Presentation
     $expectedLayout = [ordered]@{
-        build_layout_id = $script:RC003_BUILD_LAYOUT_ID
+        build_layout_id = $script:MOTEDECK_BUILD_LAYOUT_ID
         app_version = [string]$presentation.version
         main_executable_name = [string]$presentation.main_executable_name
         runtime_directory_name = [string]$presentation.runtime_directory_name
@@ -660,14 +660,14 @@ function Assert-RC003BuildProvenance {
     if ([string]$manifest.app_version -ne $sourceVersion) {
         throw "built output is stale: source VERSION=$sourceVersion built VERSION=$($manifest.app_version)"
     }
-    $inputState = Get-RC003BuildInputState -RC003Root $RC003Root -RepoRoot $RepoRoot
+    $inputState = Get-MoteDeckBuildInputState -MoteDeckRoot $MoteDeckRoot -RepoRoot $RepoRoot
     if (
         [int]$manifest.input_file_count -ne $inputState.FileCount -or
         [string]$manifest.input_fingerprint_sha256 -ne $inputState.FingerprintSha256
     ) {
         throw "built output is stale: build inputs changed after the last complete build"
     }
-    $artifactState = Get-RC003ArtifactState `
+    $artifactState = Get-MoteDeckArtifactState `
         -BuildRoot $BuildRoot `
         -ProvenanceFile $paths.ProvenanceFile
     if (
@@ -680,13 +680,13 @@ function Assert-RC003BuildProvenance {
     $mainExe = $paths.MainExecutable
     $hidHelper = $paths.HidHelper
     if (
-        (Get-RC003FileState -Path $mainExe).Sha256 -ne
+        (Get-MoteDeckFileState -Path $mainExe).Sha256 -ne
         [string]$manifest.main_exe_sha256
     ) {
         throw "built output is invalid: main executable hash changed"
     }
     if (
-        (Get-RC003FileState -Path $hidHelper).Sha256 -ne
+        (Get-MoteDeckFileState -Path $hidHelper).Sha256 -ne
         [string]$manifest.hid_helper_sha256
     ) {
         throw "built output is invalid: HID helper hash changed"

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import audio_output, device_catalog, resources
+from motedeck import audio_output, device_catalog, resources
 
 
 class DeviceCatalogTests(unittest.TestCase):

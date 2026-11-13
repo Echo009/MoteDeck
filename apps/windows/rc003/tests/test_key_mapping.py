@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003 import device_profile, key_mapping
+from motedeck import device_profile, key_mapping
 
 
 class DefaultButtonActionsTests(unittest.TestCase):

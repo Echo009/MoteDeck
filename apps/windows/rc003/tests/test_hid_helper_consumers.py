@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import hid_elevation_windows, hid_helper_consumers, product_identity
+from motedeck import hid_elevation_windows, hid_helper_consumers, product_identity
 
 
 class HidHelperConsumerTests(unittest.TestCase):
@@ -14,13 +14,13 @@ class HidHelperConsumerTests(unittest.TestCase):
         name: str,
         *,
         installed: bool,
-        versioned: bool = False,
+        fixed_name: bool = False,
     ) -> Path:
         directory = root / name
         directory.mkdir()
         app = directory / (
             product_identity.windows_executable_name("1.0.51-candidate.51")
-            if versioned
+            if fixed_name
             else "RemoteMicRC003.exe"
         )
         app.write_bytes(b"app")
@@ -61,7 +61,7 @@ class HidHelperConsumerTests(unittest.TestCase):
                 root,
                 "current",
                 installed=False,
-                versioned=True,
+                fixed_name=True,
             )
 
             legacy_marker = hid_helper_consumers.register_current_consumer(

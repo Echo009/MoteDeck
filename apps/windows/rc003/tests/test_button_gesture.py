@@ -1,7 +1,7 @@
 import unittest
 import threading
 
-from ovb_rc003.button_gesture import (
+from motedeck.button_gesture import (
     ButtonGestureDispatcher,
     ButtonGestureRecognizer,
     ButtonTrigger,

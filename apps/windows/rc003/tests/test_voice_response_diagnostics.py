@@ -10,11 +10,11 @@ import unittest
 from unittest import mock
 from pathlib import Path
 
-from ovb_rc003 import diagnostic_trace as trace
-from ovb_rc003 import input_environment_diagnostics_windows as environment
-from ovb_rc003 import voice_response_diagnostics_windows as response
-from ovb_rc003 import voice_interaction_diagnostics_windows as focus
-from ovb_rc003 import voice_key_physicalizer_windows as hook
+from motedeck import diagnostic_trace as trace
+from motedeck import input_environment_diagnostics_windows as environment
+from motedeck import voice_response_diagnostics_windows as response
+from motedeck import voice_interaction_diagnostics_windows as focus
+from motedeck import voice_key_physicalizer_windows as hook
 
 
 class WindowEvidenceTests(unittest.TestCase):
@@ -184,7 +184,7 @@ class ClipboardEvidenceTests(unittest.TestCase):
 
 class WorkflowEvidenceTests(unittest.TestCase):
     def test_actual_sound_test_workflow_logs_both_test_and_restore(self):
-        from ovb_rc003 import qt_settings_app
+        from motedeck import qt_settings_app
         from tests.test_qt_settings_app import DiagnosticsControllerTests
         fixture = DiagnosticsControllerTests('test_vb_cable_channel_test_temporarily_stops_and_restores_bridge')
         fixture.setUp()
@@ -207,7 +207,7 @@ class WorkflowEvidenceTests(unittest.TestCase):
             fixture.tearDown()
 
     def test_sound_test_log_is_opt_in_and_failure_is_isolated(self):
-        from ovb_rc003 import qt_settings_app
+        from motedeck import qt_settings_app
         method = qt_settings_app._load_qt_classes()['DiagnosticsController']._log_sound_channel_diagnostic
         fake = types.SimpleNamespace(_settings_controller=types.SimpleNamespace(_diagnostic_trace_enabled=False),
                                      _config_root=Path('unused'))
@@ -221,7 +221,7 @@ class WorkflowEvidenceTests(unittest.TestCase):
             method(fake, 'phase=finished')
 
     def test_runtime_failure_is_recorded_without_becoming_an_input_failure(self):
-        from ovb_rc003.app import RC003App
+        from motedeck.app import RC003App
         app = RC003App.__new__(RC003App)
         app._runtime_status_lock = threading.Lock()
         app._runtime_voice_state, app._runtime_voice_provider = 'active', 'wetype'

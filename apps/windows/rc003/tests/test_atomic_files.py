@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import atomic_files
+from motedeck import atomic_files
 
 
 class AtomicFilesTests(unittest.TestCase):

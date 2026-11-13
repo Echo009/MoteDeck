@@ -11,7 +11,7 @@ import sys
 import time
 import unittest
 
-from ovb_rc003.frida_hid_tap_runtime import GADGET_SCRIPT
+from motedeck.frida_hid_tap_runtime import GADGET_SCRIPT
 
 
 HARNESS = r"""

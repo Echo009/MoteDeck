@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003 import startup_windows
+from motedeck import startup_windows
 
 
 class _Key:
@@ -18,34 +18,43 @@ class _FakeWinreg:
     REG_SZ = 1
 
     def __init__(self, value=None, *, value_type=None, set_error=None):
-        self.value = value
-        self.value_type = self.REG_SZ if value_type is None else value_type
+        self.values = {}
+        if value is not None:
+            self.values[startup_windows.RUN_VALUE_NAME] = (
+                value,
+                self.REG_SZ if value_type is None else value_type,
+            )
         self.set_error = set_error
         self.set_calls = 0
 
+    @property
+    def value(self):
+        entry = self.values.get(startup_windows.RUN_VALUE_NAME)
+        return None if entry is None else entry[0]
+
     def OpenKey(self, root, path, reserved, access):
-        if self.value is None:
-            raise FileNotFoundError(path)
         return _Key()
 
     def CreateKeyEx(self, root, path, reserved, access):
         return _Key()
 
     def QueryValueEx(self, key, name):
-        if self.value is None:
+        try:
+            return self.values[name]
+        except KeyError:
             raise FileNotFoundError(name)
-        return self.value, self.value_type
 
     def SetValueEx(self, key, name, reserved, value_type, value):
         self.set_calls += 1
         if self.set_error is not None:
             raise self.set_error
-        self.value = value
+        self.values[name] = (value, value_type)
 
     def DeleteValue(self, key, name):
-        if self.value is None:
+        try:
+            del self.values[name]
+        except KeyError:
             raise FileNotFoundError(name)
-        self.value = None
 
 
 class StartupWindowsTests(unittest.TestCase):
@@ -200,6 +209,28 @@ class StartupWindowsTests(unittest.TestCase):
             startup_windows.command_line([new_executable, "--background"]),
         )
 
+    def test_rebind_owned_frozen_startup_migrates_versioned_name_to_fixed_name(self):
+        old_executable = r"D:\旧版\MoteDeck 1.0.50-candidate.50.exe"
+        new_executable = r"E:\新版\MoteDeck.exe"
+        old_command = startup_windows.command_line(
+            [old_executable, "--background"]
+        )
+        registry = _FakeWinreg(old_command)
+
+        state = startup_windows.rebind_owned_frozen_startup(
+            platform="win32",
+            frozen=True,
+            executable=new_executable,
+            winreg_module=registry,
+            command_parser=lambda _value: [old_executable, "--background"],
+        )
+
+        self.assertTrue(state.enabled)
+        self.assertEqual(
+            registry.value,
+            startup_windows.command_line([new_executable, "--background"]),
+        )
+
     def test_rebind_owned_frozen_startup_rejects_unrecognized_current_name(self):
         registry = _FakeWinreg(
             startup_windows.command_line(
@@ -209,7 +240,7 @@ class StartupWindowsTests(unittest.TestCase):
         state = startup_windows.rebind_owned_frozen_startup(
             platform="win32",
             frozen=True,
-            executable=r"E:\新版\MoteDeck.exe",
+            executable=r"E:\新版\MoteDeck新.exe",
             winreg_module=registry,
             command_parser=lambda _value: self.fail("parser should not run"),
         )
@@ -259,6 +290,64 @@ class StartupWindowsTests(unittest.TestCase):
 
         self.assertTrue(state.enabled)
         self.assertEqual(registry.set_calls, 0)
+
+    def test_rebind_owned_frozen_startup_adopts_pre_rename_run_value(self):
+        old_command = startup_windows.command_line(
+            [r"E:\当前\RemoteMicRC003.exe", "--background"]
+        )
+        current_command = startup_windows.command_line(
+            [r"E:\当前\MoteDeck.exe", "--background"]
+        )
+        registry = _FakeWinreg()
+        registry.values[startup_windows.LEGACY_RUN_VALUE_NAME] = (
+            old_command,
+            registry.REG_SZ,
+        )
+
+        state = startup_windows.rebind_owned_frozen_startup(
+            platform="win32",
+            frozen=True,
+            executable=r"E:\当前\MoteDeck.exe",
+            current_command=current_command,
+            winreg_module=registry,
+            command_parser=lambda _value: [
+                r"E:\当前\RemoteMicRC003.exe",
+                "--background",
+            ],
+        )
+
+        self.assertTrue(state.enabled)
+        self.assertEqual(state.error, "")
+        self.assertEqual(
+            registry.values[startup_windows.RUN_VALUE_NAME][0], current_command
+        )
+        self.assertNotIn(startup_windows.LEGACY_RUN_VALUE_NAME, registry.values)
+
+    def test_rebind_owned_frozen_startup_adopts_matching_pre_rename_value_without_rewrite(
+        self,
+    ):
+        same_command = startup_windows.command_line(
+            [r"E:\当前\MoteDeck.exe", "--background"]
+        )
+        registry = _FakeWinreg()
+        registry.values[startup_windows.LEGACY_RUN_VALUE_NAME] = (
+            same_command,
+            registry.REG_SZ,
+        )
+
+        state = startup_windows.rebind_owned_frozen_startup(
+            platform="win32",
+            frozen=True,
+            executable=r"E:\当前\MoteDeck.exe",
+            current_command=same_command,
+            winreg_module=registry,
+            command_parser=lambda _value: [r"E:\当前\MoteDeck.exe", "--background"],
+        )
+
+        self.assertTrue(state.enabled)
+        self.assertEqual(state.error, "")
+        self.assertEqual(registry.set_calls, 0)
+        self.assertNotIn(startup_windows.LEGACY_RUN_VALUE_NAME, registry.values)
 
     def test_rebind_owned_frozen_startup_rejects_unknown_or_extra_arguments(self):
         current_executable = r"E:\当前\RemoteMicRC003.exe"

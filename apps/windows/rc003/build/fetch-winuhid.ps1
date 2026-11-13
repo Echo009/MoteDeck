@@ -13,7 +13,7 @@
     downloads or compiles anything, and it never installs the driver itself:
     installing is a separate one-time administrator action launched from an
     explicit user click in the settings window (see
-    src/ovb_rc003/winuhid_driver_install.py).
+    src/motedeck/winuhid_driver_install.py).
 
     A source-only run may omit the package and degrade explicitly to
     SendInput; a frozen candidate that ran with the package bundles the client

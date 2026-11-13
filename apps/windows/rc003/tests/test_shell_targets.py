@@ -6,7 +6,7 @@ dependency-injection pattern for logging_setup.open_log_location().
 
 import unittest
 
-from ovb_rc003 import shell_targets
+from motedeck import shell_targets
 
 
 class OpenExternalTargetTests(unittest.TestCase):

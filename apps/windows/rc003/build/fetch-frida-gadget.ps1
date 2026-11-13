@@ -14,11 +14,11 @@
 
 .PARAMETER Destination
     Where to place the verified asset. Defaults to the ignored runtime asset
-    directory under src/ovb_rc003 (not committed - see .gitignore).
+    directory under src/motedeck (not committed - see .gitignore).
 #>
 
 param(
-    [string]$Destination = (Join-Path $PSScriptRoot "..\src\ovb_rc003\frida_assets\frida-gadget-17.15.3-windows-x86_64.dll.xz")
+    [string]$Destination = (Join-Path $PSScriptRoot "..\src\motedeck\frida_assets\frida-gadget-17.15.3-windows-x86_64.dll.xz")
 )
 
 $ErrorActionPreference = "Stop"

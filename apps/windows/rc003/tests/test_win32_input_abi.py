@@ -21,7 +21,7 @@ import sys
 import unittest
 from unittest import mock
 
-from ovb_rc003 import win32_input
+from motedeck import win32_input
 
 
 class InputStructShapeTests(unittest.TestCase):

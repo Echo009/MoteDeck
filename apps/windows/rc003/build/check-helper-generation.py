@@ -17,7 +17,7 @@ from pathlib import Path
 
 RC003_ROOT = Path(__file__).resolve().parents[1]
 RECORD_PATH = RC003_ROOT / "build" / "helper-generation.json"
-HELPER_SOURCE = RC003_ROOT / "src" / "ovb_rc003" / "hid_elevation_windows.py"
+HELPER_SOURCE = RC003_ROOT / "src" / "motedeck" / "hid_elevation_windows.py"
 
 sys.path.insert(0, str(RC003_ROOT / "build"))
 from native_inventory import helper_source_files
@@ -87,7 +87,7 @@ def main() -> int:
         print(f"- recorded generation {recorded_generation}, source digest {recorded_digest[:12]}")
         print(f"- current source digest {digest[:12]}")
         print(
-            "- raise HELPER_GENERATION in src/ovb_rc003/hid_elevation_windows.py, then run "
+            "- raise HELPER_GENERATION in src/motedeck/hid_elevation_windows.py, then run "
             "`python build/check-helper-generation.py --update`"
         )
         return 1

@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ovb_rc003 import resources
+from motedeck import resources
 
 
 class FindRemotePhotoFrozenBundleTests(unittest.TestCase):

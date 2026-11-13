@@ -13,7 +13,7 @@
     script itself never installs the kernel driver and never runs when the
     application starts: the driver is a separate one-time administrator
     install with a reboot, only ever launched from an explicit user click in
-    the settings window (see src/ovb_rc003/interception_driver_install.py)
+    the settings window (see src/motedeck/interception_driver_install.py)
     through Windows' own UAC elevation verb.
 
 .PARAMETER Destination

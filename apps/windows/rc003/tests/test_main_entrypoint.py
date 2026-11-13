@@ -1,6 +1,6 @@
-"""Argument-mode routing tests for ``ovb_rc003.__main__.main()`` (XRBM-021
+"""Argument-mode routing tests for ``motedeck.__main__.main()`` (XRBM-021
 In-scope items 3-4). Monkeypatches module-level attributes on the real
-``ovb_rc003.app``/``ovb_rc003.single_instance`` modules - the same pattern
+``motedeck.app``/``motedeck.single_instance`` modules - the same pattern
 test_app_wiring.py already uses for win32_input.py - rather than
 constructing a real ``BridgeInstanceGuard``/calling the real
 ``app.main()``, matching this project's established "never touch real
@@ -17,8 +17,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import __main__ as main_module
-from ovb_rc003 import (
+from motedeck import __main__ as main_module
+from motedeck import (
     app,
     bridge_control_windows,
     bridge_launcher,
@@ -36,20 +36,20 @@ from ovb_rc003 import (
 
 class DryRunCoverageTests(unittest.TestCase):
     def test_dry_run_imports_every_top_level_first_party_module_in_a_fresh_process(self):
-        src_root = (Path(os.environ["RC003_NATIVE_STAGE"]) / "src"
-                    if os.environ.get("RC003_NATIVE_STAGE") else
+        src_root = (Path(os.environ["MOTEDECK_NATIVE_STAGE"]) / "src"
+                    if os.environ.get("MOTEDECK_NATIVE_STAGE") else
                     Path(__file__).resolve().parents[1] / "src")
         script = """
 import pkgutil
 import sys
 
-import ovb_rc003
-from ovb_rc003 import __main__ as entrypoint
+import motedeck
+from motedeck import __main__ as entrypoint
 
-expected = {item.name for item in pkgutil.iter_modules(ovb_rc003.__path__)}
+expected = {item.name for item in pkgutil.iter_modules(motedeck.__path__)}
 entrypoint._dry_run()
 missing = sorted(
-    name for name in expected if f"ovb_rc003.{name}" not in sys.modules
+    name for name in expected if f"motedeck.{name}" not in sys.modules
 )
 if missing:
     print("missing first-party modules: " + ", ".join(missing))
@@ -213,7 +213,7 @@ class HidHelperMaintenanceEntrypointTests(unittest.TestCase):
 
     def test_hidden_install_mode_never_enters_the_desktop_guards(self):
         original_argv = sys.argv
-        sys.argv = ["ovb_rc003", "--install-hid-helper"]
+        sys.argv = ["motedeck", "--install-hid-helper"]
         try:
             with mock.patch.object(
                 main_module, "_install_hid_helper", return_value=0
@@ -612,7 +612,7 @@ class _ArgvRestoringTestCase(unittest.TestCase):
 
 class DesktopModeRoutingTests(_ArgvRestoringTestCase):
     def _run_with_settings_spy(self, argv):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         calls = []
         original = settings_ui.main
@@ -630,7 +630,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
             enter_calls=enter_calls
         )
 
-        calls = self._run_with_settings_spy(["ovb_rc003"])
+        calls = self._run_with_settings_spy(["motedeck"])
 
         self.assertEqual(enter_calls, [1])
         self.assertEqual(calls, [{"start_bridge": False}])
@@ -638,17 +638,17 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
     def test_residual_legacy_bridge_is_restarted_inside_the_desktop_process(self):
         main_module._migrate_legacy_bridge_before_desktop_start = lambda: True
 
-        calls = self._run_with_settings_spy(["ovb_rc003"])
+        calls = self._run_with_settings_spy(["motedeck"])
 
         self.assertEqual(calls, [{"start_bridge": True}])
 
     def test_explicit_settings_open_the_same_desktop_application(self):
-        calls = self._run_with_settings_spy(["ovb_rc003", "--settings"])
+        calls = self._run_with_settings_spy(["motedeck", "--settings"])
 
         self.assertEqual(calls, [{"start_bridge": False}])
 
     def test_background_start_keeps_the_single_application_hidden(self):
-        calls = self._run_with_settings_spy(["ovb_rc003", "--background"])
+        calls = self._run_with_settings_spy(["motedeck", "--background"])
 
         self.assertEqual(
             calls,
@@ -656,7 +656,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         )
 
     def test_bridge_compatibility_mode_starts_the_same_application_hidden(self):
-        calls = self._run_with_settings_spy(["ovb_rc003", "--bridge"])
+        calls = self._run_with_settings_spy(["motedeck", "--bridge"])
 
         self.assertEqual(
             calls,
@@ -665,13 +665,13 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
 
     def test_explicit_settings_wins_when_bridge_flag_is_also_present(self):
         calls = self._run_with_settings_spy(
-            ["ovb_rc003", "--bridge", "--settings"]
+            ["motedeck", "--bridge", "--settings"]
         )
 
         self.assertEqual(calls, [{"start_bridge": False}])
 
     def test_duplicate_visible_launch_activates_the_existing_window(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         current_activation_calls = []
         fallback_activation_calls = []
@@ -691,7 +691,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "duplicate launch must not build another desktop application"
         )
-        sys.argv = ["ovb_rc003", "--settings"]
+        sys.argv = ["motedeck", "--settings"]
         try:
             main_module.main()
         finally:
@@ -701,7 +701,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertEqual(fallback_activation_calls, [])
 
     def test_duplicate_visible_launch_reports_when_the_window_cannot_be_activated(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         current_activation_calls = []
         fallback_activation_calls = []
@@ -720,7 +720,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "duplicate launch must not build another desktop application"
         )
-        sys.argv = ["ovb_rc003", "--settings"]
+        sys.argv = ["motedeck", "--settings"]
         try:
             main_module.main()
         finally:
@@ -736,7 +736,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         )
 
     def test_duplicate_visible_launch_during_handoff_only_restores_the_old_window(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         current_activation_calls = []
         fallback_activation_calls = []
@@ -755,7 +755,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "a second launch must not create another application"
         )
-        sys.argv = ["ovb_rc003", "--settings"]
+        sys.argv = ["motedeck", "--settings"]
         try:
             main_module.main()
         finally:
@@ -766,7 +766,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertEqual(notice_calls, [])
 
     def test_duplicate_bridge_launch_requests_existing_app_without_popping_window(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         activation_calls = []
         request_calls = []
@@ -785,7 +785,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "duplicate bridge launch must not create another process"
         )
-        sys.argv = ["ovb_rc003", "--bridge"]
+        sys.argv = ["motedeck", "--bridge"]
         try:
             main_module.main()
         finally:
@@ -795,7 +795,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertEqual(activation_calls, [])
 
     def test_duplicate_bridge_request_failure_is_visible_without_a_second_app(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         activation_calls = []
         notice_calls = []
@@ -815,7 +815,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "failed duplicate request must not create another application"
         )
-        sys.argv = ["ovb_rc003", "--bridge"]
+        sys.argv = ["motedeck", "--bridge"]
         try:
             main_module.main()
         finally:
@@ -826,7 +826,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertNotIn("private detail", notice_calls[0])
 
     def test_duplicate_bridge_session_probe_failure_is_visible(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         notice_calls = []
         single_instance.ApplicationRuntimeInstanceGuard = _make_guard_class(
@@ -846,7 +846,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "failed duplicate request must not create another application"
         )
-        sys.argv = ["ovb_rc003", "--bridge"]
+        sys.argv = ["motedeck", "--bridge"]
         try:
             main_module.main()
         finally:
@@ -856,7 +856,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertNotIn("session unavailable", notice_calls[0])
 
     def test_duplicate_background_start_does_not_pop_the_window_open(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         activation_calls = []
         single_instance.ApplicationRuntimeInstanceGuard = _make_guard_class(
@@ -869,7 +869,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "duplicate background start must not build another application"
         )
-        sys.argv = ["ovb_rc003", "--background"]
+        sys.argv = ["motedeck", "--background"]
         try:
             main_module.main()
         finally:
@@ -878,7 +878,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertEqual(activation_calls, [])
 
     def test_different_runtime_visible_launch_waits_then_starts_current_copy(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         enter_calls = []
 
@@ -900,7 +900,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         )
         original = settings_ui.main
         settings_ui.main = lambda **kwargs: settings_calls.append(kwargs)
-        sys.argv = ["ovb_rc003"]
+        sys.argv = ["motedeck"]
         try:
             main_module.main()
         finally:
@@ -911,7 +911,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertEqual(settings_calls, [{"start_bridge": False}])
 
     def test_different_runtime_visible_launch_does_not_start_when_handoff_is_cancelled(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         single_instance.ApplicationInstanceGuard = _make_guard_class(
             raise_on_enter=single_instance.DuplicateInstanceError("old copy")
@@ -924,7 +924,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "cancelled handoff must not start the current application"
         )
-        sys.argv = ["ovb_rc003"]
+        sys.argv = ["motedeck"]
         try:
             main_module.main()
         finally:
@@ -933,7 +933,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertEqual(handoff_calls, [1])
 
     def test_guard_failure_is_visible_and_never_starts_the_application(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         notice_calls = []
         single_instance.ApplicationInstanceGuard = _make_guard_class(
@@ -946,7 +946,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: self.fail(
             "application must not start without its instance guard"
         )
-        sys.argv = ["ovb_rc003"]
+        sys.argv = ["motedeck"]
         try:
             with self.assertRaises(SystemExit) as ctx:
                 main_module.main()
@@ -961,7 +961,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertNotIn("private detail", notice_calls[0])
 
     def test_settings_startup_failure_is_visible_and_sanitized(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         notice_calls = []
         single_instance.show_bridge_startup_blocked_notice = notice_calls.append
@@ -969,7 +969,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         settings_ui.main = lambda **kwargs: (_ for _ in ()).throw(
             ValueError("private detail")
         )
-        sys.argv = ["ovb_rc003", "--settings"]
+        sys.argv = ["motedeck", "--settings"]
         try:
             with self.assertRaises(SystemExit) as ctx:
                 main_module.main()
@@ -984,7 +984,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertNotIn("private detail", notice_calls[0])
 
     def test_frozen_desktop_opens_with_either_known_permission_state(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         for elevated in (False, True):
             for arguments, expected in (
@@ -1015,7 +1015,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
                 notice.assert_not_called()
 
     def test_frozen_desktop_refuses_to_start_when_elevation_is_unknown(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         notices = []
         with mock.patch.object(sys, "frozen", True, create=True), mock.patch.object(
@@ -1047,7 +1047,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
         self.assertNotIn("private detail", notices[0])
 
     def test_frozen_desktop_does_not_start_during_installer_maintenance(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         for elevated in (False, True):
             notices = []
@@ -1077,7 +1077,7 @@ class DesktopModeRoutingTests(_ArgvRestoringTestCase):
             self.assertEqual(notices, ["MoteDeck正在安装或卸载。完成后再打开。"])
 
     def test_elevated_frozen_duplicate_only_activates_the_existing_window(self):
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
 
         with mock.patch.object(sys, "frozen", True, create=True), mock.patch.object(
             sys, "platform", "win32"
@@ -1107,7 +1107,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
 
     def test_dry_run_never_touches_the_guard(self):
         enter_calls = self._assert_application_guard_unused()
-        sys.argv = ["ovb_rc003", "--dry-run"]
+        sys.argv = ["motedeck", "--dry-run"]
 
         with self.assertRaises(SystemExit) as ctx:
             main_module.main()
@@ -1119,7 +1119,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
         enter_calls = self._assert_application_guard_unused()
         check_calls = []
         main_module._qt_runtime_check = lambda: check_calls.append(1) or 0
-        sys.argv = ["ovb_rc003", "--qt-runtime-check"]
+        sys.argv = ["motedeck", "--qt-runtime-check"]
 
         with self.assertRaises(SystemExit) as ctx:
             main_module.main()
@@ -1135,7 +1135,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
         main_module._request_application_exit = (
             lambda: request_calls.append(1) or 7
         )
-        sys.argv = ["ovb_rc003", "--request-exit"]
+        sys.argv = ["motedeck", "--request-exit"]
         try:
             with self.assertRaises(SystemExit) as ctx:
                 main_module.main()
@@ -1148,7 +1148,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
 
     def test_help_never_touches_the_guard(self):
         enter_calls = self._assert_application_guard_unused()
-        sys.argv = ["ovb_rc003", "--help"]
+        sys.argv = ["motedeck", "--help"]
 
         main_module.main()
 
@@ -1164,7 +1164,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
         main_module._run_settings = lambda **_kwargs: self.fail(
             "--version must not open the desktop application"
         )
-        sys.argv = ["ovb_rc003", "--version"]
+        sys.argv = ["motedeck", "--version"]
         try:
             with contextlib.redirect_stdout(output):
                 main_module.main()
@@ -1188,7 +1188,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
         main_module._run_settings = lambda **_kwargs: self.fail(
             "unknown arguments must not open the desktop application"
         )
-        sys.argv = ["ovb_rc003", "--version-check"]
+        sys.argv = ["motedeck", "--version-check"]
         try:
             with contextlib.redirect_stderr(errors), self.assertRaises(
                 SystemExit
@@ -1204,7 +1204,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
 
     def test_diagnose_ble_candidates_never_touches_the_guard(self):
         enter_calls = self._assert_application_guard_unused()
-        sys.argv = ["ovb_rc003", "--diagnose-ble-candidates", "/tmp/result.json"]
+        sys.argv = ["motedeck", "--diagnose-ble-candidates", "/tmp/result.json"]
 
         original = windows_diagnostics.run_ble_diagnostics_subprocess_entrypoint
         windows_diagnostics.run_ble_diagnostics_subprocess_entrypoint = (
@@ -1221,7 +1221,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
     def test_vb_cable_loopback_child_never_touches_the_guard(self):
         enter_calls = self._assert_application_guard_unused()
         sys.argv = [
-            "ovb_rc003",
+            "motedeck",
             "--diagnose-vb-cable-loopback",
             "/tmp/request.json",
             "/tmp/result.json",
@@ -1247,7 +1247,7 @@ class ArgumentModeBypassTests(_ArgvRestoringTestCase):
         original = frida_compat.injector_main
         frida_compat.injector_main = lambda args: received_args.append(args) or 4
         sys.argv = [
-            "ovb_rc003",
+            "motedeck",
             frida_compat.HID_TAP_INJECTOR_FLAG,
             "--pid",
             "321",
@@ -1272,7 +1272,7 @@ class ElementNavigationDispatchTests(_ArgvRestoringTestCase):
             lambda arguments: calls.append(list(arguments)) or 7
         )
         sys.argv = [
-            "ovb_rc003",
+            "motedeck",
             "--element-navigation",
             "--activate",
             "--window-handle",
@@ -1293,7 +1293,7 @@ class ElementNavigationDispatchTests(_ArgvRestoringTestCase):
             (_ for _ in ()).throw(RuntimeError("private navigation detail"))
         )
         app.main = lambda: self.fail("navigation failure must not start the bridge")
-        sys.argv = ["ovb_rc003", "--element-navigation"]
+        sys.argv = ["motedeck", "--element-navigation"]
         stderr = io.StringIO()
 
         with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as ctx:
@@ -1328,7 +1328,7 @@ class DiagnoseBleCandidatesDispatchTests(_ArgvRestoringTestCase):
             lambda result_path: received_paths.append(result_path) or 7
         )
         app.main = lambda: self.fail("must never call app.main()")
-        sys.argv = ["ovb_rc003", "--diagnose-ble-candidates", "/tmp/result-path.json"]
+        sys.argv = ["motedeck", "--diagnose-ble-candidates", "/tmp/result-path.json"]
 
         with self.assertRaises(SystemExit) as ctx:
             main_module.main()
@@ -1346,7 +1346,7 @@ class DiagnoseBleCandidatesDispatchTests(_ArgvRestoringTestCase):
             lambda result_path: received_paths.append(result_path) or 1
         )
         app.main = lambda: self.fail("must never call app.main()")
-        sys.argv = ["ovb_rc003", "--diagnose-ble-candidates"]  # no path follows the flag
+        sys.argv = ["motedeck", "--diagnose-ble-candidates"]  # no path follows the flag
 
         with self.assertRaises(SystemExit) as ctx:
             main_module.main()
@@ -1374,7 +1374,7 @@ class DiagnoseBleCandidatesDispatchTests(_ArgvRestoringTestCase):
         import io
         import contextlib
 
-        sys.argv = ["ovb_rc003", "--help"]
+        sys.argv = ["motedeck", "--help"]
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
             main_module.main()  # returns normally, no SystemExit
@@ -2219,7 +2219,7 @@ class DiagnoseVbCableLoopbackDispatchTests(_ArgvRestoringTestCase):
             or 9
         )
         sys.argv = [
-            "ovb_rc003",
+            "motedeck",
             "--diagnose-vb-cable-loopback",
             "/tmp/request.json",
             "/tmp/result.json",
@@ -2239,7 +2239,7 @@ class DiagnoseVbCableLoopbackDispatchTests(_ArgvRestoringTestCase):
             )
             or 1
         )
-        sys.argv = ["ovb_rc003", "--diagnose-vb-cable-loopback"]
+        sys.argv = ["motedeck", "--diagnose-vb-cable-loopback"]
 
         with self.assertRaises(SystemExit) as ctx:
             main_module.main()
@@ -2278,7 +2278,7 @@ class OutputEndpointPreflightDispatchTests(_ArgvRestoringTestCase):
             or 11
         )
         sys.argv = [
-            "ovb_rc003",
+            "motedeck",
             "--preflight-output-endpoint",
             "/tmp/request.json",
             "/tmp/result.json",
@@ -2298,7 +2298,7 @@ class OutputEndpointPreflightDispatchTests(_ArgvRestoringTestCase):
             )
             or 1
         )
-        sys.argv = ["ovb_rc003", "--preflight-output-endpoint"]
+        sys.argv = ["motedeck", "--preflight-output-endpoint"]
 
         with self.assertRaises(SystemExit) as ctx:
             main_module.main()

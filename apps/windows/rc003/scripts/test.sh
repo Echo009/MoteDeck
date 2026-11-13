@@ -10,7 +10,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-python3 -m py_compile "$ROOT"/src/ovb_rc003/*.py
+python3 -m py_compile "$ROOT"/src/motedeck/*.py
 
 PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}" \
   python3 -m unittest discover -s "$ROOT/tests" -t "$ROOT" -p "test_*.py" -v

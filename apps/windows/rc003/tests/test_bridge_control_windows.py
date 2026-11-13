@@ -3,9 +3,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import bridge_runtime_status
-from ovb_rc003 import bridge_control_windows as control
-from ovb_rc003 import single_instance
+from motedeck import bridge_runtime_status
+from motedeck import bridge_control_windows as control
+from motedeck import single_instance
 
 
 class BridgeControlWindowsTests(unittest.TestCase):

@@ -145,7 +145,7 @@ class ThirdPartyReleaseGateTests(unittest.TestCase):
             self.assertTrue((license_root / relative_path).is_file(), relative_path)
 
     def test_pyinstaller_spec_excludes_the_unused_asio_portaudio_binary(self):
-        text = (BUILD_ROOT / "RemoteMicRC003.spec").read_text(encoding="utf-8")
+        text = (BUILD_ROOT / "MoteDeck.spec").read_text(encoding="utf-8")
         self.assertIn("_is_unneeded_sounddevice_asio", text)
         self.assertIn('"libportaudio64bit-asio.dll"', text)
         self.assertIn("and not _is_unneeded_sounddevice_asio(binary_entry)", text)

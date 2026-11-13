@@ -4,8 +4,8 @@ Release status: APPROVED
 
 ## Windows application icons
 
-- Files: `apps/windows/rc003/src/ovb_rc003/assets/icons/remote-mic-connected.svg`,
-  `apps/windows/rc003/src/ovb_rc003/assets/icons/remote-mic-unavailable.svg`, and
+- Files: `apps/windows/rc003/src/motedeck/assets/icons/remote-mic-connected.svg`,
+  `apps/windows/rc003/src/motedeck/assets/icons/remote-mic-unavailable.svg`, and
   the generated `remote-mic.ico`
 - Origin: the maintainer's selected `JANN.library` microphone and
   microphone-off designs, finalized for Remote Mic with `#4AA8FF` strokes

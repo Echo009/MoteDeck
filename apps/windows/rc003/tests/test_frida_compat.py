@@ -8,14 +8,14 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import (
+from motedeck import (
     config,
     frida_compat,
     frida_hid_tap_injector,
     hid_elevation_windows,
     hid_helper_consumers,
 )
-from ovb_rc003.diagnostic_trace import DiagnosticTrace
+from motedeck.diagnostic_trace import DiagnosticTrace
 
 
 class AssetDescriptorTests(unittest.TestCase):
@@ -217,7 +217,7 @@ class InjectorSubprocessTests(unittest.TestCase):
             [
                 "python.exe",
                 "-m",
-                "ovb_rc003",
+                "motedeck",
                 frida_compat.HID_TAP_INJECTOR_FLAG,
                 "--pid",
                 "1234",

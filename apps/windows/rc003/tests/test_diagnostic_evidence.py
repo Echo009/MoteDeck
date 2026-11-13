@@ -9,9 +9,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-from ovb_rc003 import diagnostic_trace as diagnostics, win32_input
-from ovb_rc003.frida_compat import RC003HidReportTap
-from ovb_rc003.frida_hid_tap_runtime import GADGET_SCRIPT, GADGET_SCRIPT_BUILD_ID
+from motedeck import diagnostic_trace as diagnostics, win32_input
+from motedeck.frida_compat import RC003HidReportTap
+from motedeck.frida_hid_tap_runtime import GADGET_SCRIPT, GADGET_SCRIPT_BUILD_ID
 
 
 class IncidentTests(unittest.TestCase):

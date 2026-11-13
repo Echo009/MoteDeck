@@ -77,7 +77,7 @@ MoteDeck 是一个以遥控器语音控制电脑为核心的 Windows 工具，�
 
 <img src="./assets/readme/vokie-support.svg" width="100%" alt="原生支持 Vokie：MoteDeck 通过本机回环 TCP 把遥控器话筒的声音交给 Vokie 插件，由 Vokie 整理成文字后自动上屏">
 
-Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适配，配套插件 [MoteDeck2Vokie](https://github.com/HZDavy/MoteDeck/tree/main/plugins/MoteDeck2Vokie) 当前版本为 0.1.4。装上之后，遥控器就是 Vokie 自己的语音设备：按住话筒键说话，音频由插件推进 Vokie 会话，松手后整理成完整文字再落进输入框。
+Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适配，配套插件 [MoteDeck2Vokie](https://github.com/HZDavy/MoteDeck/tree/main/plugins/MoteDeck2Vokie) 当前版本为 0.1.5。装上之后，遥控器就是 Vokie 自己的语音设备：按住话筒键说话，音频由插件推进 Vokie 会话，松手后整理成完整文字再落进输入框。
 
 - 不用再配虚拟声卡和模拟快捷键：插件与 MoteDeck 走本机回环 `127.0.0.1` 直连（随机端口 + 共享 token），控制指令和音频都从这里过
 - Vokie 的语音模式会同步到 MoteDeck 的语音键配置，遥控器上按一下就能切换
@@ -104,7 +104,7 @@ Vokie 原生支持外接语音设备，MoteDeck 按它的插件协议做了适�
 
 到 [Releases](https://github.com/HZDavy/MoteDeck/releases) 下载最新的 `MoteDeckSetup-<版本号>-unsigned.exe`，也可以先在 [官网](https://hzdavy.github.io/MoteDeck/) 查看当前版本与更新说明。
 
-当前正式版为 **0.2.2**。直接下载 [MoteDeckSetup-0.2.2-unsigned.exe](https://github.com/HZDavy/MoteDeck/releases/download/v0.2.2/MoteDeckSetup-0.2.2-unsigned.exe)，或到[本版发布页](https://github.com/HZDavy/MoteDeck/releases/tag/v0.2.2)查看版本说明与后续更新。发布页同时提供 `SHA256SUMS.txt`，下载后可用 `Get-FileHash -Algorithm SHA256` 核对文件。
+当前正式版为 **0.2.7**。直接下载 [MoteDeckSetup-0.2.7-unsigned.exe](https://github.com/HZDavy/MoteDeck/releases/download/v0.2.7/MoteDeckSetup-0.2.7-unsigned.exe)，或到[本版发布页](https://github.com/HZDavy/MoteDeck/releases/tag/v0.2.7)查看版本说明与后续更新。发布页同时提供 `SHA256SUMS.txt`，下载后可用 `Get-FileHash -Algorithm SHA256` 核对文件。
 
 需要 Vokie 插件时，下载[最新版 MoteDeck2Vokie.zip](https://github.com/HZDavy/MoteDeck/releases/latest/download/MoteDeck2Vokie.zip)，也可以直接在软件「语音」页的「外部应用程序支持」里点「下载插件」。
 
@@ -148,10 +148,10 @@ Set-Location apps/windows/rc003
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 $env:PYTHONPATH = Join-Path (Get-Location) 'src'
-.\.venv\Scripts\python.exe -m ovb_rc003 --settings
+.\.venv\Scripts\python.exe -m motedeck --settings
 ```
 
-构建、测试和发布流程见 [开发者文档](apps/windows/rc003/README.md) 与 [TESTING.md](apps/windows/rc003/TESTING.md)。
+构建、测试和发布流程见 [开发者文档](apps/windows/rc003/README.md)。
 
 ---
 
@@ -163,7 +163,7 @@ $env:PYTHONPATH = Join-Path (Get-Location) 'src'
 
 ## 隐私与安全
 
-- 遥控器地址、按键记录、录音、配置和日志都只保存在本机 `%LOCALAPPDATA%\RemoteMic\RC003`，不会上传到项目服务器。
+- 遥控器地址、按键记录、录音、配置和日志都只保存在本机 `%LOCALAPPDATA%\MoteDeck`，不会上传到项目服务器。
 - 检查更新只向 GitHub 请求公开发布信息，不发送本机数据。
 - 关闭设置窗口默认只是隐藏到通知区域；需要结束时右键通知区域图标并选择“完全退出”。
 - 自定义按键映射需要一次管理员授权安装本机权限助手；取消后自定义映射不会生效。普通按键和语音不受影响。
@@ -205,6 +205,9 @@ MoteDeck 由 Mote（远程、轻巧）和 Deck（控制面板）组成。
     <tr>
       <td align="center" valign="top" width="12.5%"><a href="https://github.com/cnjingrui"><img src="https://avatars.githubusercontent.com/u/39755035?v=4&size=80" width="80px" height="80px" alt="cnjingrui"/><br /><sub><b>cnjingrui</b></sub></a><br /><a href="https://github.com/HZDavy/MoteDeck/issues?q=author%3Acnjingrui" title="Bug reports">🐛</a></td>
       <td align="center" valign="top" width="12.5%"><a href="https://github.com/shaofengye"><img src="https://avatars.githubusercontent.com/u/14912408?v=4&size=80" width="80px" height="80px" alt="shaofengye"/><br /><sub><b>shaofengye</b></sub></a><br /><a href="https://github.com/HZDavy/MoteDeck/issues?q=author%3Ashaofengye" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="12.5%"><a href="https://github.com/Echo009"><img src="https://avatars.githubusercontent.com/u/24402043?v=4&size=80" width="80px" height="80px" alt="Echo009"/><br /><sub><b>Echo009</b></sub></a><br /><a href="https://github.com/HZDavy/MoteDeck/issues?q=author%3AEcho009" title="Bug reports">🐛</a> <a href="#ideas-Echo009" title="Ideas, Planning, & Feedback">🤔</a></td>
+      <td align="center" valign="top" width="12.5%"><a href="https://github.com/leophegorse"><img src="https://avatars.githubusercontent.com/u/152304465?v=4&size=80" width="80px" height="80px" alt="leophegorse"/><br /><sub><b>leophegorse</b></sub></a><br /><a href="https://github.com/HZDavy/MoteDeck/issues?q=author%3Aleophegorse" title="Bug reports">🐛</a></td>
+      <td align="center" valign="top" width="12.5%"><a href="https://github.com/amea13"><img src="https://avatars.githubusercontent.com/u/64626069?v=4&size=80" width="80px" height="80px" alt="Amea White"/><br /><sub><b>Amea White</b></sub></a><br /><a href="https://github.com/HZDavy/MoteDeck/issues?q=author%3Aamea13" title="Bug reports">🐛</a></td>
     </tr>
   </tbody>
   <tfoot>
@@ -249,9 +252,11 @@ Windows RC003 客户端在 GPL-3.0 条件下基于 [`nijez/open-voice-bridge`](h
 
 小米蓝牙遥控器 2（RC001）的实现，以及小米蓝牙遥控器 2 / 2 Pro 的型号判断（先按蓝牙名匹配，再读 GATT `0x2A24`），参考了 [`GetSayAll/remote-mic-app-windows`](https://github.com/GetSayAll/remote-mic-app-windows)（SayAll Windows 版），由 [Echo](https://github.com/HD838A) 提交（PR #7）。感谢他的公开实现。
 
-驱动级注入用的内核驱动是第三方项目 [Interception](https://github.com/oblitum/Interception)（作者 [oblitum / Francisco Lopes](https://github.com/oblitum)）：使用的是官方发布包里未修改的 `interception.dll` 与 `install-interception.exe`（由官方安装程序安装原版驱动），按 LGPL-3.0 用于非商业用途，许可与校验信息见 [第三方说明](THIRD_PARTY_NOTICES.md)。
+元素导航与上游的独立项目 [`ZSTDJan/orthofocus`](https://github.com/ZSTDJan/orthofocus)（GPL-3.0-only）共源，两边使用同一套导航源码，导出快照与来源记录见 [OrthoFocus 项目说明](apps/windows/orthofocus/README.md)。感谢上游对 OrthoFocus 的维护。
 
-另一个可选的驱动级注入后端是第三方的虚拟 HID 驱动 [WinUHid](https://github.com/cgutman/WinUHid)（作者 [cgutman / Cameron Gutman](https://github.com/cgutman)，MIT 许可）：它把上报的按键变成真实的 HID 设备，长按、组合键和部分不认 `SendInput` 的程序都能用。上游只发布源码，构建脚本在装有 Windows Driver Kit 的机器上按原样编译一次，随包附带的 `WinUHid.dll` 与驱动包未做任何修改；驱动绑定 `Root\WinUHid` 设备，安装与卸载只在设置页由你手动点击并确认 UAC，没装驱动时自动回落到 `SendInput`。
+一个可选的驱动级注入后端是第三方项目 [Interception](https://github.com/oblitum/Interception)（作者 [oblitum / Francisco Lopes](https://github.com/oblitum)）：使用的是官方发布包里未修改的 `interception.dll` 与 `install-interception.exe`（由官方安装程序安装原版驱动），按 LGPL-3.0 用于非商业用途，许可与校验信息见 [第三方说明](THIRD_PARTY_NOTICES.md)。新用户建议优先使用下文的 WinUHid。
+
+推荐的驱动级注入后端是第三方的虚拟 HID 驱动 [WinUHid](https://github.com/cgutman/WinUHid)（作者 [cgutman / Cameron Gutman](https://github.com/cgutman)，MIT 许可）：它把上报的按键变成真实的 HID 设备，长按、组合键和部分不认 `SendInput` 的程序都能用。上游只发布源码，构建脚本在装有 Windows Driver Kit 的机器上按原样编译一次，随包附带的 `WinUHid.dll` 与驱动包未做任何修改；驱动绑定 `Root\WinUHid` 设备，安装与卸载只在设置页由你手动点击并确认 UAC，没装驱动时自动回落到 `SendInput`。
 
 离线语音识别用 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)（Apache-2.0，随包附带并内置 ONNX Runtime）跑 [SenseVoice](https://github.com/QwenAudio/SenseVoice)（MIT，阿里通义实验室）的模型；模型不随包分发，只在用户点击安装时下载，转换后的模型文件由 [csukuangfj](https://github.com/csukuangfj) 提供。
 

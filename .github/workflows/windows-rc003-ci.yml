@@ -8,7 +8,7 @@ name: windows-rc003-ci
 # the real Qt DLL chain and verifies main.qml while
 # touches no GUI/BLE/HID/audio), and
 # packages the unsigned per-user Inno Setup installer (built from
-# installer/RemoteMicRC003Setup.iss, which bundles the app plus the project
+# installer/MoteDeckSetup.iss, which bundles the app plus the project
 # license, copyright, third-party notices and licenses, corresponding-source
 # record, asset license record, attribution and README) + SHA256SUMS.txt
 # artifact set.
@@ -107,7 +107,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         run: |
-          $version = (Get-Content -Raw src\ovb_rc003\VERSION).Trim()
+          $version = (Get-Content -Raw src\motedeck\VERSION).Trim()
           if ($version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-candidate\.[1-9][0-9]*)?$') {
             throw "unsupported release VERSION: $version"
           }
@@ -168,9 +168,9 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           . ./build/build-provenance.ps1
-          $rc003Root = (Resolve-Path ".").Path
+          $motedeckRoot = (Resolve-Path ".").Path
           $repoRoot = (Resolve-Path "../../..").Path
-          $inputState = Get-RC003BuildInputState -RC003Root $rc003Root -RepoRoot $repoRoot
+          $inputState = Get-MoteDeckBuildInputState -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot
           $inputStatePath = Join-Path $env:RUNNER_TEMP "rc003-build-input.json"
           [System.IO.File]::WriteAllText(
             $inputStatePath,
@@ -266,10 +266,10 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           . ./build/build-provenance.ps1
-          $rc003Root = (Resolve-Path ".").Path
+          $motedeckRoot = (Resolve-Path ".").Path
           $repoRoot = (Resolve-Path "../../..").Path
-          $buildRoot = Join-Path $rc003Root "dist/RemoteMicRC003"
-          $provenancePath = Clear-RC003BuildProvenance -RC003Root $rc003Root -BuildRoot $buildRoot -PythonExecutable "python"
+          $buildRoot = Join-Path $motedeckRoot "dist/MoteDeck"
+          $provenancePath = Clear-MoteDeckBuildProvenance -MoteDeckRoot $motedeckRoot -BuildRoot $buildRoot -PythonExecutable "python"
           git -C $repoRoot diff --exit-code -- apps/windows/rc003 .github/workflows/windows-rc003-ci.yml Resources/RC003-remote-photo.png device-profiles
           if ($LASTEXITCODE -ne 0) {
             throw "tracked build or test inputs changed after their CI checks ran"
@@ -279,17 +279,17 @@ jobs:
             throw "expected checked build input fingerprint not found"
           }
           $inputState = Get-Content -LiteralPath $inputStatePath -Raw | ConvertFrom-Json
-          $currentInputState = Get-RC003BuildInputState -RC003Root $rc003Root -RepoRoot $repoRoot
+          $currentInputState = Get-MoteDeckBuildInputState -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot
           if (
             $currentInputState.FileCount -ne [int]$inputState.FileCount -or
             $currentInputState.FingerprintSha256 -ne [string]$inputState.FingerprintSha256
           ) {
             throw "build inputs changed after their CI checks ran"
           }
-          $env:RC003_BUILD_SOURCE_ROOT = (Resolve-Path "build/cython-stage/src").Path
-          python -m PyInstaller build/RemoteMicRC003.spec --distpath dist --workpath build/pyinstaller-work --noconfirm
+          $env:MOTEDECK_BUILD_SOURCE_ROOT = (Resolve-Path "build/cython-stage/src").Path
+          python -m PyInstaller build/MoteDeck.spec --distpath dist --workpath build/pyinstaller-work --noconfirm
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $inputStateAfterBuild = Get-RC003BuildInputState -RC003Root $rc003Root -RepoRoot $repoRoot
+          $inputStateAfterBuild = Get-MoteDeckBuildInputState -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot
           if (
             $inputStateAfterBuild.FileCount -ne $inputState.FileCount -or
             $inputStateAfterBuild.FingerprintSha256 -ne $inputState.FingerprintSha256
@@ -314,17 +314,17 @@ jobs:
             }
           }
 
-          $rc003Root = (Resolve-Path ".").Path
+          $motedeckRoot = (Resolve-Path ".").Path
           $repoRoot = (Resolve-Path "../../..").Path
-          $buildRoot = Join-Path $rc003Root "dist/RemoteMicRC003"
-          $productPresentation = Get-RC003ProductPresentation -RC003Root $rc003Root -PythonExecutable "python"
-          $builtPaths = Get-RC003BuildProductPaths -RC003Root $rc003Root -BuildRoot $buildRoot -PythonExecutable "python"
+          $buildRoot = Join-Path $motedeckRoot "dist/MoteDeck"
+          $productPresentation = Get-MoteDeckProductPresentation -MoteDeckRoot $motedeckRoot -PythonExecutable "python"
+          $builtPaths = Get-MoteDeckBuildProductPaths -MoteDeckRoot $motedeckRoot -BuildRoot $buildRoot -PythonExecutable "python"
           $inputStatePath = Join-Path $env:RUNNER_TEMP "rc003-build-input.json"
           if (-not (Test-Path -LiteralPath $inputStatePath -PathType Leaf)) {
             throw "expected pre-build input fingerprint not found"
           }
           $inputState = Get-Content -LiteralPath $inputStatePath -Raw | ConvertFrom-Json
-          $inputStateBeforeChecks = Get-RC003BuildInputState -RC003Root $rc003Root -RepoRoot $repoRoot
+          $inputStateBeforeChecks = Get-MoteDeckBuildInputState -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot
           if (
             $inputStateBeforeChecks.FileCount -ne [int]$inputState.FileCount -or
             $inputStateBeforeChecks.FingerprintSha256 -ne [string]$inputState.FingerprintSha256
@@ -342,7 +342,7 @@ jobs:
             Write-Error "expected narrow HID helper not found: $builtHidHelper"
             exit 1
           }
-          $sourceVersion = (Get-Content -LiteralPath "src/ovb_rc003/VERSION" -Raw).Trim()
+          $sourceVersion = (Get-Content -LiteralPath "src/motedeck/VERSION" -Raw).Trim()
           $builtVersionFile = $builtPaths.VersionFile
           if (-not (Test-Path $builtVersionFile)) {
             Write-Error "expected built VERSION file not found: $builtVersionFile"
@@ -353,9 +353,9 @@ jobs:
             Write-Error "built VERSION mismatch: source=$sourceVersion built=$builtVersion"
             exit 1
           }
-          python build/check_native.py --stage build/cython-stage --artifact dist/RemoteMicRC003
+          python build/check_native.py --stage build/cython-stage --artifact dist/MoteDeck
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $rootExecutables = @(Get-ChildItem -LiteralPath "dist/RemoteMicRC003" -Force -Filter "*.exe" -File)
+          $rootExecutables = @(Get-ChildItem -LiteralPath "dist/MoteDeck" -Force -Filter "*.exe" -File)
           if ($rootExecutables.Count -ne 1 -or $rootExecutables[0].Name -cne [string]$productPresentation.main_executable_name) {
             Write-Error "build root must expose only $($productPresentation.main_executable_name)"
             exit 1
@@ -366,16 +366,16 @@ jobs:
 
           Invoke-FrozenExecutableCheck -FilePath $builtExe -ArgumentList @("--qt-runtime-check") -Step "$builtExe --qt-runtime-check"
 
-          $inputStateAfterChecks = Get-RC003BuildInputState -RC003Root $rc003Root -RepoRoot $repoRoot
+          $inputStateAfterChecks = Get-MoteDeckBuildInputState -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot
           if (
             $inputStateAfterChecks.FileCount -ne [int]$inputState.FileCount -or
             $inputStateAfterChecks.FingerprintSha256 -ne [string]$inputState.FingerprintSha256
           ) {
             throw "build inputs changed while frozen checks were running"
           }
-          Assert-RC003ExecutableMetadata -RC003Root $rc003Root -BuildRoot $buildRoot -PythonExecutable "python"
-          Write-RC003BuildProvenance -RC003Root $rc003Root -RepoRoot $repoRoot -BuildRoot $buildRoot -InputState $inputState -ExecutableMetadataVerified -PythonExecutable "python" | Out-Null
-          Assert-RC003BuildProvenance -RC003Root $rc003Root -RepoRoot $repoRoot -BuildRoot $buildRoot -PythonExecutable "python" | Out-Null
+          Assert-MoteDeckExecutableMetadata -MoteDeckRoot $motedeckRoot -BuildRoot $buildRoot -PythonExecutable "python"
+          Write-MoteDeckBuildProvenance -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot -BuildRoot $buildRoot -InputState $inputState -ExecutableMetadataVerified -PythonExecutable "python" | Out-Null
+          Assert-MoteDeckBuildProvenance -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot -BuildRoot $buildRoot -PythonExecutable "python" | Out-Null
 
       - name: Install Inno Setup
         shell: pwsh
@@ -388,11 +388,11 @@ jobs:
           $ErrorActionPreference = "Stop"
           . ./build/build-provenance.ps1
           . ./build/portable-layout.ps1
-          $rc003Root = (Resolve-Path ".").Path
+          $motedeckRoot = (Resolve-Path ".").Path
           $repoRoot = (Resolve-Path "../../..").Path
-          $buildRoot = Join-Path $rc003Root "dist/RemoteMicRC003"
-          $productPresentation = Get-RC003ProductPresentation -RC003Root $rc003Root -PythonExecutable "python"
-          $initialBuildProvenance = Assert-RC003BuildProvenance -RC003Root $rc003Root -RepoRoot $repoRoot -BuildRoot $buildRoot
+          $buildRoot = Join-Path $motedeckRoot "dist/MoteDeck"
+          $productPresentation = Get-MoteDeckProductPresentation -MoteDeckRoot $motedeckRoot -PythonExecutable "python"
+          $initialBuildProvenance = Assert-MoteDeckBuildProvenance -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot -BuildRoot $buildRoot
 
           # "Deterministic" here means deterministic, non-random/non-timestamped
           # OUTPUT FILENAMES (derived from the runtime VERSION source, not a build
@@ -400,16 +400,16 @@ jobs:
           # order - not bit-for-bit reproducible-build byte equality, which
           # PyInstaller does not guarantee upstream. Never signed, never
           # published, never installed here.
-          $version = (Get-Content -Raw src\ovb_rc003\VERSION).Trim()
+          $version = (Get-Content -Raw src\motedeck\VERSION).Trim()
           if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
-            Write-Error "invalid application version in src\ovb_rc003\VERSION: $version"
+            Write-Error "invalid application version in src\motedeck\VERSION: $version"
             exit 1
           }
 
           # XRBM-022 controller pre-review correction: the installer
           # packages LICENSE/COPYRIGHT/THIRD_PARTY_NOTICES.md and ships an
           # instructional readme, but the portable ZIP previously
-          # compressed only dist/RemoteMicRC003/* (the bare
+          # compressed only dist/MoteDeck/* (the bare
           # PyInstaller one-dir output) - so a user who only downloaded the
           # portable ZIP, never the installer, got no license, copyright,
           # third-party attribution/provenance, or usage instructions at
@@ -417,7 +417,7 @@ jobs:
           # those same files before compressing, so both distribution forms
           # carry the same provenance/legal/instructional content. Staging
           # into "dist/portable/$stagingName" (rather than compressing
-          # dist/RemoteMicRC003/ in place) also means Compress-Archive
+          # dist/MoteDeck/ in place) also means Compress-Archive
           # is given the staging FOLDER itself (not a "/*" content glob), so
           # the resulting ZIP has exactly one top-level versioned folder to
           # extract into - never loose files scattered at the archive root.
@@ -429,9 +429,9 @@ jobs:
           if (Test-Path $stagingDir) { Remove-Item $stagingDir -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $stagingDir | Out-Null
 
-          Copy-Item -Path "dist/RemoteMicRC003/*" -Destination $stagingDir -Recurse -Force
-          $stagedBuildProvenance = Assert-RC003BuildProvenance -RC003Root $rc003Root -RepoRoot $repoRoot -BuildRoot $stagingDir
-          Assert-RC003BuildProvenanceMatches -Expected $initialBuildProvenance -Actual $stagedBuildProvenance -Context "CI staged build verification"
+          Copy-Item -Path "dist/MoteDeck/*" -Destination $stagingDir -Recurse -Force
+          $stagedBuildProvenance = Assert-MoteDeckBuildProvenance -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot -BuildRoot $stagingDir
+          Assert-MoteDeckBuildProvenanceMatches -Expected $initialBuildProvenance -Actual $stagedBuildProvenance -Context "CI staged build verification"
 
           $documentationDir = Join-Path $stagingDir ([string]$productPresentation.documentation_directory_name)
           New-Item -ItemType Directory -Force -Path $documentationDir | Out-Null
@@ -442,9 +442,9 @@ jobs:
           Copy-Item -Path "../../../ASSET_LICENSES.md" -Destination (Join-Path $documentationDir "ASSET_LICENSES.md") -Force
           Copy-Item -Path "../../../THIRD_PARTY_LICENSES" -Destination (Join-Path $documentationDir "THIRD_PARTY_LICENSES") -Recurse -Force
           Copy-Item -Path "ATTRIBUTION.md" -Destination (Join-Path $documentationDir "ATTRIBUTION.md") -Force
-          Copy-Item -Path "installer/readme-portable-rc003.txt" -Destination (Join-Path $documentationDir ([string]$productPresentation.portable_readme_name)) -Force
+          Copy-Item -Path "installer/readme-portable-motedeck.txt" -Destination (Join-Path $documentationDir ([string]$productPresentation.portable_readme_name)) -Force
 
-          Assert-RC003PortableStagingRoot -StagingDirectory $stagingDir -ProductPresentation $productPresentation
+          Assert-MoteDeckPortableStagingRoot -StagingDirectory $stagingDir -ProductPresentation $productPresentation
           $zipPath = "dist/portable/MoteDeck-$version-免安装.zip"
           if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 
@@ -467,7 +467,7 @@ jobs:
             exit 1
           }
 
-          Assert-RC003PortableZip `
+          Assert-MoteDeckPortableZip `
             -ZipPath (Resolve-Path $zipPath).Path `
             -TopLevelName $stagingName `
             -ExpectedVersion $version `
@@ -541,7 +541,7 @@ jobs:
               Write-Error "portable ZIP is missing the internal HID helper"
               exit 1
             }
-            $versionEntryName = "$stagingName/$($productPresentation.runtime_directory_name)/ovb_rc003/VERSION"
+            $versionEntryName = "$stagingName/$($productPresentation.runtime_directory_name)/motedeck/VERSION"
             if (-not $archiveFiles.ContainsKey($versionEntryName)) {
               Write-Error "portable ZIP is missing the frozen VERSION file"
               exit 1
@@ -612,8 +612,8 @@ jobs:
             $archive.Dispose()
           }
 
-          $finalBuildProvenance = Assert-RC003BuildProvenance -RC003Root $rc003Root -RepoRoot $repoRoot -BuildRoot $buildRoot
-          Assert-RC003BuildProvenanceMatches -Expected $initialBuildProvenance -Actual $finalBuildProvenance -Context "CI post-package verification"
+          $finalBuildProvenance = Assert-MoteDeckBuildProvenance -MoteDeckRoot $motedeckRoot -RepoRoot $repoRoot -BuildRoot $buildRoot
+          Assert-MoteDeckBuildProvenanceMatches -Expected $initialBuildProvenance -Actual $finalBuildProvenance -Context "CI post-package verification"
 
           # Publish only the installer and its UTF-8 checksum manifest.
           # Both producer and upload use the workspace-absolute release directory.
@@ -623,8 +623,8 @@ jobs:
 
           # Re-derive the two inputs this block needs so it stays runnable on
           # its own (the packaging replay tests execute exactly this slice).
-          $rc003Root = (Resolve-Path ".").Path
-          $version = (Get-Content -Raw src\ovb_rc003\VERSION).Trim()
+          $motedeckRoot = (Resolve-Path ".").Path
+          $version = (Get-Content -Raw src\motedeck\VERSION).Trim()
 
           # Build the per-user Inno Setup installer and publish it as the
           # primary release asset (the portable staging above stays a build
@@ -639,7 +639,7 @@ jobs:
             Write-Error "Inno Setup 6 (ISCC.exe) is required to build the installer"
             exit 1
           }
-          & $iscc (Join-Path $rc003Root "installer/RemoteMicRC003Setup.iss")
+          & $iscc (Join-Path $motedeckRoot "installer/MoteDeckSetup.iss")
           if ($LASTEXITCODE -ne 0) {
             Write-Error "Inno Setup installer compilation failed"
             exit 1
@@ -720,6 +720,6 @@ jobs:
         # actions/upload-artifact v7
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: RemoteMicRC003-distribution-unsigned
+          name: MoteDeck-distribution-unsigned
           path: ${{ github.workspace }}/apps/windows/rc003/dist/release/*
           if-no-files-found: error

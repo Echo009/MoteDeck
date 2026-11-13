@@ -10,7 +10,7 @@ import uuid
 from ctypes import wintypes
 from unittest import mock
 
-from ovb_rc003 import single_instance as si
+from motedeck import single_instance as si
 
 
 # Lower only this disposable child process's token; never change Windows UAC
@@ -19,7 +19,7 @@ _SIGNAL_AT_INTEGRITY = r'''
 import ctypes
 import sys
 from ctypes import wintypes
-from ovb_rc003 import single_instance as si
+from motedeck import single_instance as si
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
 advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
 class SidAndAttributes(ctypes.Structure):
@@ -191,7 +191,7 @@ class NativeRestoreEventTests(unittest.TestCase):
 import sys
 import time
 from PySide6.QtCore import QTimer
-from ovb_rc003 import qt_settings_app as m
+from motedeck import qt_settings_app as m
 si = m.single_instance
 si.bridge_instance_running = lambda: False
 published = {}
@@ -260,7 +260,7 @@ assert not si._settings_window_restore_events, "event leaked after shutdown"
 sys.exit(result)
 '''
         with tempfile.TemporaryDirectory() as root:
-            env = dict(os.environ, QT_QPA_PLATFORM="offscreen", LOCALAPPDATA=root, RC003_DISABLE_LIVE_INPUT="1")
+            env = dict(os.environ, QT_QPA_PLATFORM="offscreen", LOCALAPPDATA=root, MOTEDECK_DISABLE_LIVE_INPUT="1")
             result = subprocess.run([sys.executable, "-c", script], env=env, capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr)
 
@@ -297,7 +297,7 @@ sys.exit(result)
         try:
             self.assertTrue(si.register_settings_window_restore_event(hwnd))
             self.assertTrue(si._real_set_window_property(hwnd, marker))
-            code = "from ovb_rc003 import single_instance as s; import sys; sys.exit(0 if s._real_activate_marked_window(sys.argv[1], _require_restore_request=True) else 1)"
+            code = "from motedeck import single_instance as s; import sys; sys.exit(0 if s._real_activate_marked_window(sys.argv[1], _require_restore_request=True) else 1)"
             result = subprocess.run([sys.executable, "-c", code, marker], capture_output=True, text=True, timeout=15, env=os.environ.copy())
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertTrue(si.consume_settings_window_restore_request(hwnd))

@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import (app_profiles, config, device_catalog,
+from motedeck import (app_profiles, config, device_catalog,
                        mapping_presets as presets, key_mapping)
 from tests import test_qt_settings_app as qt_tests
 
@@ -487,7 +487,7 @@ class PresetControllerTests(unittest.TestCase):
 
     def test_long_options_do_not_leak_to_single_or_double(self):
         controller, model = self._make_controller()
-        from ovb_rc003 import settings_ui
+        from motedeck import settings_ui
         for label in settings_ui.LONG_PRESS_ACTION_LABELS.values():
             self.assertIn(label, controller.longPressActionOptionsFor("ok"))
             self.assertNotIn(label, controller.primaryActionOptionsFor("ok"))

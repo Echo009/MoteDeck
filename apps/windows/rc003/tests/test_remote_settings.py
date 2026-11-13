@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import config, remote_selection as selection, remote_settings as records
+from motedeck import config, remote_selection as selection, remote_settings as records
 
 A, B = "a" * 64, "b" * 64
 

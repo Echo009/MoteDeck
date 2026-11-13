@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003.button_combo import ButtonComboRecognizer, ComboCommand
+from motedeck.button_combo import ButtonComboRecognizer, ComboCommand
 
 
 class ButtonComboRecognizerTests(unittest.TestCase):

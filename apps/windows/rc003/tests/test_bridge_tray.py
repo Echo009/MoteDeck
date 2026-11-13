@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import app as app_module
-from ovb_rc003 import bridge_launcher, bridge_tray_windows
+from motedeck import app as app_module
+from motedeck import bridge_launcher, bridge_tray_windows
 
 
 class TrayIconLoadingTests(unittest.TestCase):

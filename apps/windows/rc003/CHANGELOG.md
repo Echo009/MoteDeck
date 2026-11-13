@@ -1,14 +1,37 @@
 # Changelog — MoteDeck RC003 (Windows)
 
 候选阶段使用持续递增的 `candidate.N` 测试序号。内部构建版本号唯一来源是
-`src/ovb_rc003/VERSION`（当前 `0.2.3`），程序、冻结构建和
+`src/motedeck/VERSION`（当前 `0.2.7`），程序、冻结构建和
 包装都读取该文件。新发布 tag 为 `v<VERSION>`，历史 tag 与包名保持原样。
 
 正式版把最终采用的候选序号放在最后一位：采用 `candidate.30` 时发布为 `v1.0.30`，
 后续候选继续从 `candidate.31` 递增。正式 tag 不带 `windows`、`rc003` 或 `candidate`。
 正式发布附件为未签名安装包 `MoteDeckSetup-<版本号>-unsigned.exe`、`SHA256SUMS.txt`
-和固定文件名的 `MoteDeck2Vokie.zip`；完整命名规则以
-`VALIDATION-AND-DELIVERY.md` 的“版本与命名规则”为准。
+和固定文件名的 `MoteDeck2Vokie.zip`。
+
+## [0.2.7] — 2026-11-12
+
+- 修复 Issue #44：单应用方案下双击与长按不生效。长按连发此前调用带物理键预检的按键下发，预检的 GetAsyncKeyState 兜底分不清按键是本进程自己注入的，长按连发被自己连续拒绝，长按动作完全失效；现在连发只通过 `key_repeat` 重发最后的按键，不再做物理键预检。同时修复设置页保存时静默丢弃按键页待保存的应用方案：保存设置前先把待提交方案按方案路径写入，再回读全局配置文件，双击/长按等方案配置不再丢失。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3531 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.7-unsigned.exe`（99559822 字节，SHA-256 `9579fd3e8d171f855c8fae8a401fd0c89e186c6c73111b25c08f369f7990fbc3`），插件包 `MoteDeck2Vokie.zip`（0.1.5，20262 字节，SHA-256 `e3e852759b34bd365216a7da63a911962ad298590a1dd938e2624c172bc26e3e`，与 0.2.6 相同，插件本次无变更）。
+
+## [0.2.6] — 2026-11-12
+
+- 修复 Issue #55：0.2.4 起配置根目录迁到 `%LOCALAPPDATA%\MoteDeck`，而 MoteDeck2Vokie 0.1.4 仍在旧目录 `%LOCALAPPDATA%\RemoteMic\RC003` 查找发现文件，升级后插件一直停在等待/正在连接。现在程序同时向新旧两个目录写入发现文件，退出时一并清理，已安装旧版插件的用户只升级程序即可恢复；插件升级到 0.1.5，优先读取新目录、找不到再回退旧目录，继续兼容 0.2.3 及更早版本。
+- 修复谷歌遥控器停止服务时卡住：管理员授权弹窗仍未确认时请求停止，接收线程阻塞在提权启动调用里无法响应取消，停止流程会一直等到超时。现在授权尚未完成时直接确认清理，不再等待线程退出；授权后启动的接收进程会因为管道连接失败自行退出，不会残留。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3531 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.6-unsigned.exe`（99552396 字节，SHA-256 `7910e6759b73c12a9de8b21f8839f6e49657adb12c6f7627cc70f41035da8a7e`），插件包 `MoteDeck2Vokie.zip`（0.1.5，20262 字节，SHA-256 `e3e852759b34bd365216a7da63a911962ad298590a1dd938e2624c172bc26e3e`）。
+
+## [0.2.5] — 2026-11-11
+
+- 修复覆盖安装时旧版进程未被关闭：安装器停止脚本的进程识别停留在最初一代主程序命名（`RemoteMicRC003.exe`），主程序改名后（带版本号 `MoteDeck <版本>.exe` → 固定 `MoteDeck.exe`）升级时永远找不到正在运行的旧版，安装器在旧进程仍存活时覆盖文件，导致退出报错并残留 `.installing-previous`。现在停止脚本同时识别三代主程序命名，升级、卸载和「停止 MoteDeck」菜单都能真正关掉旧版；旧版若无法完成正常退出，安装会安全中止并提示，不再在旧进程存活时改写文件。
+- 修复谷歌遥控器模式下软件方案（应用条）不生效：切到谷歌遥控器后，按键永远走全局映射，应用方案里设置的按键映射（例如确认键改成空格）不被执行。原因是谷歌链路启动时从未启动按前台应用切换方案的循环；现在该链路同样启动/停止软件方案切换，应用方案里的映射对谷歌遥控器照常生效，与小米遥控器行为一致。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3531 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.5-unsigned.exe`（99552815 字节，SHA-256 `31a154628cf10470a52dc95be40e91f6094810167cd1ce7c82e4ade9bd7656dc`）。本次发布曾于 2026-11-11 首发后重新打包：修复覆盖安装未关闭旧版进程的缺陷，安装包内容与校验值全部替换，已下载首发包的用户请重新下载覆盖安装一次。
+
+## [0.2.4] — 2026-11-11
+
+- 修复 Issue #44：未做预绑定（prebind）的机器上，布防窗口内的按键会泄漏给系统——按下被透传、抬起却被抹除流程吞掉，宿主应用收到只按下不抬起的键（如 Edge 的回车）就会持续连发；程序同时误判按键钩子失效并反复回退重试。现在门开启时的中性报告直接透传给 Windows，未验证拦截的布防期间不再因原始输入事件触发回退。
+- 按 Issue #47 修正文档：README 的语音键配置流程改写为「管理配置…」弹窗的实际操作（录入快捷键、排序、停用、改名），补上每条语音键的「延迟发送」与「TSF 切换」说明，并新增微信输入法在 Windows Terminal 等 XAML Islands 窗口获得焦点时语音快捷键可能无法触发的兼容性说明；CONTRIBUTING 补全本地开发环境要求（Windows 10/11、Python 3.12）与 Frida Gadget、Interception、VB-CABLE、WinUHID 资源获取脚本；清理 CHANGELOG 中指向已删除文档的引用。
+- 修复 native 测试门禁：构建脚本把测试阶段环境变量改名为 `MOTEDECK_NATIVE_STAGE` 后，四个测试文件仍在读旧名 `RC003_NATIVE_STAGE`，编译产物测试阶段因此出现模块同名冲突与误报；统一为新名。
+- 已用唯一正式构建入口 `build/build-candidate.ps1` 完成完整门禁（3530 项 unittest、11 项按环境条件跳过，其余通过）与冻结构建，HID `--self-check`、主程序 `--dry-run` 与 `--qt-runtime-check` 均通过。交付未签名安装包 `MoteDeckSetup-0.2.4-unsigned.exe`（99555292 字节，SHA-256 `dd80c8a888ae522c23de3fd0a405954175166917dcdac57a8d44385db0364d59`）。
 
 ## [0.2.3] — 2026-11-09
 

@@ -24,7 +24,7 @@ import ctypes
 import unittest
 from ctypes import wintypes
 
-from ovb_rc003 import raw_input_windows, win32_input
+from motedeck import raw_input_windows, win32_input
 
 
 class SendInputInputArrayArgtypeTests(unittest.TestCase):

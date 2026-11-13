@@ -13,8 +13,8 @@ from unittest import mock
 
 import numpy as np
 
-from ovb_rc003 import audio_output, audio_playback
-from ovb_rc003.audio_playback import EndpointPlaybackSink
+from motedeck import audio_output, audio_playback
+from motedeck.audio_playback import EndpointPlaybackSink
 
 
 class FakeSoundDevice:
@@ -307,7 +307,7 @@ class PlaybackPreflightTests(unittest.TestCase):
                 events.append("close")
 
         with mock.patch.dict(sys.modules, {"sounddevice": self._fake_module(Stream)}):
-            from ovb_rc003.audio_playback import preflight_output_endpoint
+            from motedeck.audio_playback import preflight_output_endpoint
 
             preflight_output_endpoint("CABLE Input", "Windows WASAPI")
         self.assertEqual(events, ["open", "start", "stop", "close"])
@@ -328,7 +328,7 @@ class PlaybackPreflightTests(unittest.TestCase):
                 events.append("close")
 
         with mock.patch.dict(sys.modules, {"sounddevice": self._fake_module(Stream)}):
-            from ovb_rc003.audio_playback import preflight_output_endpoint
+            from motedeck.audio_playback import preflight_output_endpoint
 
             with self.assertRaises(audio_output.AudioOutputUnavailableError) as ctx:
                 preflight_output_endpoint("CABLE Input", "Windows WASAPI")

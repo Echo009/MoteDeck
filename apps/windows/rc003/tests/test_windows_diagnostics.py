@@ -10,7 +10,7 @@ import unittest
 from collections.abc import Sequence
 from unittest import mock
 
-from ovb_rc003 import (
+from motedeck import (
     audio_output,
     audio_playback,
     ble_transport_winrt,
@@ -709,7 +709,7 @@ class RunDiagnosticsIsolationTests(unittest.TestCase):
     def test_unexpected_exception_in_one_check_isolates_to_that_check_only(self):
         import unittest.mock as mock
 
-        from ovb_rc003 import windows_diagnostics as module
+        from motedeck import windows_diagnostics as module
 
         with mock.patch.object(
             module, "check_ble_candidate", side_effect=RuntimeError("boom")
@@ -735,7 +735,7 @@ class RunDiagnosticsIsolationTests(unittest.TestCase):
     def test_unexpected_exception_never_leaks_into_the_detail_text(self):
         import unittest.mock as mock
 
-        from ovb_rc003 import windows_diagnostics as module
+        from motedeck import windows_diagnostics as module
 
         secret = "\\\\?\\HID#VID_2717&PID_32B8#SUPERSECRETSERIAL"
 
@@ -750,7 +750,7 @@ class RunDiagnosticsIsolationTests(unittest.TestCase):
     def test_multiple_simultaneous_unexpected_failures_each_isolate_independently(self):
         import unittest.mock as mock
 
-        from ovb_rc003 import windows_diagnostics as module
+        from motedeck import windows_diagnostics as module
 
         with mock.patch.object(module, "check_os_version", side_effect=RuntimeError("a")):
             with mock.patch.object(module, "check_vb_cable_endpoints", side_effect=RuntimeError("b")):
@@ -771,13 +771,13 @@ class BuildBleDiagnosticsSubprocessCommandTests(unittest.TestCase):
     transport" comment) stdout contract.
     """
 
-    def test_source_mode_uses_dash_m_ovb_rc003(self):
+    def test_source_mode_uses_dash_m_motedeck(self):
         command = diag.build_ble_diagnostics_subprocess_command(
             "/tmp/result.json", frozen=False, executable="/usr/bin/python3"
         )
         self.assertEqual(
             command,
-            ["/usr/bin/python3", "-m", "ovb_rc003", diag.BLE_DIAGNOSTICS_SUBPROCESS_FLAG, "/tmp/result.json"],
+            ["/usr/bin/python3", "-m", "motedeck", diag.BLE_DIAGNOSTICS_SUBPROCESS_FLAG, "/tmp/result.json"],
         )
 
     def test_frozen_mode_reinvokes_the_exe_directly_with_no_dash_m(self):
@@ -821,7 +821,7 @@ class BuildVbCableLoopbackSubprocessCommandTests(unittest.TestCase):
             [
                 "/usr/bin/python3",
                 "-m",
-                "ovb_rc003",
+                "motedeck",
                 diag.VB_CABLE_LOOPBACK_SUBPROCESS_FLAG,
                 "/tmp/request.json",
                 "/tmp/result.json",
@@ -859,7 +859,7 @@ class BuildOutputEndpointPreflightSubprocessCommandTests(unittest.TestCase):
             [
                 "/usr/bin/python3",
                 "-m",
-                "ovb_rc003",
+                "motedeck",
                 diag.OUTPUT_ENDPOINT_PREFLIGHT_SUBPROCESS_FLAG,
                 "/tmp/request.json",
                 "/tmp/result.json",
@@ -1884,11 +1884,11 @@ class RunOutputEndpointPreflightSubprocessTests(unittest.TestCase):
         self.assertNotIn("private endpoint detail", str(ctx.exception))
 
 
-def _spawn_ovb_rc003(*args: str) -> "list[str]":
+def _spawn_motedeck(*args: str) -> "list[str]":
     env = dict(os.environ)
     repo_src = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src")
-    if os.environ.get("RC003_NATIVE_STAGE"):
-        repo_src = os.path.join(os.environ["RC003_NATIVE_STAGE"], "src")
+    if os.environ.get("MOTEDECK_NATIVE_STAGE"):
+        repo_src = os.path.join(os.environ["MOTEDECK_NATIVE_STAGE"], "src")
     env["PYTHONPATH"] = repo_src
     from tests.source_contract import entry_command
     return entry_command(*args), env
@@ -1907,7 +1907,7 @@ class RunBleDiagnosticsSubprocessTests(unittest.TestCase):
         tmpdir = tempfile.mkdtemp()
         try:
             result_path = os.path.join(tmpdir, "verdict.json")
-            command, env = _spawn_ovb_rc003(
+            command, env = _spawn_motedeck(
                 diag.BLE_DIAGNOSTICS_SUBPROCESS_FLAG, result_path
             )
             popen = lambda cmd, **kwargs: subprocess.Popen(cmd, env=env, **kwargs)  # noqa: E731

@@ -17,7 +17,7 @@ import unittest
 from ctypes import wintypes
 from pathlib import Path
 
-from ovb_rc003 import single_instance
+from motedeck import single_instance
 
 
 class _FakeMutexRegistry:

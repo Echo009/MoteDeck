@@ -16,16 +16,16 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import config, logging_setup
+from motedeck import config, logging_setup
 
 _RC003_ROOT = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _RC003_ROOT.parents[2]
-_SPEC_PATH = _RC003_ROOT / "build" / "RemoteMicRC003.spec"
-_VERSION_PATH = _RC003_ROOT / "src" / "ovb_rc003" / "VERSION"
+_SPEC_PATH = _RC003_ROOT / "build" / "MoteDeck.spec"
+_VERSION_PATH = _RC003_ROOT / "src" / "motedeck" / "VERSION"
 _REQUIREMENTS_PATH = _RC003_ROOT / "requirements.txt"
-_ISS_PATH = _RC003_ROOT / "installer" / "RemoteMicRC003Setup.iss"
+_ISS_PATH = _RC003_ROOT / "installer" / "MoteDeckSetup.iss"
 _CI_PATH = _REPO_ROOT / ".github" / "workflows" / "windows-rc003-ci.yml"
-_PACKAGE_MAIN_PATH = _RC003_ROOT / "src" / "ovb_rc003" / "__main__.py"
+_PACKAGE_MAIN_PATH = _RC003_ROOT / "src" / "motedeck" / "__main__.py"
 _LAUNCHER_PATH = _RC003_ROOT / "src" / "launcher.py"
 _HID_HELPER_LAUNCHER_PATH = _RC003_ROOT / "src" / "hid_helper_launcher.py"
 _BUILD_CANDIDATE_PATH = _RC003_ROOT / "build" / "build-candidate.ps1"
@@ -39,9 +39,9 @@ _STOP_DEV_PATH = _RC003_ROOT / "build" / "stop-dev.ps1"
 _INSTALL_DEV_SHORTCUT_PATH = _RC003_ROOT / "build" / "install-dev-shortcut.ps1"
 _PUBLIC_BOUNDARY_PATH = _RC003_ROOT / "build" / "check-public-boundary.ps1"
 _README_PATH = _RC003_ROOT / "README.md"
-_INSTALLED_README_PATH = _RC003_ROOT / "installer" / "readme-rc003.txt"
+_INSTALLED_README_PATH = _RC003_ROOT / "installer" / "readme-motedeck.txt"
 _PORTABLE_README_PATH = (
-    _RC003_ROOT / "installer" / "readme-portable-rc003.txt"
+    _RC003_ROOT / "installer" / "readme-portable-motedeck.txt"
 )
 _ROOT_README_PATH = _REPO_ROOT / "README.md"
 
@@ -306,8 +306,8 @@ class PyInstallerSpecTests(unittest.TestCase):
             _VERSION_PATH.read_text(encoding="ascii").strip(),
             r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$",
         )
-        self.assertIn('VERSION_FILE = SRC_ROOT / "ovb_rc003" / "VERSION"', text)
-        self.assertIn('datas.append((str(VERSION_FILE), "ovb_rc003"))', text)
+        self.assertIn('VERSION_FILE = SRC_ROOT / "motedeck" / "VERSION"', text)
+        self.assertIn('datas.append((str(VERSION_FILE), "motedeck"))', text)
 
     def test_spec_excludes_other_device_bridges(self):
         text = _SPEC_PATH.read_text(encoding="utf-8")
@@ -334,7 +334,7 @@ class PyInstallerSpecTests(unittest.TestCase):
         ]
         self.assertTrue(_HID_HELPER_LAUNCHER_PATH.is_file())
         self.assertIn('SRC_ROOT / "hid_helper_launcher.py"', text)
-        self.assertIn('HID_HELPER_NAME = "RemoteMicRC003HidHelper"', text)
+        self.assertIn('HID_HELPER_NAME = "MoteDeckHidHelper"', text)
         self.assertIn("WINDOWS_RUNTIME_DIRECTORY_NAME", text)
         self.assertIn("Path(WINDOWS_RUNTIME_DIRECTORY_NAME)", text)
         self.assertIn("helper_a = Analysis(", text)
@@ -342,12 +342,12 @@ class PyInstallerSpecTests(unittest.TestCase):
         self.assertIn("helper_exe = EXE(", text)
         self.assertIn("helper_a.binaries", text)
         self.assertIn("helper_a.datas", text)
-        self.assertIn('(str(VERSION_FILE), "ovb_rc003")', helper_analysis)
-        self.assertIn('"ovb_rc003/frida_assets"', helper_analysis)
-        self.assertIn('"ovb_rc003.hid_elevation_windows"', helper_analysis)
+        self.assertIn('(str(VERSION_FILE), "motedeck")', helper_analysis)
+        self.assertIn('"motedeck/frida_assets"', helper_analysis)
+        self.assertIn('"motedeck.hid_elevation_windows"', helper_analysis)
         self.assertIn('"html"', helper_analysis)
         self.assertIn('"xml.etree.ElementTree"', helper_analysis)
-        self.assertIn('"ovb_rc003.frida_hid_tap_injector"', helper_analysis)
+        self.assertIn('"motedeck.frida_hid_tap_injector"', helper_analysis)
         self.assertIn('"comtypes"', helper_analysis)
         self.assertIn('"comtypes.client"', helper_analysis)
         self.assertIn("excludes=list(HELPER_EXCLUDES)", helper_analysis)
@@ -356,7 +356,7 @@ class PyInstallerSpecTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("HELPER_EXCLUDES", text)
         self.assertIn('"PySide6"', inventory_text)
-        self.assertIn('"ovb_rc003.qt_settings_app"', inventory_text)
+        self.assertIn('"motedeck.qt_settings_app"', inventory_text)
         self.assertIn(
             '(str(HID_HELPER_RELATIVE_PATH), helper_exe.name, "EXECUTABLE")',
             text,
@@ -374,14 +374,14 @@ class PyInstallerSpecTests(unittest.TestCase):
         self.assertIn('"FileDescription", metadata["file_description"]', text)
         self.assertIn('"OriginalFilename", metadata["original_filename"]', text)
         self.assertIn('versioninfo.VarStruct("Translation", [2052, 1200])', text)
-        self.assertGreaterEqual(text.count('"ovb_rc003.product_identity"'), 2)
+        self.assertGreaterEqual(text.count('"motedeck.product_identity"'), 2)
 
     def test_spec_accepts_the_checked_cython_stage_as_its_source_root(self):
         text = _strip_hash_comments(_SPEC_PATH.read_text(encoding="utf-8"))
-        self.assertIn('os.environ.get("RC003_BUILD_SOURCE_ROOT"', text)
+        self.assertIn('os.environ.get("MOTEDECK_BUILD_SOURCE_ROOT"', text)
         self.assertIn("Path(source_root_override).resolve()", text)
         self.assertIn("required build source directory is missing", text)
-        self.assertIn('"ovb_rc003.hid_helper_consumers"', text)
+        self.assertIn('"motedeck.hid_helper_consumers"', text)
 
     def test_main_and_helper_manifests_do_not_require_administrator(self):
         text = _strip_hash_comments(_SPEC_PATH.read_text(encoding="utf-8"))
@@ -414,12 +414,12 @@ class PyInstallerSpecTests(unittest.TestCase):
         self.assertIn('"vb_cable_bundle"', text)
         self.assertIn("build", text)
         self.assertIn("third_party", text)
-        self.assertIn('"ovb_rc003.vb_cable_bundle"', text)
-        self.assertIn('"ovb_rc003.windows_diagnostics"', text)
+        self.assertIn('"motedeck.vb_cable_bundle"', text)
+        self.assertIn('"motedeck.windows_diagnostics"', text)
 
     def test_spec_analyzes_the_standalone_launcher_not_the_package_main(self):
         # XRBM-021: the spec's Analysis() entry script must be
-        # src/launcher.py - analyzing src/ovb_rc003/__main__.py directly
+        # src/launcher.py - analyzing src/motedeck/__main__.py directly
         # reproduces the red baseline's relative-import failure the moment
         # the frozen executable runs (see LauncherEntryPointTests below).
         # Checked against effective (non-comment) content, since this
@@ -427,7 +427,7 @@ class PyInstallerSpecTests(unittest.TestCase):
         # rule in prose.
         text = _strip_hash_comments(_SPEC_PATH.read_text(encoding="utf-8"))
         self.assertIn('SRC_ROOT / "launcher.py"', text)
-        self.assertNotIn('SRC_ROOT / "ovb_rc003" / "__main__.py"', text)
+        self.assertNotIn('SRC_ROOT / "motedeck" / "__main__.py"', text)
 
     def test_spec_bundles_the_shared_device_profile_directory_as_data(self):
         text = _SPEC_PATH.read_text(encoding="utf-8")
@@ -453,8 +453,8 @@ class PyInstallerSpecTests(unittest.TestCase):
         self.assertIn('navigation_binaries.append((str(matches[0]), "element_navigation"))', text)
         hiddenimports = _spec_hidden_imports(text)
         for module in (
-            "ovb_rc003.element_navigation_control_windows",
-            "ovb_rc003.element_navigation_runtime",
+            "motedeck.element_navigation_control_windows",
+            "motedeck.element_navigation_runtime",
             "PySide6.QtWidgets",
         ):
             self.assertIn(module, hiddenimports)
@@ -482,12 +482,12 @@ class LauncherEntryPointTests(unittest.TestCase):
 
     def test_the_standalone_launcher_exists_outside_the_package(self):
         self.assertTrue(_LAUNCHER_PATH.is_file())
-        # No parent package: launcher.py must NOT live inside src/ovb_rc003/.
-        self.assertNotEqual(_LAUNCHER_PATH.parent.name, "ovb_rc003")
+        # No parent package: launcher.py must NOT live inside src/motedeck/.
+        self.assertNotEqual(_LAUNCHER_PATH.parent.name, "motedeck")
 
     def test_the_standalone_launcher_uses_only_an_absolute_import(self):
         text = _LAUNCHER_PATH.read_text(encoding="utf-8")
-        self.assertIn("from ovb_rc003.__main__ import main", text)
+        self.assertIn("from motedeck.__main__ import main", text)
         # No package-relative import token anywhere in the launcher itself.
         for line in text.splitlines():
             stripped = line.strip()
@@ -496,7 +496,7 @@ class LauncherEntryPointTests(unittest.TestCase):
     def test_the_standalone_launcher_avoids_the_red_failure(self):
         # Exercises the SAME no-parent-package execution context that broke
         # __main__.py above - the launcher's only import is absolute, so it
-        # must succeed here too (ovb_rc003 is importable via this test
+        # must succeed here too (motedeck is importable via this test
         # suite's own PYTHONPATH=src convention).
         _exec_as_top_level_no_package(
             _LAUNCHER_PATH, module_name="frozen_entry_simulation"
@@ -555,7 +555,7 @@ class HidHelperLauncherTests(unittest.TestCase):
         self.assertNotIn("write_parent_hid_helper_event", text)
 
         helper_source = (
-            _RC003_ROOT / "src" / "ovb_rc003" / "hid_elevation_windows.py"
+            _RC003_ROOT / "src" / "motedeck" / "hid_elevation_windows.py"
         ).read_text(encoding="utf-8")
         self.assertNotIn("write_parent_hid_helper_event", helper_source)
 
@@ -622,11 +622,15 @@ class InnoSetupScriptTests(unittest.TestCase):
         code_section = _iss_section(self.text, "Code")
         self.assertIn("ExpandConstant('{app}\\{#AppExeName}')", code_section)
         self.assertIn(
-            "UpgradeLegacyHelperPath := ExpandConstant('{app}\\{#HidHelperExeName}')",
+            "UpgradeLegacyHelperPath := ExpandConstant('{app}\\{#LegacyHidHelperExeName}')",
             code_section,
         )
         self.assertIn("UpgradeHeldLegacyHelperPath", code_section)
-        self.assertNotIn("[InstallDelete]", self.text)
+        # 主程序固定命名为 MoteDeck.exe 后，[InstallDelete] 只清理历史遗留的
+        # 带版本号主程序，权限助手必须继续由升级代码接管而不是简单删除。
+        install_delete = _iss_section(self.text, "InstallDelete")
+        self.assertNotIn("MoteDeckHidHelper", install_delete)
+        self.assertIn('Name: "{app}\\MoteDeck *.exe"', install_delete)
 
     def test_install_failure_keeps_a_concise_in_app_retry_path(self):
         code_section = _iss_section(self.text, "Code")
@@ -666,13 +670,13 @@ class InnoSetupScriptTests(unittest.TestCase):
 
     def test_installer_uses_the_shared_application_icon(self):
         self.assertIn(
-            r"SetupIconFile=..\src\ovb_rc003\assets\icons\remote-mic.ico",
+            r"SetupIconFile=..\src\motedeck\assets\icons\remote-mic.ico",
             self.text,
         )
 
     def test_installer_does_not_offer_or_install_readme(self):
         files_section = _iss_section(self.text, "Files")
-        self.assertNotIn("readme-rc003.txt", files_section)
+        self.assertNotIn("readme-motedeck.txt", files_section)
         self.assertNotIn("isreadme", files_section.lower())
 
     def test_no_vbcable_reference(self):
@@ -706,7 +710,7 @@ class InnoSetupScriptTests(unittest.TestCase):
         )
 
     def test_install_dir_uses_open_voice_bridge_namespace(self):
-        self.assertIn(r"{localappdata}\RemoteMic\{#AppFolder}", self.text)
+        self.assertIn(r"{localappdata}\{#AppFolder}", self.text)
 
     def test_app_name_has_no_forbidden_branding(self):
         self.assertNotIn("2655", self.text)
@@ -1154,8 +1158,14 @@ class InnoSetupScriptTests(unittest.TestCase):
         self.assertIn("$exitOtherSessionRunning = 24", script)
         self.assertIn("CreationDate", script)
         self.assertIn("Get-CurrentTargetProcess", script)
-        self.assertIn('$targetExecutableName = "RemoteMicRC003.exe"', script)
-        self.assertIn("$targetExecutablePath", script)
+        self.assertIn(
+            '$targetExecutableNames = @("MoteDeck.exe", "RemoteMicRC003.exe")',
+            script,
+        )
+        self.assertIn("$targetVersionedExecutableNamePattern", script)
+        self.assertIn("Name LIKE 'MoteDeck %.exe'", script)
+        self.assertIn("[System.IO.Path]::GetDirectoryName($executable)", script)
+        self.assertNotIn("$targetExecutablePath", script)
         self.assertIn("[switch]$BlockOtherLocations", script)
         self.assertIn("$exitOtherLocationRunning = 23", script)
         self.assertNotIn("Resolve-Path -LiteralPath $AppPath", script)
@@ -1288,11 +1298,16 @@ class InnoSetupScriptTests(unittest.TestCase):
             'Source: "application-exit-contract-v1.json"; DestDir: "{app}"',
             files_section,
         )
-        self.assertNotIn("[InstallDelete]", self.text)
+        install_delete = _strip_semicolon_comments(
+            _iss_section(self.text, "InstallDelete")
+        )
+        self.assertIn('Name: "{app}\\MoteDeck *.exe"', install_delete)
+        self.assertNotIn("UpgradeInternalPath", install_delete)
         self.assertIn("UpgradeInternalPath", code_section)
         self.assertIn("UpgradeHeldInternalPath", code_section)
         for user_data in ("config.json", "key_bindings.json", "logs", "captures"):
             self.assertNotIn(user_data, uninstall_delete)
+            self.assertNotIn(user_data, install_delete)
 
     def test_uninstall_aborts_when_the_installed_stop_script_is_missing(self):
         code_section = _iss_section(self.text, "Code")
@@ -1433,8 +1448,8 @@ class WindowsCiWorkflowTests(unittest.TestCase):
         self.assertIn("PyInstaller", self.text)
 
     def test_resolves_the_provenance_path_from_the_shared_product_paths(self):
-        self.assertIn("$provenancePath = Clear-RC003BuildProvenance", self.text)
-        self.assertNotIn("Get-RC003BuildProvenancePath", self.text)
+        self.assertIn("$provenancePath = Clear-MoteDeckBuildProvenance", self.text)
+        self.assertNotIn("Get-MoteDeckBuildProvenancePath", self.text)
 
     def test_runs_dry_run_smoke_check(self):
         self.assertIn("--dry-run", self.text)
@@ -1465,7 +1480,7 @@ class WindowsCiWorkflowTests(unittest.TestCase):
     def test_binds_the_ci_artifact_to_the_checked_source_and_test_state(self):
         test_index = self.text.index("- name: Run test suite")
         capture_index = self.text.index(
-            "$inputState = Get-RC003BuildInputState"
+            "$inputState = Get-MoteDeckBuildInputState"
         )
         diff_guard_index = self.text.index(
             "tracked build or test inputs changed after their CI checks ran"
@@ -1474,13 +1489,13 @@ class WindowsCiWorkflowTests(unittest.TestCase):
             "build inputs changed after their CI checks ran"
         )
         pyinstaller_index = self.text.index(
-            "python -m PyInstaller build/RemoteMicRC003.spec"
+            "python -m PyInstaller build/MoteDeck.spec"
         )
         qt_index = self.text.index(
             'Invoke-FrozenExecutableCheck -FilePath $builtExe -ArgumentList @("--qt-runtime-check")'
         )
-        write_index = self.text.index("Write-RC003BuildProvenance")
-        assert_index = self.text.index("Assert-RC003BuildProvenance", write_index)
+        write_index = self.text.index("Write-MoteDeckBuildProvenance")
+        assert_index = self.text.index("Assert-MoteDeckBuildProvenance", write_index)
         self.assertLess(capture_index, test_index)
         self.assertLess(test_index, diff_guard_index)
         self.assertLess(diff_guard_index, compare_index)
@@ -1497,7 +1512,7 @@ class WindowsCiWorkflowTests(unittest.TestCase):
 
     def test_packages_from_the_shared_runtime_version_file(self):
         self.assertIn(
-            "$version = (Get-Content -Raw src\\ovb_rc003\\VERSION).Trim()",
+            "$version = (Get-Content -Raw src\\motedeck\\VERSION).Trim()",
             self.text,
         )
         self.assertNotIn("Select-String.*AppVersion", self.text)
@@ -1685,7 +1700,7 @@ class WindowsCiWorkflowTests(unittest.TestCase):
     def test_portable_zip_stages_license_source_assets_attribution_and_readme(self):
         # XRBM-022 controller pre-review correction: the portable ZIP
         # previously compressed only the bare PyInstaller output
-        # (dist/RemoteMicRC003/*), so a user who only downloaded the
+        # (dist/MoteDeck/*), so a user who only downloaded the
         # portable ZIP - never the installer - got no license, copyright,
         # third-party attribution/provenance, or usage instructions at all.
         # Each of these five files must be staged into the versioned
@@ -1723,7 +1738,7 @@ class WindowsCiWorkflowTests(unittest.TestCase):
             self.text,
         )
         self.assertIn(
-            'Copy-Item -Path "installer/readme-portable-rc003.txt" -Destination (Join-Path $documentationDir ([string]$productPresentation.portable_readme_name))',
+            'Copy-Item -Path "installer/readme-portable-motedeck.txt" -Destination (Join-Path $documentationDir ([string]$productPresentation.portable_readme_name))',
             self.text,
         )
 
@@ -1762,7 +1777,7 @@ class WindowsCiWorkflowTests(unittest.TestCase):
     def test_compress_archive_targets_the_staging_directory_not_the_bare_built_glob(self):
         # The archive source must be the STAGING folder (which contains a
         # copy of the built app plus the metadata/instruction payload above),
-        # never the bare "dist/RemoteMicRC003/*" glob
+        # never the bare "dist/MoteDeck/*" glob
         # directly - compressing that glob again would silently regress to
         # the pre-fix "no license/instructions in the ZIP" bug even if the
         # staging/copy lines above still existed elsewhere in the step.
@@ -1770,7 +1785,7 @@ class WindowsCiWorkflowTests(unittest.TestCase):
             "Compress-Archive -Path $stagingDir -DestinationPath $zipPath", self.text
         )
         self.assertNotIn(
-            'Compress-Archive -Path "dist/RemoteMicRC003/*"', self.text
+            'Compress-Archive -Path "dist/MoteDeck/*"', self.text
         )
 
     def test_compress_archive_uses_terminating_error_handling_not_lastexitcode(self):
@@ -1825,21 +1840,21 @@ class WindowsCiWorkflowTests(unittest.TestCase):
 
     def test_portable_zip_contract_is_read_back_before_release_staging(self):
         step = self._package_step_text()
-        archive_index = step.index("Assert-RC003PortableZip")
+        archive_index = step.index("Assert-MoteDeckPortableZip")
         installer_index = step.index(
             '$releaseDir = "$env:GITHUB_WORKSPACE/apps/windows/rc003/dist/release"'
         )
         self.assertLess(archive_index, installer_index)
         self.assertIn(". ./build/portable-layout.ps1", step)
-        self.assertIn("Assert-RC003PortableStagingRoot", step)
+        self.assertIn("Assert-MoteDeckPortableStagingRoot", step)
         self.assertIn("-ProductPresentation $productPresentation", step)
 
     def test_release_packaging_rechecks_the_build_before_and_after_copying(self):
         step = self._package_step_text()
         initial_index = step.index("$initialBuildProvenance =")
-        copy_index = step.index('Copy-Item -Path "dist/RemoteMicRC003/*"')
+        copy_index = step.index('Copy-Item -Path "dist/MoteDeck/*"')
         staged_index = step.index("$stagedBuildProvenance =")
-        archive_index = step.index("Assert-RC003PortableZip")
+        archive_index = step.index("Assert-MoteDeckPortableZip")
         final_index = step.index("$finalBuildProvenance =")
         installer_index = step.index(
             '$releaseDir = "$env:GITHUB_WORKSPACE/apps/windows/rc003/dist/release"'
@@ -1849,7 +1864,7 @@ class WindowsCiWorkflowTests(unittest.TestCase):
         self.assertLess(staged_index, archive_index)
         self.assertLess(archive_index, final_index)
         self.assertLess(final_index, installer_index)
-        self.assertGreaterEqual(step.count("Assert-RC003BuildProvenanceMatches"), 2)
+        self.assertGreaterEqual(step.count("Assert-MoteDeckBuildProvenanceMatches"), 2)
 
     def test_release_packaging_only_selects_the_current_installer(self):
         step = self._package_step_text()
@@ -2069,10 +2084,10 @@ class WindowsCiWorkflowTests(unittest.TestCase):
         self.assertLess(compiled_test_index, pyinstaller_index)
         self.assertIn("python build/prepare-cython-core.py", self.text)
         self.assertIn("PYTHONPATH: build/cython-stage/src", self.text)
-        self.assertIn("RC003_BUILD_SOURCE_ROOT", self.text)
+        self.assertIn("MOTEDECK_BUILD_SOURCE_ROOT", self.text)
 
     def test_frozen_output_requires_all_compiled_extensions(self):
-        self.assertIn("python build/check_native.py --stage build/cython-stage --artifact dist/RemoteMicRC003", self.text)
+        self.assertIn("python build/check_native.py --stage build/cython-stage --artifact dist/MoteDeck", self.text)
 
     def test_requires_the_narrow_hid_helper_in_the_built_directory(self):
         self.assertIn("$builtHidHelper = $builtPaths.HidHelper", self.text)
@@ -2099,8 +2114,8 @@ class BuildProvenanceScriptTests(unittest.TestCase):
         self.text = _BUILD_PROVENANCE_PATH.read_text(encoding="utf-8")
 
     def test_fingerprint_covers_runtime_tests_and_build_contract(self):
-        self.assertIn('$sourceRoot = Join-Path $RC003Root "src"', self.text)
-        self.assertIn('$testsRoot = Join-Path $RC003Root "tests"', self.text)
+        self.assertIn('$sourceRoot = Join-Path $MoteDeckRoot "src"', self.text)
+        self.assertIn('$testsRoot = Join-Path $MoteDeckRoot "tests"', self.text)
         for required in (
             r"build\build-candidate.ps1",
             r"build\package-local-test.ps1",
@@ -2113,9 +2128,9 @@ class BuildProvenanceScriptTests(unittest.TestCase):
             r"build\fetch-frida-gadget.ps1",
             r"build\fetch-vb-cable.ps1",
             r"build\stop-dev.ps1",
-            r"build\RemoteMicRC003.spec",
+            r"build\MoteDeck.spec",
             r"ATTRIBUTION.md",
-            r'Join-Path $RC003Root "README.md"',
+            r'Join-Path $MoteDeckRoot "README.md"',
             r"ASSET_LICENSES.md",
             r"COPYRIGHT.md",
             r"LICENSE.md",
@@ -2126,7 +2141,7 @@ class BuildProvenanceScriptTests(unittest.TestCase):
             r".github\workflows\windows-rc003-ci.yml",
         ):
             self.assertIn(required, self.text)
-        self.assertIn('$installerRoot = Join-Path $RC003Root "installer"', self.text)
+        self.assertIn('$installerRoot = Join-Path $MoteDeckRoot "installer"', self.text)
         self.assertIn(
             '$thirdPartyLicensesRoot = Join-Path $RepoRoot "THIRD_PARTY_LICENSES"',
             self.text,
@@ -2149,17 +2164,17 @@ class BuildProvenanceScriptTests(unittest.TestCase):
         self.assertNotIn("$($file.Length)", self.text)
 
     def test_build_gate_is_path_scoped_nonblocking_and_abandonment_safe(self):
-        self.assertIn("function Enter-RC003BuildGate", self.text)
-        self.assertIn("Get-RC003BuildGateName -RC003Root $RC003Root", self.text)
-        self.assertIn('return "Global\\RemoteMicRC003_BuildGate_', self.text)
+        self.assertIn("function Enter-MoteDeckBuildGate", self.text)
+        self.assertIn("Get-MoteDeckBuildGateName -MoteDeckRoot $MoteDeckRoot", self.text)
+        self.assertIn('return "Global\\MoteDeck_BuildGate_', self.text)
         self.assertIn("$mutex.WaitOne(0)", self.text)
         self.assertIn("System.Threading.AbandonedMutexException", self.text)
         self.assertIn("another RC003 build or package operation is already running", self.text)
-        self.assertIn("function Exit-RC003BuildGate", self.text)
+        self.assertIn("function Exit-MoteDeckBuildGate", self.text)
 
     def test_manifest_recomputes_source_and_artifact_before_accepting(self):
-        self.assertIn("Get-RC003BuildInputState", self.text)
-        self.assertIn("Get-RC003ArtifactState", self.text)
+        self.assertIn("Get-MoteDeckBuildInputState", self.text)
+        self.assertIn("Get-MoteDeckArtifactState", self.text)
         self.assertIn("build inputs changed before the source fingerprint was written", self.text)
         self.assertIn("packaged files changed after the last complete build", self.text)
         self.assertIn("main executable hash changed", self.text)
@@ -2173,11 +2188,11 @@ class BuildProvenanceScriptTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             repo_root = Path(temporary_directory) / "repo"
             rc003_root = repo_root / "apps" / "windows" / "rc003"
-            source_file = rc003_root / "src" / "ovb_rc003" / "app.py"
+            source_file = rc003_root / "src" / "motedeck" / "app.py"
             remote_photo = repo_root / "Resources" / "RC003-remote-photo.png"
             fixture_files = {
                 source_file: "alpha",
-                rc003_root / "src" / "ovb_rc003" / "VERSION": "0.0.1-test\n",
+                rc003_root / "src" / "motedeck" / "VERSION": "0.0.1-test\n",
                 rc003_root / "tests" / "test_sample.py": "VALUE = 1\n",
                 rc003_root / "build" / "build-candidate.ps1": "fixture\n",
                 rc003_root / "build" / "package-local-test.ps1": "fixture\n",
@@ -2196,7 +2211,7 @@ class BuildProvenanceScriptTests(unittest.TestCase):
                 rc003_root / "build" / "fetch-winuhid.ps1": "fixture\n",
                 rc003_root / "build" / "fetch-vb-cable.ps1": "fixture\n",
                 rc003_root / "build" / "stop-dev.ps1": "fixture\n",
-                rc003_root / "build" / "RemoteMicRC003.spec": "fixture\n",
+                rc003_root / "build" / "MoteDeck.spec": "fixture\n",
                 rc003_root / "build" / "generate-app-icon.py": "fixture\n",
                 rc003_root / "build" / "third_party" / "VBCABLE_Driver_Pack45.zip": b"zip",
                 rc003_root / "build" / "third_party" / "interception" / "interception.dll": b"dll",
@@ -2206,16 +2221,16 @@ class BuildProvenanceScriptTests(unittest.TestCase):
                 / "interception"
                 / "install-interception.exe": b"exe",
                 rc003_root / "build" / "third_party" / "winuhid" / "WinUHid.dll": b"dll",
-                rc003_root / "src" / "ovb_rc003" / "scripts" / "install-winuhid.ps1": "fixture\n",
+                rc003_root / "src" / "motedeck" / "scripts" / "install-winuhid.ps1": "fixture\n",
                 rc003_root / "requirements.txt": "fixture\n",
                 rc003_root / "requirements-dev.txt": "fixture\n",
                 rc003_root / "pyproject.toml": "fixture\n",
                 rc003_root / "ATTRIBUTION.md": "fixture\n",
                 rc003_root / "README.md": "fixture\n",
                 rc003_root / "installer" / "application-exit-contract-v1.json": "{}\n",
-                rc003_root / "installer" / "readme-portable-rc003.txt": "fixture\n",
-                rc003_root / "installer" / "readme-rc003.txt": "fixture\n",
-                rc003_root / "installer" / "RemoteMicRC003Setup.iss": "fixture\n",
+                rc003_root / "installer" / "readme-portable-motedeck.txt": "fixture\n",
+                rc003_root / "installer" / "readme-motedeck.txt": "fixture\n",
+                rc003_root / "installer" / "MoteDeckSetup.iss": "fixture\n",
                 rc003_root / "installer" / "stop-app.ps1": "fixture\n",
                 repo_root / ".github" / "workflows" / "windows-rc003-ci.yml": "fixture\n",
                 repo_root / "README.md": "fixture\n",
@@ -2248,8 +2263,8 @@ class BuildProvenanceScriptTests(unittest.TestCase):
             build_root = rc003_root / "dist" / "RemoteMicRC003"
             built_files = {
                 build_root / "MoteDeck 0.0.1-test.exe": b"main",
-                build_root / "app" / "RemoteMicRC003HidHelper.exe": b"helper",
-                build_root / "app" / "ovb_rc003" / "VERSION": b"0.0.1-test\n",
+                build_root / "app" / "MoteDeckHidHelper.exe": b"helper",
+                build_root / "app" / "motedeck" / "VERSION": b"0.0.1-test\n",
                 build_root / "app" / "hidden.dat": b"hidden",
             }
             for path, content in built_files.items():
@@ -2259,14 +2274,14 @@ class BuildProvenanceScriptTests(unittest.TestCase):
             environment = os.environ.copy()
             environment.update(
                 {
-                    "RC003_PROVENANCE_SCRIPT": str(_BUILD_PROVENANCE_PATH),
-                    "RC003_FIXTURE_ROOT": str(rc003_root),
-                    "RC003_FIXTURE_REPO": str(repo_root),
-                    "RC003_FIXTURE_BUILD": str(build_root),
-                    "RC003_FIXTURE_SOURCE": str(source_file),
-                    "RC003_FIXTURE_REMOTE_PHOTO": str(remote_photo),
-                    "RC003_FIXTURE_HIDDEN": str(build_root / "app" / "hidden.dat"),
-                    "RC003_FIXTURE_PRESENTATION": json.dumps(
+                    "MOTEDECK_PROVENANCE_SCRIPT": str(_BUILD_PROVENANCE_PATH),
+                    "MOTEDECK_FIXTURE_ROOT": str(rc003_root),
+                    "MOTEDECK_FIXTURE_REPO": str(repo_root),
+                    "MOTEDECK_FIXTURE_BUILD": str(build_root),
+                    "MOTEDECK_FIXTURE_SOURCE": str(source_file),
+                    "MOTEDECK_FIXTURE_REMOTE_PHOTO": str(remote_photo),
+                    "MOTEDECK_FIXTURE_HIDDEN": str(build_root / "app" / "hidden.dat"),
+                    "MOTEDECK_FIXTURE_PRESENTATION": json.dumps(
                         {
                             "schema_version": 1,
                             "version": "0.0.1-test",
@@ -2277,17 +2292,17 @@ class BuildProvenanceScriptTests(unittest.TestCase):
                             "runtime_directory_name": "app",
                             "documentation_directory_name": "docs",
                             "portable_readme_name": "README.txt",
-                            "hid_helper_executable_name": "RemoteMicRC003HidHelper.exe",
+                            "hid_helper_executable_name": "MoteDeckHidHelper.exe",
                             "hid_helper_file_description": "MoteDeck 权限助手",
                             "main_file_description": "MoteDeck 0.0.1-test",
                             "product_name": "MoteDeck",
                             "main_original_filename": "MoteDeck 0.0.1-test.exe",
-                            "helper_original_filename": "RemoteMicRC003HidHelper.exe",
+                            "helper_original_filename": "MoteDeckHidHelper.exe",
                         },
                         ensure_ascii=True,
                         separators=(",", ":"),
                     ),
-                    "RC003_FIXTURE_RESULT": str(
+                    "MOTEDECK_FIXTURE_RESULT": str(
                         Path(temporary_directory) / "powershell-result.txt"
                     ),
                 }
@@ -2295,47 +2310,47 @@ class BuildProvenanceScriptTests(unittest.TestCase):
             command = r"""
 trap {
     [System.IO.File]::WriteAllText(
-        $env:RC003_FIXTURE_RESULT,
+        $env:MOTEDECK_FIXTURE_RESULT,
         $_.Exception.ToString()
     )
     exit 1
 }
 $ErrorActionPreference = 'Stop'
-. $env:RC003_PROVENANCE_SCRIPT
-function Get-RC003ProductPresentation {
+. $env:MOTEDECK_PROVENANCE_SCRIPT
+function Get-MoteDeckProductPresentation {
     param(
-        [string]$RC003Root,
+        [string]$MoteDeckRoot,
         [string]$PythonExecutable = ""
     )
-    return ($env:RC003_FIXTURE_PRESENTATION | ConvertFrom-Json)
+    return ($env:MOTEDECK_FIXTURE_PRESENTATION | ConvertFrom-Json)
 }
 [System.IO.File]::SetAttributes(
-    $env:RC003_FIXTURE_HIDDEN,
+    $env:MOTEDECK_FIXTURE_HIDDEN,
     [System.IO.FileAttributes]::Hidden
 )
-$inputState = Get-RC003BuildInputState `
-    -RC003Root $env:RC003_FIXTURE_ROOT `
-    -RepoRoot $env:RC003_FIXTURE_REPO
-$artifactState = Get-RC003ArtifactState -BuildRoot $env:RC003_FIXTURE_BUILD
+$inputState = Get-MoteDeckBuildInputState `
+    -MoteDeckRoot $env:MOTEDECK_FIXTURE_ROOT `
+    -RepoRoot $env:MOTEDECK_FIXTURE_REPO
+$artifactState = Get-MoteDeckArtifactState -BuildRoot $env:MOTEDECK_FIXTURE_BUILD
 if ($artifactState.FileCount -ne 4) {
     throw "hidden artifact was omitted: $($artifactState.FileCount)"
 }
-Write-RC003BuildProvenance `
-    -RC003Root $env:RC003_FIXTURE_ROOT `
-    -RepoRoot $env:RC003_FIXTURE_REPO `
-    -BuildRoot $env:RC003_FIXTURE_BUILD `
+Write-MoteDeckBuildProvenance `
+    -MoteDeckRoot $env:MOTEDECK_FIXTURE_ROOT `
+    -RepoRoot $env:MOTEDECK_FIXTURE_REPO `
+    -BuildRoot $env:MOTEDECK_FIXTURE_BUILD `
     -InputState $inputState `
     -ExecutableMetadataVerified | Out-Null
-Assert-RC003BuildProvenance `
-    -RC003Root $env:RC003_FIXTURE_ROOT `
-    -RepoRoot $env:RC003_FIXTURE_REPO `
-    -BuildRoot $env:RC003_FIXTURE_BUILD | Out-Null
-[System.IO.File]::WriteAllText($env:RC003_FIXTURE_REMOTE_PHOTO, 'changed-photo')
+Assert-MoteDeckBuildProvenance `
+    -MoteDeckRoot $env:MOTEDECK_FIXTURE_ROOT `
+    -RepoRoot $env:MOTEDECK_FIXTURE_REPO `
+    -BuildRoot $env:MOTEDECK_FIXTURE_BUILD | Out-Null
+[System.IO.File]::WriteAllText($env:MOTEDECK_FIXTURE_REMOTE_PHOTO, 'changed-photo')
 try {
-    Assert-RC003BuildProvenance `
-        -RC003Root $env:RC003_FIXTURE_ROOT `
-        -RepoRoot $env:RC003_FIXTURE_REPO `
-        -BuildRoot $env:RC003_FIXTURE_BUILD | Out-Null
+    Assert-MoteDeckBuildProvenance `
+        -MoteDeckRoot $env:MOTEDECK_FIXTURE_ROOT `
+        -RepoRoot $env:MOTEDECK_FIXTURE_REPO `
+        -BuildRoot $env:MOTEDECK_FIXTURE_BUILD | Out-Null
     throw 'stale remote photo was accepted'
 } catch {
     if ($_.Exception.Message -eq 'stale remote photo was accepted') {
@@ -2345,21 +2360,21 @@ try {
         throw
     }
 }
-$changedInputState = Get-RC003BuildInputState `
-    -RC003Root $env:RC003_FIXTURE_ROOT `
-    -RepoRoot $env:RC003_FIXTURE_REPO
-Write-RC003BuildProvenance `
-    -RC003Root $env:RC003_FIXTURE_ROOT `
-    -RepoRoot $env:RC003_FIXTURE_REPO `
-    -BuildRoot $env:RC003_FIXTURE_BUILD `
+$changedInputState = Get-MoteDeckBuildInputState `
+    -MoteDeckRoot $env:MOTEDECK_FIXTURE_ROOT `
+    -RepoRoot $env:MOTEDECK_FIXTURE_REPO
+Write-MoteDeckBuildProvenance `
+    -MoteDeckRoot $env:MOTEDECK_FIXTURE_ROOT `
+    -RepoRoot $env:MOTEDECK_FIXTURE_REPO `
+    -BuildRoot $env:MOTEDECK_FIXTURE_BUILD `
     -InputState $changedInputState `
     -ExecutableMetadataVerified | Out-Null
-[System.IO.File]::WriteAllText($env:RC003_FIXTURE_SOURCE, 'bravo')
+[System.IO.File]::WriteAllText($env:MOTEDECK_FIXTURE_SOURCE, 'bravo')
 try {
-    Assert-RC003BuildProvenance `
-        -RC003Root $env:RC003_FIXTURE_ROOT `
-        -RepoRoot $env:RC003_FIXTURE_REPO `
-        -BuildRoot $env:RC003_FIXTURE_BUILD | Out-Null
+    Assert-MoteDeckBuildProvenance `
+        -MoteDeckRoot $env:MOTEDECK_FIXTURE_ROOT `
+        -RepoRoot $env:MOTEDECK_FIXTURE_REPO `
+        -BuildRoot $env:MOTEDECK_FIXTURE_BUILD | Out-Null
     throw 'stale source was accepted'
 } catch {
     if ($_.Exception.Message -eq 'stale source was accepted') {
@@ -2369,7 +2384,7 @@ try {
         throw
     }
 }
-[System.IO.File]::WriteAllText($env:RC003_FIXTURE_RESULT, 'ok')
+[System.IO.File]::WriteAllText($env:MOTEDECK_FIXTURE_RESULT, 'ok')
 """
             result = subprocess.run(
                 [
@@ -2397,11 +2412,11 @@ try {
                 + result.stderr
                 + "\n"
                 + (
-                    Path(environment["RC003_FIXTURE_RESULT"]).read_text(
+                    Path(environment["MOTEDECK_FIXTURE_RESULT"]).read_text(
                         encoding="utf-8",
                         errors="replace",
                     )
-                    if Path(environment["RC003_FIXTURE_RESULT"]).exists()
+                    if Path(environment["MOTEDECK_FIXTURE_RESULT"]).exists()
                     else "no PowerShell result file"
                 ),
             )
@@ -2422,12 +2437,12 @@ class WindowsPowerShellBuildContractTests(unittest.TestCase):
         "runtime_directory_name": "app",
         "documentation_directory_name": "docs",
         "portable_readme_name": "README.txt",
-        "hid_helper_executable_name": "RemoteMicRC003HidHelper.exe",
+        "hid_helper_executable_name": "MoteDeckHidHelper.exe",
         "hid_helper_file_description": "MoteDeck 权限助手",
         "main_file_description": "MoteDeck 0.0.1-test",
         "product_name": "MoteDeck",
         "main_original_filename": "MoteDeck 0.0.1-test.exe",
-        "helper_original_filename": "RemoteMicRC003HidHelper.exe",
+        "helper_original_filename": "MoteDeckHidHelper.exe",
     }
 
     def _powershell(self, command, **environment):
@@ -2458,31 +2473,31 @@ class WindowsPowerShellBuildContractTests(unittest.TestCase):
             result_path = root / "result.txt"
             command = r"""
 $ErrorActionPreference = 'Stop'
-. $env:RC003_PROVENANCE_SCRIPT
-function Get-RC003ProductPresentation {
-    param([string]$RC003Root, [string]$PythonExecutable = '')
-    return ($env:RC003_PRESENTATION | ConvertFrom-Json)
+. $env:MOTEDECK_PROVENANCE_SCRIPT
+function Get-MoteDeckProductPresentation {
+    param([string]$MoteDeckRoot, [string]$PythonExecutable = '')
+    return ($env:MOTEDECK_PRESENTATION | ConvertFrom-Json)
 }
-$paths = Get-RC003BuildProductPaths `
-    -RC003Root $env:RC003_ROOT `
-    -BuildRoot $env:RC003_BUILD_ROOT
+$paths = Get-MoteDeckBuildProductPaths `
+    -MoteDeckRoot $env:MOTEDECK_ROOT `
+    -BuildRoot $env:MOTEDECK_BUILD_ROOT
 New-Item -ItemType Directory -Path (Split-Path $paths.ProvenanceFile -Parent) -Force | Out-Null
 [System.IO.File]::WriteAllText($paths.ProvenanceFile, 'old receipt')
-$clearedPath = Clear-RC003BuildProvenance `
-    -RC003Root $env:RC003_ROOT `
-    -BuildRoot $env:RC003_BUILD_ROOT
+$clearedPath = Clear-MoteDeckBuildProvenance `
+    -MoteDeckRoot $env:MOTEDECK_ROOT `
+    -BuildRoot $env:MOTEDECK_BUILD_ROOT
 if (Test-Path -LiteralPath $paths.ProvenanceFile) {
     throw 'current provenance receipt was not cleared'
 }
 [System.IO.File]::WriteAllText($paths.ProvenanceFile, 'must survive failed initialization')
-function Get-RC003ProductPresentation {
-    param([string]$RC003Root, [string]$PythonExecutable = '')
+function Get-MoteDeckProductPresentation {
+    param([string]$MoteDeckRoot, [string]$PythonExecutable = '')
     throw 'synthetic presentation failure'
 }
 try {
-    Clear-RC003BuildProvenance `
-        -RC003Root $env:RC003_ROOT `
-        -BuildRoot $env:RC003_BUILD_ROOT | Out-Null
+    Clear-MoteDeckBuildProvenance `
+        -MoteDeckRoot $env:MOTEDECK_ROOT `
+        -BuildRoot $env:MOTEDECK_BUILD_ROOT | Out-Null
     throw 'failed naming initialization was accepted'
 } catch {
     if ($_.Exception.Message -eq 'failed naming initialization was accepted') {
@@ -2492,17 +2507,17 @@ try {
 if (-not (Test-Path -LiteralPath $paths.ProvenanceFile -PathType Leaf)) {
     throw 'failed naming initialization mutated the build output'
 }
-[System.IO.File]::WriteAllText($env:RC003_RESULT, $clearedPath)
+[System.IO.File]::WriteAllText($env:MOTEDECK_RESULT, $clearedPath)
 """
             result = self._powershell(
                 command,
-                RC003_PROVENANCE_SCRIPT=str(_BUILD_PROVENANCE_PATH),
-                RC003_PRESENTATION=json.dumps(
+                MOTEDECK_PROVENANCE_SCRIPT=str(_BUILD_PROVENANCE_PATH),
+                MOTEDECK_PRESENTATION=json.dumps(
                     self._presentation, ensure_ascii=True, separators=(",", ":")
                 ),
-                RC003_ROOT=str(rc003_root),
-                RC003_BUILD_ROOT=str(build_root),
-                RC003_RESULT=str(result_path),
+                MOTEDECK_ROOT=str(rc003_root),
+                MOTEDECK_BUILD_ROOT=str(build_root),
+                MOTEDECK_RESULT=str(result_path),
             )
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
             self.assertEqual(
@@ -2515,14 +2530,14 @@ if (-not (Test-Path -LiteralPath $paths.ProvenanceFile -PathType Leaf)) {
         staging = root / top_name
         runtime = staging / self._presentation["runtime_directory_name"]
         documentation = staging / self._presentation["documentation_directory_name"]
-        (runtime / "ovb_rc003").mkdir(parents=True)
+        (runtime / "motedeck").mkdir(parents=True)
         (runtime / "允许为空").mkdir()
         documentation.mkdir()
         (staging / self._presentation["main_executable_name"]).write_bytes(b"main")
         (runtime / self._presentation["hid_helper_executable_name"]).write_bytes(
             b"helper"
         )
-        (runtime / "ovb_rc003" / "VERSION").write_text(
+        (runtime / "motedeck" / "VERSION").write_text(
             self._presentation["version"] + "\n", encoding="ascii"
         )
         (runtime / "build-provenance.json").write_text("{}\n", encoding="ascii")
@@ -2544,7 +2559,7 @@ if (-not (Test-Path -LiteralPath $paths.ProvenanceFile -PathType Leaf)) {
             f"{top_name}/",
             f"{top_name}/{self._presentation['runtime_directory_name']}/",
             f"{top_name}/{self._presentation['runtime_directory_name']}/允许为空/",
-            f"{top_name}/{self._presentation['runtime_directory_name']}/ovb_rc003/",
+            f"{top_name}/{self._presentation['runtime_directory_name']}/motedeck/",
             f"{top_name}/{self._presentation['documentation_directory_name']}/",
         ]
         omitted = set(omitted_directory_entries)
@@ -2561,25 +2576,25 @@ if (-not (Test-Path -LiteralPath $paths.ProvenanceFile -PathType Leaf)) {
     def _validate_archive(self, archive_path, staging):
         command = r"""
 $ErrorActionPreference = 'Stop'
-. $env:RC003_LAYOUT_SCRIPT
-$presentation = $env:RC003_PRESENTATION | ConvertFrom-Json
-Assert-RC003PortableZip `
-    -ZipPath $env:RC003_ARCHIVE `
-    -TopLevelName $env:RC003_TOP `
-    -ExpectedVersion $env:RC003_VERSION `
-    -StagingDirectory $env:RC003_STAGING `
+. $env:MOTEDECK_LAYOUT_SCRIPT
+$presentation = $env:MOTEDECK_PRESENTATION | ConvertFrom-Json
+Assert-MoteDeckPortableZip `
+    -ZipPath $env:MOTEDECK_ARCHIVE `
+    -TopLevelName $env:MOTEDECK_TOP `
+    -ExpectedVersion $env:MOTEDECK_VERSION `
+    -StagingDirectory $env:MOTEDECK_STAGING `
     -ProductPresentation $presentation
 """
         return self._powershell(
             command,
-            RC003_LAYOUT_SCRIPT=str(_PORTABLE_LAYOUT_PATH),
-            RC003_PRESENTATION=json.dumps(
+            MOTEDECK_LAYOUT_SCRIPT=str(_PORTABLE_LAYOUT_PATH),
+            MOTEDECK_PRESENTATION=json.dumps(
                 self._presentation, ensure_ascii=True, separators=(",", ":")
             ),
-            RC003_ARCHIVE=str(archive_path),
-            RC003_TOP=staging.name,
-            RC003_VERSION=self._presentation["version"],
-            RC003_STAGING=str(staging),
+            MOTEDECK_ARCHIVE=str(archive_path),
+            MOTEDECK_TOP=staging.name,
+            MOTEDECK_VERSION=self._presentation["version"],
+            MOTEDECK_STAGING=str(staging),
         )
 
     def test_portable_validator_accepts_the_exact_tree_and_nested_empty_directory(self):
@@ -2649,8 +2664,8 @@ class PortableLayoutScriptTests(unittest.TestCase):
         self.text = _PORTABLE_LAYOUT_PATH.read_text(encoding="utf-8")
 
     def test_validates_files_and_directories_before_hashing_files(self):
-        self.assertIn("function Assert-RC003PortableStagingRoot", self.text)
-        self.assertIn("function Assert-RC003PortableZip", self.text)
+        self.assertIn("function Assert-MoteDeckPortableStagingRoot", self.text)
+        self.assertIn("function Assert-MoteDeckPortableZip", self.text)
         self.assertIn("$archiveKinds = @{}", self.text)
         self.assertIn("directory/path collision", self.text)
         self.assertIn("GetInvalidFileNameChars", self.text)
@@ -2693,7 +2708,7 @@ class BuildCandidateScriptTests(unittest.TestCase):
         self.assertIn("if ($testExitCode -ne 0)", self.text)
 
     def test_local_build_disables_all_live_keyboard_input(self):
-        self.assertIn('$env:RC003_DISABLE_LIVE_INPUT = "1"', self.text)
+        self.assertIn('$env:MOTEDECK_DISABLE_LIVE_INPUT = "1"', self.text)
         self.assertIn('$env:RC003_ALLOW_LIVE_INPUT_TESTS = "0"', self.text)
 
     def test_local_build_requires_python_312_for_creation_and_existing_venv(self):
@@ -2742,7 +2757,7 @@ class BuildCandidateScriptTests(unittest.TestCase):
         self.assertIn('"check_native.py") --stage', self.text)
         self.assertNotIn('-m unittest discover', self.text)
         self.assertIn("compiled HID helper --self-check", self.text)
-        self.assertIn("$env:RC003_BUILD_SOURCE_ROOT = $cythonSourceRoot", self.text)
+        self.assertIn("$env:MOTEDECK_BUILD_SOURCE_ROOT = $cythonSourceRoot", self.text)
 
     def test_frozen_output_requires_both_compiled_extensions(self):
         self.assertIn('--artifact $BuildRoot', self.text)
@@ -2775,20 +2790,20 @@ class BuildCandidateScriptTests(unittest.TestCase):
 
     def test_invalidates_old_provenance_before_any_new_build_attempt(self):
         remove_index = self.text.index(
-            "$BuildProvenancePath = Clear-RC003BuildProvenance"
+            "$BuildProvenancePath = Clear-MoteDeckBuildProvenance"
         )
         test_index = self.text.index('Write-Host "-- complete native-stage test suite (single pass) --"')
         self.assertLess(remove_index, test_index)
         self.assertIn('. (Join-Path $PSScriptRoot "build-provenance.ps1")', self.text)
-        self.assertIn("Clear-RC003BuildProvenance", self.text)
-        self.assertNotIn("Get-RC003BuildProvenancePath", self.text)
+        self.assertIn("Clear-MoteDeckBuildProvenance", self.text)
+        self.assertNotIn("Get-MoteDeckBuildProvenancePath", self.text)
 
     def test_holds_the_shared_build_gate_before_touching_dist(self):
-        gate_index = self.text.index("Enter-RC003BuildGate")
+        gate_index = self.text.index("Enter-MoteDeckBuildGate")
         provenance_remove_index = self.text.index(
-            "$BuildProvenancePath = Clear-RC003BuildProvenance"
+            "$BuildProvenancePath = Clear-MoteDeckBuildProvenance"
         )
-        release_index = self.text.rindex("Exit-RC003BuildGate")
+        release_index = self.text.rindex("Exit-MoteDeckBuildGate")
         self.assertLess(gate_index, provenance_remove_index)
         self.assertGreater(release_index, provenance_remove_index)
 
@@ -2809,8 +2824,8 @@ class BuildCandidateScriptTests(unittest.TestCase):
 
     def test_writes_provenance_only_after_all_frozen_checks_pass(self):
         qt_index = self.text.index('@("--qt-runtime-check")')
-        write_index = self.text.index("Write-RC003BuildProvenance")
-        assert_index = self.text.index("Assert-RC003BuildProvenance")
+        write_index = self.text.index("Write-MoteDeckBuildProvenance")
+        assert_index = self.text.index("Assert-MoteDeckBuildProvenance")
         self.assertLess(qt_index, write_index)
         self.assertLess(write_index, assert_index)
         self.assertIn(
@@ -2834,10 +2849,10 @@ class LocalTestPackageScriptTests(unittest.TestCase):
         self.assertIn("refusing to overwrite existing test package", self.text)
 
     def test_holds_the_shared_build_gate_for_the_whole_package_operation(self):
-        gate_index = self.text.index("Enter-RC003BuildGate")
-        version_index = self.text.index("$sourceVersion = Get-RC003SourceVersion")
+        gate_index = self.text.index("Enter-MoteDeckBuildGate")
+        version_index = self.text.index("$sourceVersion = Get-MoteDeckSourceVersion")
         publish_index = self.text.index("Move-Item", version_index)
-        release_index = self.text.rindex("Exit-RC003BuildGate")
+        release_index = self.text.rindex("Exit-MoteDeckBuildGate")
         self.assertLess(gate_index, version_index)
         self.assertGreater(release_index, publish_index)
 
@@ -2860,8 +2875,8 @@ class LocalTestPackageScriptTests(unittest.TestCase):
 
     def test_zip_has_one_user_entry_and_the_runtime_helper_version(self):
         self.assertIn('portable-layout.ps1")', self.text)
-        self.assertIn("Assert-RC003PortableStagingRoot", self.text)
-        self.assertIn("Assert-RC003PortableZip", self.text)
+        self.assertIn("Assert-MoteDeckPortableStagingRoot", self.text)
+        self.assertIn("Assert-MoteDeckPortableZip", self.text)
 
     def test_zip_is_compared_file_by_file_with_the_staging_directory(self):
         self.assertIn("-StagingDirectory $stagingDir", self.text)
@@ -2895,12 +2910,12 @@ class LocalTestPackageScriptTests(unittest.TestCase):
         self.assertLess(staged_index, compress_index)
         self.assertLess(compress_index, final_index)
         self.assertLess(final_index, move_index)
-        self.assertGreaterEqual(self.text.count("Assert-RC003BuildProvenanceMatches"), 3)
+        self.assertGreaterEqual(self.text.count("Assert-MoteDeckBuildProvenanceMatches"), 3)
         self.assertIn(
             "build-provenance.json",
             _PORTABLE_LAYOUT_PATH.read_text(encoding="utf-8"),
         )
-        self.assertIn("Assert-RC003PortableZip", self.text)
+        self.assertIn("Assert-MoteDeckPortableZip", self.text)
         self.assertIn("$documentationDir", self.text)
         self.assertIn("portable_readme_name", self.text)
 
@@ -2917,7 +2932,7 @@ class LocalTestPackageScriptTests(unittest.TestCase):
         self.assertNotIn("$outputFullPath", catch_block)
 
     def test_hidden_staging_files_cannot_escape_zip_comparison(self):
-        self.assertIn("Assert-RC003PortableZip", self.text)
+        self.assertIn("Assert-MoteDeckPortableZip", self.text)
 
 
 class DeveloperEntryScriptTests(unittest.TestCase):
@@ -2930,7 +2945,7 @@ class DeveloperEntryScriptTests(unittest.TestCase):
         self.assertIn(r".venv\Scripts\pythonw.exe", self.run_text)
         self.assertIn("PYTHONPATH", self.run_text)
         self.assertIn("-m", self.run_text)
-        self.assertIn("ovb_rc003", self.run_text)
+        self.assertIn("motedeck", self.run_text)
         self.assertIn("--settings", self.run_text)
         self.assertIn("--remote-mic-dev-session", self.run_text)
 
@@ -2995,18 +3010,18 @@ class VbCablePinConsistencyTests(unittest.TestCase):
             _RC003_ROOT / "build" / "fetch-vb-cable.ps1"
         ).read_text(encoding="utf-8")
         self.module_text = (
-            _RC003_ROOT / "src" / "ovb_rc003" / "vb_cable_bundle.py"
+            _RC003_ROOT / "src" / "motedeck" / "vb_cable_bundle.py"
         ).read_text(encoding="utf-8")
 
     def test_pinned_sha256_matches_between_ps1_and_py(self):
-        from ovb_rc003 import vb_cable_bundle
+        from motedeck import vb_cable_bundle
 
         self.assertIn(
             vb_cable_bundle.VB_CABLE_PACK45.sha256.upper(), self.fetch_script_text
         )
 
     def test_pinned_url_matches_between_ps1_and_py(self):
-        from ovb_rc003 import vb_cable_bundle
+        from motedeck import vb_cable_bundle
 
         self.assertIn(vb_cable_bundle.VB_CABLE_PACK45.url, self.fetch_script_text)
         self.assertIn(vb_cable_bundle.VB_CABLE_PACK45.url, self.module_text)
@@ -3090,7 +3105,7 @@ class RootDocumentConsistencyTests(unittest.TestCase):
     def test_third_party_notices_does_not_falsely_deny_all_vbcable_reference(self):
         # THIRD_PARTY_NOTICES.md previously claimed the Windows candidate
         # does not "reference VB-CABLE ... in any form" - false:
-        # apps/windows/rc003/README.md and installer/readme-rc003.txt both
+        # apps/windows/rc003/README.md and installer/readme-motedeck.txt both
         # document the official VB-Audio VB-CABLE download as an optional
         # endpoint, and (XRBM-031) the frozen build now bundles the
         # official, verified, unmodified Basic package offline for a
@@ -3180,7 +3195,7 @@ class PortableReleasePackagingReplayTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             version = "0.0.1-test"
-            version_file = root / "src/ovb_rc003/VERSION"
+            version_file = root / "src/motedeck/VERSION"
             version_file.parent.mkdir(parents=True)
             version_file.write_text(version + "\n", encoding="utf-8")
             installer_name = f"MoteDeckSetup-{version}-unsigned.exe"
@@ -3221,7 +3236,7 @@ class PortableReleasePackagingReplayTests(unittest.TestCase):
         end = text.index('          python build/check-release-readiness.py', start)
         script = "\n".join(line[10:] for line in text[start:end].splitlines())
         with tempfile.TemporaryDirectory() as directory:
-            version_path = Path(directory) / "src/ovb_rc003/VERSION"
+            version_path = Path(directory) / "src/motedeck/VERSION"
             version_path.parent.mkdir(parents=True)
             for version, tag, success in (
                 ("0.2.0-candidate.31", "v0.2.0-candidate.31", True),
@@ -3294,7 +3309,7 @@ class ConfigLogResidueDisclosureContractTests(unittest.TestCase):
 
     def test_config_root_matches_runtime_and_is_not_removed_with_zip(self):
         guide = _README_PATH.read_text(encoding="utf-8")
-        expected = r"%LOCALAPPDATA%\{}\{}".format(config.APP_ID, config.PRODUCT_ID)
+        expected = r"%LOCALAPPDATA%\{}".format(config.APP_ID)
         self.assertIn(expected, guide)
         self.assertIn("配置和日志位于", guide)
         self.assertIn("不会自动删除这里的数据", guide)
@@ -3351,9 +3366,9 @@ class QtSettingsUiSpecTests(unittest.TestCase):
 
     def test_spec_collects_the_qml_source_tree_as_data_under_the_expected_name(self):
         # Must match qt_settings_app.py's _qml_directory() frozen-build
-        # lookup path exactly: sys._MEIPASS / "ovb_rc003_qml".
-        self.assertIn('QML_SOURCE_DIR = SRC_ROOT / "ovb_rc003" / "qml"', self.spec_text)
-        self.assertIn('datas.append((str(QML_SOURCE_DIR), "ovb_rc003_qml"))', self.spec_text)
+        # lookup path exactly: sys._MEIPASS / "motedeck_qml".
+        self.assertIn('QML_SOURCE_DIR = SRC_ROOT / "motedeck" / "qml"', self.spec_text)
+        self.assertIn('datas.append((str(QML_SOURCE_DIR), "motedeck_qml"))', self.spec_text)
 
     def test_spec_hidden_imports_every_pyside6_submodule_qt_settings_app_uses(self):
         hiddenimports = _spec_hidden_imports(self.spec_text)
@@ -3363,23 +3378,23 @@ class QtSettingsUiSpecTests(unittest.TestCase):
             "PySide6.QtQml",
             "PySide6.QtQuick",
             "PySide6.QtQuickControls2",
-            "ovb_rc003.qt_settings_app",
+            "motedeck.qt_settings_app",
         ):
             self.assertIn(module, hiddenimports)
 
     def test_qml_directory_name_matches_qt_settings_app_frozen_lookup(self):
-        # Cross-file consistency: the exact "ovb_rc003_qml" folder name must
+        # Cross-file consistency: the exact "motedeck_qml" folder name must
         # agree between the spec (producer) and qt_settings_app.py's
         # _qml_directory() (consumer) - a silent rename on either side would
         # otherwise pass every other test here and only fail at runtime on a
         # real frozen build, the same class of bug XRBM-024's WinRT
         # dependency-closure tests above guard against.
         qt_settings_app_path = (
-            _RC003_ROOT / "src" / "ovb_rc003" / "qt_settings_app.py"
+            _RC003_ROOT / "src" / "motedeck" / "qt_settings_app.py"
         )
         qt_settings_app_text = qt_settings_app_path.read_text(encoding="utf-8")
-        self.assertIn('"ovb_rc003_qml"', self.spec_text)
-        self.assertIn('"ovb_rc003_qml"', qt_settings_app_text)
+        self.assertIn('"motedeck_qml"', self.spec_text)
+        self.assertIn('"motedeck_qml"', qt_settings_app_text)
 
     def test_spec_filters_only_explicit_unused_qml_modules(self):
         tree = ast.parse(self.spec_text, filename=str(_SPEC_PATH))
@@ -3436,7 +3451,7 @@ class QtSettingsUiSpecTests(unittest.TestCase):
             "PySide6/Qt6Quick3D.dll",
             "PySide6/qml/QtQuick3DExtra/qmldir",
             "PySide6/qml/QtQuick/PdfExtra/qmldir",
-            "ovb_rc003_qml/Pdf/Example.qml",
+            "motedeck_qml/Pdf/Example.qml",
             "frida/_frida.pyd", "sherpa_onnx/lib.dll",
         )
         for path in kept:

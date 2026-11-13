@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from ovb_rc003 import voice_interaction_diagnostics_windows as diagnostics
+from motedeck import voice_interaction_diagnostics_windows as diagnostics
 
 
 class VoiceInteractionDiagnosticsTests(unittest.TestCase):

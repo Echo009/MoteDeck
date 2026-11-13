@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import app_profiles, config, device_catalog, key_mapping, mapping_presets
+from motedeck import app_profiles, config, device_catalog, key_mapping, mapping_presets
 
 
 class AppProfileStoreTests(unittest.TestCase):

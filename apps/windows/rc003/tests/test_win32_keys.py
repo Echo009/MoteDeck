@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003 import win32_keys
+from motedeck import win32_keys
 
 
 class ResolveVkCodesTests(unittest.TestCase):
@@ -52,7 +52,7 @@ class ResolveVkCodesTests(unittest.TestCase):
         # Every key token used by key_mapping.default_button_actions() and the
         # default voice hotkey must be resolvable, or button/voice actions
         # would silently fail to inject on Windows.
-        from ovb_rc003 import key_mapping
+        from motedeck import key_mapping
 
         for action in key_mapping.default_button_actions().values():
             if action.keys:

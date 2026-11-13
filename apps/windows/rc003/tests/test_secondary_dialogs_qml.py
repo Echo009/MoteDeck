@@ -117,7 +117,7 @@ class SecondaryDialogsQmlTests(unittest.TestCase):
         for style in ('Basic', 'Fusion'):
             with self.subTest(style=style), tempfile.TemporaryDirectory() as directory:
                 env = dict(os.environ, LOCALAPPDATA=directory, QT_QPA_PLATFORM='offscreen',
-                           RC003_DISABLE_LIVE_INPUT='1', PYTHONUTF8='1', PYTHONIOENCODING='utf-8',
+                           MOTEDECK_DISABLE_LIVE_INPUT='1', PYTHONUTF8='1', PYTHONIOENCODING='utf-8',
                            REMOTE_SELECTION_STYLE=style)
                 probe = _PROBE
                 result = subprocess.run([sys.executable, '-c', probe], env=env,

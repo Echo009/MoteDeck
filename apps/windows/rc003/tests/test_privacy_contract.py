@@ -13,14 +13,9 @@ import subprocess
 import unittest
 from pathlib import Path
 
-_PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "src" / "ovb_rc003"
-_SOURCE_ROOT = _PACKAGE_ROOT.parent
+_PACKAGE_ROOT = Path(__file__).resolve().parents[1] / "src" / "motedeck"
 
 _PY_FILES = sorted(_PACKAGE_ROOT.glob("*.py"))
-_DIAGNOSTIC_SCRIPT_FILES = (
-    _SOURCE_ROOT / "rc003_broad_raw_probe.py",
-    _SOURCE_ROOT / "rc003_key_test.py",
-)
 
 # A real MAC address literal, e.g. AA:BB:CC:DD:EE:FF. This project must never
 # contain one anywhere (not even as a documented example), since a documented
@@ -85,15 +80,24 @@ _ELEVATION_MARKER_EXEMPT_FILENAMES = frozenset(
     }
 )
 
-# vb_cable_bundle.py/windows_diagnostics.py/qt_settings_app.py are the three
-# SANCTIONED, reviewed modules for the explicit vendor-launch/read-only-
-# diagnostics flow (XRBM-031) - qt_settings_app.py's DiagnosticsController
-# only exposes a thin QML-facing wrapper (``launchVbCableSetup``) around
+# vb_cable_bundle.py/windows_diagnostics.py/qt_settings_app.py (plus
+# qt_settings_controller.py and qt_settings_diagnostics_panel.py, which
+# mechanically split qt_settings_app.py's former DiagnosticsController /
+# SettingsController code verbatim) are the SANCTIONED, reviewed modules for
+# the explicit vendor-launch/read-only-diagnostics flow (XRBM-031) -
+# qt_settings_diagnostics_panel.py only exposes a thin QML-facing wrapper
+# (``launchVbCableSetup``) around
 # vb_cable_bundle.py's own function, with no business logic of its own. A
 # function name referencing VB-CABLE anywhere else would suggest a second,
 # unreviewed install path.
 _VBCABLE_FUNCTION_NAME_SCAN_EXEMPT_FILENAMES = frozenset(
-    {"vb_cable_bundle.py", "windows_diagnostics.py", "qt_settings_app.py"}
+    {
+        "vb_cable_bundle.py",
+        "windows_diagnostics.py",
+        "qt_settings_app.py",
+        "qt_settings_controller.py",
+        "qt_settings_diagnostics_panel.py",
+    }
 )
 
 
@@ -109,12 +113,12 @@ class NoRealMacAddressLiteralsTests(unittest.TestCase):
 
 class NoForbiddenBrandingTests(unittest.TestCase):
     def test_python_package_contains_no_forbidden_branding(self):
-        # Scoped to the actual application source (src/ovb_rc003), where a
+        # Scoped to the actual application source (src/motedeck), where a
         # forbidden term appearing at all would mean real branding leakage.
         # build/ and installer/ legitimately *reference* some of these terms
         # either as scanner patterns (check-public-boundary.ps1 has to name
         # what it scans for) or as "not included" documentation
-        # (readme-rc003.txt explicitly states T1/V60 are NOT bundled); those
+        # (readme-motedeck.txt explicitly states T1/V60 are NOT bundled); those
         # files are covered by the more targeted, comment-aware assertions in
         # tests/test_build_artifacts.py instead.
         offenders = []
@@ -207,10 +211,10 @@ class NoElevationOrAutoDriverTests(unittest.TestCase):
     def test_hid_elevation_is_scoped_to_a_fixed_helper_and_task(self):
         path = _PACKAGE_ROOT / "hid_elevation_windows.py"
         text = path.read_text(encoding="utf-8")
-        self.assertIn('TASK_NAME_PREFIX = r"\\RemoteMicRC003-HidTap-"', text)
+        self.assertIn('TASK_NAME_PREFIX = r"\\MoteDeck-HidTap-"', text)
         self.assertIn("def task_name_for_sid", text)
         self.assertIn("TASK_DONT_ADD_PRINCIPAL_ACE", text)
-        self.assertIn('HELPER_EXE_NAME = "RemoteMicRC003HidHelper.exe"', text)
+        self.assertIn('HELPER_EXE_NAME = "MoteDeckHidHelper.exe"', text)
         self.assertIn('INJECT_FLAG = "--inject"', text)
         self.assertIn('lpVerb = "runas"', text)
         self.assertIn("SHGetKnownFolderPath", text)
@@ -256,7 +260,7 @@ class NoElevationOrAutoDriverTests(unittest.TestCase):
         # vb_cable_bundle.py's own docstring/comments explain, in prose, that
         # pnputil is never used - the word itself legitimately appears there
         # (same self-documentation pattern this project already exempts
-        # elsewhere, e.g. readme-rc003.txt's "不包含 T1、V60..." line). Every
+        # elsewhere, e.g. readme-motedeck.txt's "不包含 T1、V60..." line). Every
         # The authorized HID migration has its own exact-device command gate
         # in test_hid_host_reload_windows; no other module may invoke it.
         # Even inside
@@ -328,44 +332,6 @@ class ConfigPrivacyKeysNotHardcodedElsewhereTests(unittest.TestCase):
                 if re.search(rf'["\']{key}["\']\s*:', text):
                     offenders.append((str(path), key))
         self.assertEqual(offenders, [], f"forbidden identity key literal found: {offenders}")
-
-    def test_diagnostic_writer_calls_never_persist_device_identity_fields(self):
-        forbidden_fields = {
-            "address",
-            "device_id",
-            "device_path",
-            "interface_id",
-            "path",
-        }
-        offenders = []
-        for path in _DIAGNOSTIC_SCRIPT_FILES:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.Call):
-                    continue
-                if not (
-                    isinstance(node.func, ast.Attribute)
-                    and node.func.attr == "write"
-                ):
-                    continue
-                for keyword in node.keywords:
-                    if keyword.arg in forbidden_fields:
-                        offenders.append((str(path), keyword.arg))
-                for argument in node.args:
-                    if not isinstance(argument, ast.Dict):
-                        continue
-                    for key in argument.keys:
-                        if (
-                            isinstance(key, ast.Constant)
-                            and isinstance(key.value, str)
-                            and key.value in forbidden_fields
-                        ):
-                            offenders.append((str(path), key.value))
-        self.assertEqual(
-            offenders,
-            [],
-            f"diagnostic writer persists a device identity field: {offenders}",
-        )
 
 
 class UserControlledAutoStartTests(unittest.TestCase):

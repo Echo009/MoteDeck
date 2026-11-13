@@ -326,8 +326,8 @@ class FakeWinRTEnvironment:
         self.device_id = device_id
         self.name = name
 
-        from ovb_rc003 import atvv_protocol as proto
-        from ovb_rc003 import ble_transport_winrt
+        from motedeck import atvv_protocol as proto
+        from motedeck import ble_transport_winrt
 
         self.tx_characteristic = FakeGattCharacteristic(uuid.UUID(proto.VOICE_TX_UUID))
         self.audio_characteristic = FakeGattCharacteristic(uuid.UUID(proto.VOICE_AUDIO_UUID))
@@ -415,7 +415,7 @@ class FakeWinRTEnvironment:
         return _FakeBluetoothLEDeviceFactory
 
     def build_winrt_modules(self):
-        from ovb_rc003.ble_transport_winrt import WinRTModules
+        from motedeck.ble_transport_winrt import WinRTModules
 
         def data_writer_factory():
             writer = FakeDataWriter()

@@ -11,8 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def source_text(obj):
     module_name = getattr(obj, "__module__", None) or obj.__name__
-    if module_name == "ovb_rc003._native_main":
-        module_name = "ovb_rc003.__main__"
+    if module_name == "motedeck._native_main":
+        module_name = "motedeck.__main__"
     path = ROOT / "src" / Path(*module_name.split(".")).with_suffix(".py")
     text = path.read_text(encoding="utf-8")
     if getattr(obj, "__module__", None) is None:
@@ -30,6 +30,6 @@ def entry_command(*args):
     """Use the same thin launcher as the EXE for an unfrozen native stage."""
     import os
     import sys
-    stage = os.environ.get("RC003_NATIVE_STAGE")
-    entry = [str(Path(stage) / "src/launcher.py")] if stage else ["-m", "ovb_rc003"]
+    stage = os.environ.get("MOTEDECK_NATIVE_STAGE")
+    entry = [str(Path(stage) / "src/launcher.py")] if stage else ["-m", "motedeck"]
     return [sys.executable, *entry, *args]

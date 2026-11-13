@@ -2,7 +2,7 @@ import threading
 from unittest import mock
 import unittest
 
-from ovb_rc003 import key_mapping, win32_input
+from motedeck import key_mapping, win32_input
 from tests import test_app_wiring as wiring
 
 
@@ -121,7 +121,7 @@ class MouseHoldWiringTests(wiring._AppWiringTestCase):
         self.send_mouse_button_down.assert_not_called()
 
     def test_applying_new_mapping_during_hold_keeps_original_up_then_uses_new_action(self):
-        from ovb_rc003 import config
+        from motedeck import config
         self.bind()
         self._save_button_bindings(self.app._bindings)
         self.press_long()

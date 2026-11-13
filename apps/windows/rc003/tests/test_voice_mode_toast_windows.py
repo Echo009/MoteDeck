@@ -4,8 +4,8 @@ import time
 import unittest
 from unittest import mock
 
-from ovb_rc003 import input_method_watch_windows
-from ovb_rc003.voice_mode_toast_windows import VoiceModeToast
+from motedeck import input_method_watch_windows
+from motedeck.voice_mode_toast_windows import VoiceModeToast
 
 
 class VoiceModeToastWin32BindingTests(unittest.TestCase):

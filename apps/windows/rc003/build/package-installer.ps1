@@ -23,11 +23,11 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
-$RC003Root = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$MoteDeckRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 . (Join-Path $PSScriptRoot "build-provenance.ps1")
 
 if ([string]::IsNullOrWhiteSpace($InstallerRoot)) {
-    $InstallerRoot = Join-Path $RC003Root "dist\installer"
+    $InstallerRoot = Join-Path $MoteDeckRoot "dist\installer"
 } else {
     $InstallerRoot = [System.IO.Path]::GetFullPath($InstallerRoot)
 }
@@ -52,9 +52,9 @@ if (
     throw "OutputPath must be outside the installer output directory"
 }
 
-$BuildGate = Enter-RC003BuildGate -RC003Root $RC003Root
+$BuildGate = Enter-MoteDeckBuildGate -MoteDeckRoot $MoteDeckRoot
 try {
-    $version = Get-RC003SourceVersion -RC003Root $RC003Root
+    $version = Get-MoteDeckSourceVersion -MoteDeckRoot $MoteDeckRoot
     $installerName = "MoteDeckSetup-$version-unsigned.exe"
     $installerPath = Join-Path $InstallerRoot $installerName
     if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
@@ -79,15 +79,12 @@ try {
     Copy-Item -LiteralPath $installerPath -Destination $outputFullPath -Force
     $installerHash = (Get-FileHash -LiteralPath $outputFullPath -Algorithm SHA256).Hash
     $manifestPath = Join-Path $outputDirectory "SHA256SUMS.txt"
+    # The in-app updater requires one manifest line per update package
+    # (installer and/or portable). Extra lines such as the Vokie plugin
+    # ZIP make every client reject the release with an invalid manifest.
     $manifestLines = @(
         ("{0}  {1}" -f $installerHash.ToLowerInvariant(), (Split-Path -Leaf $outputFullPath))
     )
-    $repoRoot = (Resolve-Path (Join-Path $RC003Root "..\..\..")).Path
-    $pluginPath = Join-Path $repoRoot "dist-archive\MoteDeck2Vokie.zip"
-    if (Test-Path -LiteralPath $pluginPath -PathType Leaf) {
-        $pluginHash = (Get-FileHash -LiteralPath $pluginPath -Algorithm SHA256).Hash
-        $manifestLines += "{0}  MoteDeck2Vokie.zip" -f $pluginHash.ToLowerInvariant()
-    }
     Set-Content `
         -LiteralPath $manifestPath `
         -Value $manifestLines `
@@ -97,5 +94,5 @@ try {
     Write-Host "EXE SHA-256: $installerHash"
     Write-Host "manifest: $manifestPath"
 } finally {
-    Exit-RC003BuildGate -Mutex $BuildGate
+    Exit-MoteDeckBuildGate -Mutex $BuildGate
 }

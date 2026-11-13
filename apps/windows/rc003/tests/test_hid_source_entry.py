@@ -11,8 +11,8 @@ import sys
 import unittest
 import uuid
 
-from ovb_rc003.frida_hid_tap_runtime import GADGET_SCRIPT
-from ovb_rc003.remote_selection import container_key
+from motedeck.frida_hid_tap_runtime import GADGET_SCRIPT
+from motedeck.remote_selection import container_key
 from tests.test_hid_copy_interception import HARNESS
 from tests.test_hid_device_source import SOURCE_HARNESS
 

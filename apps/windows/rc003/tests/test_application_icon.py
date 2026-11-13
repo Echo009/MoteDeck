@@ -6,11 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ovb_rc003 import qt_settings_app, resources
+from motedeck import qt_settings_app, resources
 
 
 _RC003_ROOT = Path(__file__).resolve().parents[1]
-_ICON_DIR = _RC003_ROOT / "src" / "ovb_rc003" / "assets" / "icons"
+_ICON_DIR = _RC003_ROOT / "src" / "motedeck" / "assets" / "icons"
 _GENERATOR = _RC003_ROOT / "build" / "generate-app-icon.py"
 _APP_ICON_SHA256 = "baac72cd0340497a518087fab21145416c6dd0d6b43ce05571c03b956ac4e365"
 _TRAY_ICON_SHA256 = "8d3242f8e9a2cc26f8d7916306b736a82a8ff60c279abc2aeeea267aec449e95"
@@ -103,7 +103,7 @@ class ApplicationIconTests(unittest.TestCase):
     def test_navigation_svg_dark_mode_only_removes_the_background(self):
         from xml.etree import ElementTree
 
-        qml_dir = _RC003_ROOT / "src" / "ovb_rc003" / "qml"
+        qml_dir = _RC003_ROOT / "src" / "motedeck" / "qml"
         main = (qml_dir / "main.qml").read_text(encoding="utf-8")
         logo = main.split('id: appLogo', 1)[1].split('Column {', 1)[0]
         self.assertIn(
@@ -186,7 +186,7 @@ class ApplicationIconTests(unittest.TestCase):
         """
 
         source = (
-            _RC003_ROOT / "src" / "ovb_rc003" / "qt_settings_app.py"
+            _RC003_ROOT / "src" / "motedeck" / "qt_settings_app.py"
         ).read_text(encoding="utf-8")
 
         self.assertNotIn("find_app_icon(controller._tray_icon_state())", source)
@@ -214,7 +214,7 @@ class ApplicationIconTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        self.assertIn("src\\ovb_rc003\\assets\\icons\\remote-mic.ico", script)
+        self.assertIn("src\\motedeck\\assets\\icons\\remote-mic.ico", script)
         self.assertNotIn("dist\\RemoteMicRC003\\RemoteMicRC003.exe", script)
 
 

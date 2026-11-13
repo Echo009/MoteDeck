@@ -13,19 +13,19 @@ NAVIGATION_MODULES = (
     "element_targeting_core", "spatial_navigation_core",
 )
 LEGACY_MODULES = (
-    "ovb_rc003.hid_elevation_windows", "ovb_rc003.hid_helper_consumers",
+    "motedeck.hid_elevation_windows", "motedeck.hid_helper_consumers",
 )
 # 智慧应用控制（SAC）只拦未签名的原生二进制（exe/dll/pyd），不碰纯字节码。
 # Frida HID 通道（小米遥控器返回键、音量键）依赖这些模块，把它们保留为
 # Python 源码后由 PyInstaller 打进 PYZ 变成 .pyc，SAC 就没有可拦截的 .pyd。
 PYTHON_ONLY_MODULES = (
-    "ovb_rc003.hid_host_reload_windows",
-    "ovb_rc003.frida_hid_tap_injector",
-    "ovb_rc003.frida_hid_tap_runtime",
-    "ovb_rc003.gadget_windows",
-    "ovb_rc003.frida_compat",
-    "ovb_rc003.hid_source_injector",
-    "ovb_rc003.hid_injection_diagnostics",
+    "motedeck.hid_host_reload_windows",
+    "motedeck.frida_hid_tap_injector",
+    "motedeck.frida_hid_tap_runtime",
+    "motedeck.gadget_windows",
+    "motedeck.frida_compat",
+    "motedeck.hid_source_injector",
+    "motedeck.hid_injection_diagnostics",
 )
 # CPython's -m loader needs a Python code object. Keep only this generated
 # bootstrap as Python; the complete original entrypoint is compiled.
@@ -40,11 +40,11 @@ else:
 
 def module_sources(root: Path) -> dict[str, Path]:
     result = {}
-    for source in sorted((root / "src" / "ovb_rc003").rglob("*.py")):
+    for source in sorted((root / "src" / "motedeck").rglob("*.py")):
         if source.name != "__init__.py":
             name = ".".join(source.relative_to(root / "src").with_suffix("").parts)
-            if name == "ovb_rc003.__main__":
-                name = "ovb_rc003._native_main"
+            if name == "motedeck.__main__":
+                name = "motedeck._native_main"
             if name in result:
                 raise ValueError(f"native module name collision: {name}")
             result[name] = source
@@ -76,7 +76,7 @@ the spec's explicit list. Helper closure follows only its own entry modules.
         name = pending.pop()
         if any(name == item or name.startswith(item + ".") for item in excludes):
             continue
-        if name.startswith("ovb_rc003.") and name not in sources:
+        if name.startswith("motedeck.") and name not in sources:
             continue  # e.g. 'from . import __version__' imports a value.
         if name in seen:
             continue
@@ -104,14 +104,14 @@ the spec's explicit list. Helper closure follows only its own entry modules.
 # will keep reusing the previous helper. Shared by the PyInstaller spec and
 # build/check-helper-generation.py so both agree on the same file set.
 HELPER_SEEDS = (
-    "ovb_rc003.hid_elevation_windows",
-    "ovb_rc003.frida_hid_tap_injector",
+    "motedeck.hid_elevation_windows",
+    "motedeck.frida_hid_tap_injector",
 )
 HELPER_EXCLUDES = (
     "PySide6", "numpy", "sounddevice", "winrt", "uiautomation",
-    "ovb_rc003.app", "ovb_rc003.qt_settings_app", "ovb_rc003.ble_transport_winrt",
-    "ovb_rc003.audio_playback", "ovb_rc003.windows_diagnostics",
-    "ovb_rc003.settings_ui", "ovb_rc003.key_mapping",
+    "motedeck.app", "motedeck.qt_settings_app", "motedeck.ble_transport_winrt",
+    "motedeck.audio_playback", "motedeck.windows_diagnostics",
+    "motedeck.settings_ui", "motedeck.key_mapping",
 )
 HELPER_LAUNCHER = "src/hid_helper_launcher.py"
 

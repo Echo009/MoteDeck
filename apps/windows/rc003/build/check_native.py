@@ -30,7 +30,7 @@ def verify_stage(stage: Path, *, require_full: bool = True) -> dict:
     if require_full and (receipt["scope"] != "full"
                          or set(records) != set(sources) - set(PYTHON_ONLY_MODULES)):
         raise RuntimeError("native inventory does not match current business modules")
-    if require_full and (stage / "src/ovb_rc003/__main__.py").read_text(encoding="utf-8") != MAIN_BOOTSTRAP:
+    if require_full and (stage / "src/motedeck/__main__.py").read_text(encoding="utf-8") != MAIN_BOOTSTRAP:
         raise RuntimeError("native entrypoint bootstrap is missing or changed")
     if not require_full:
         if receipt["scope"] != "legacy" or set(records) != set(LEGACY_MODULES):
@@ -45,7 +45,7 @@ def verify_stage(stage: Path, *, require_full: bool = True) -> dict:
             raise RuntimeError(f"unknown compiled module: {name}")
         if hashlib.sha256(sources[name].read_bytes()).hexdigest() != record["source_sha256"]:
             raise RuntimeError(f"native source changed: {name}")
-        directory = stage / "scripts" if name in NAVIGATION_MODULES else stage / "src" / "ovb_rc003"
+        directory = stage / "scripts" if name in NAVIGATION_MODULES else stage / "src" / "motedeck"
         expected = [directory / (name.split(".")[-1] + suffix)
                     for suffix in importlib.machinery.EXTENSION_SUFFIXES]
         binary = stage / record["output"]
@@ -77,19 +77,19 @@ def verify_artifact(directory: Path, receipt: dict) -> None:
     if len(executables) != 1:
         raise RuntimeError("expected exactly one main executable")
     identity_spec = spec_from_file_location(
-        "_native_product_identity", ROOT / "src/ovb_rc003/product_identity.py")
+        "_native_product_identity", ROOT / "src/motedeck/product_identity.py")
     identity = module_from_spec(identity_spec)
     identity_spec.loader.exec_module(identity)
     runtime = directory / identity.WINDOWS_RUNTIME_DIRECTORY_NAME
-    helper = runtime / "RemoteMicRC003HidHelper.exe"
+    helper = runtime / "MoteDeckHidHelper.exe"
     for name, record in receipt["modules"].items():
-        parent = runtime / ("element_navigation" if name in NAVIGATION_MODULES else "ovb_rc003")
+        parent = runtime / ("element_navigation" if name in NAVIGATION_MODULES else "motedeck")
         matches = [parent / (name.split(".")[-1] + suffix)
                    for suffix in importlib.machinery.EXTENSION_SUFFIXES
                    if (parent / (name.split(".")[-1] + suffix)).is_file()]
         if len(matches) != 1 or hashlib.sha256(matches[0].read_bytes()).hexdigest() != record["sha256"]:
             raise RuntimeError(f"frozen native module missing or changed: {name}")
-    for parent in (runtime / "ovb_rc003", runtime / "element_navigation"):
+    for parent in (runtime / "motedeck", runtime / "element_navigation"):
         for file in parent.rglob("*"):
             if file.suffix in (".py", ".pyc", ".pyo", ".c", ".cpp", ".h", ".pdb"):
                 raise RuntimeError(f"business source/debug artifact leaked: {file}")
@@ -107,14 +107,14 @@ def verify_artifact(directory: Path, receipt: dict) -> None:
         if executable == helper:
             names = [entry.replace("\\", "/") for entry in archive.toc]
             for stem in ("hid_elevation_windows",):
-                if not any(n.startswith("ovb_rc003/" + stem) and n.endswith(".pyd") for n in names):
+                if not any(n.startswith("motedeck/" + stem) and n.endswith(".pyd") for n in names):
                     raise RuntimeError(f"helper lacks native permission module: {stem}")
             if any(n.startswith(("PySide6/", "numpy/", "winrt/")) for n in names):
                 raise RuntimeError("privileged helper unexpectedly contains UI/audio/BLE dependencies")
             for entry in archive.toc:
                 normalized = entry.replace("\\", "/")
-                if normalized.startswith("ovb_rc003/") and normalized.endswith(".pyd"):
-                    name = "ovb_rc003." + Path(normalized).name.split(".")[0]
+                if normalized.startswith("motedeck/") and normalized.endswith(".pyd"):
+                    name = "motedeck." + Path(normalized).name.split(".")[0]
                     if (name not in receipt["modules"] or
                             hashlib.sha256(archive.extract(entry)).hexdigest()
                             != receipt["modules"][name]["sha256"]):
@@ -147,9 +147,9 @@ def main() -> int:
     if args.artifact:
         verify_artifact(args.artifact.resolve(), receipt)
         return 0
-    os.environ["RC003_NATIVE_STAGE"] = str(stage)
+    os.environ["MOTEDECK_NATIVE_STAGE"] = str(stage)
     os.environ["PYTHONPATH"] = str(stage / "src")
-    os.environ["RC003_DISABLE_LIVE_INPUT"] = "1"
+    os.environ["MOTEDECK_DISABLE_LIVE_INPUT"] = "1"
     os.environ["RC003_ALLOW_LIVE_INPUT_TESTS"] = "0"
     verify_imports(stage, receipt)
     if not args.tests:

@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
-from ovb_rc003 import (
+from motedeck import (
     element_navigation_control_windows as control,
     element_navigation_runtime as runtime,
     single_instance,
@@ -43,7 +43,7 @@ class ElementNavigationCommandTests(unittest.TestCase):
         )
         self.assertEqual(
             source_command[:4],
-            ["python.exe", "-m", "ovb_rc003", "--element-navigation"],
+            ["python.exe", "-m", "motedeck", "--element-navigation"],
         )
         self.assertEqual(
             frozen_command[:2],

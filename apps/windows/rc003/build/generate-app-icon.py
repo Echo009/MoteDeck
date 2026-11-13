@@ -74,7 +74,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    icon_dir = rc003_root / "src" / "ovb_rc003" / "assets" / "icons"
+    icon_dir = rc003_root / "src" / "motedeck" / "assets" / "icons"
     png_path = args.source or icon_dir / "remote-mic.png"
     ico_path = args.output or icon_dir / "remote-mic.ico"
     write_if_changed(ico_path.resolve(), build_ico(png_path.resolve()))

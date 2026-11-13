@@ -3,8 +3,9 @@
 // 这个 Worker 做两件事：
 //   1. 讲完 Vokie Host 的插件协议（握手 + 生命周期 + 配置确认），让 MoteDeck
 //      出现在 Vokie 的插件列表里，并提供「连接本软件」所需的配置开关。
-//   2. 当用户在插件页点「连接本软件」后，读取 MoteDeck 写在
-//      %LOCALAPPDATA%\RemoteMic\RC003\vokie-bridge.json 里的发现信息，
+//   2. 当用户在插件页点「连接本软件」后，读取 MoteDeck 写的发现信息
+//      （0.2.4 起在 %LOCALAPPDATA%\MoteDeck\vokie-bridge.json，旧版本在
+//      %LOCALAPPDATA%\RemoteMic\RC003\vokie-bridge.json），
 //      用 TCP + 行分隔 JSON 把 Vokie 的语音模式（名称 + 真实快捷键）交给 MoteDeck。
 //
 // 只使用 Node 内置模块：不依赖 npm install，也不依赖全局 WebSocket。
@@ -707,24 +708,32 @@ function handleSessionResponse(message) {
 // MoteDeck 回环连接：发现文件 → TCP 行分隔 JSON
 // ---------------------------------------------------------------------------
 
-function discoveryPath() {
+function discoveryPaths() {
   const localAppData =
     process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local');
-  return path.join(localAppData, 'RemoteMic', 'RC003', 'vokie-bridge.json');
+  // 新路径优先；旧路径留给 0.2.3 及更早的程序，两个位置都找不到才算没连接。
+  return [
+    path.join(localAppData, 'MoteDeck', 'vokie-bridge.json'),
+    path.join(localAppData, 'RemoteMic', 'RC003', 'vokie-bridge.json'),
+  ];
 }
 
 function readDiscovery() {
-  try {
-    const info = JSON.parse(fs.readFileSync(discoveryPath(), 'utf8'));
-    if (!info || info.protocol !== BRIDGE_PROTOCOL) return null;
-    const port = Number(info.port);
-    if (!Number.isInteger(port) || port <= 0 || port > 65535) return null;
-    if (typeof info.token !== 'string' || !info.token) return null;
-    const host = typeof info.host === 'string' && info.host ? info.host : '127.0.0.1';
-    return { host, port, token: info.token, app: info.app, appVersion: info.appVersion };
-  } catch {
-    return null;
+  for (const candidate of discoveryPaths()) {
+    try {
+      const info = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      if (!info || info.protocol !== BRIDGE_PROTOCOL) continue;
+      const port = Number(info.port);
+      if (!Number.isInteger(port) || port <= 0 || port > 65535) continue;
+      if (typeof info.token !== 'string' || !info.token) continue;
+      const host =
+        typeof info.host === 'string' && info.host ? info.host : '127.0.0.1';
+      return { host, port, token: info.token, app: info.app, appVersion: info.appVersion };
+    } catch {
+      // 这个位置没有文件或内容损坏，换下一个。
+    }
   }
+  return null;
 }
 
 class MoteDeckLink {

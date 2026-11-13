@@ -8,9 +8,9 @@ from types import SimpleNamespace
 import unittest
 from unittest import mock
 
-from ovb_rc003 import frida_hid_tap_injector as injector
-from ovb_rc003 import frida_hid_tap_runtime as runtime
-from ovb_rc003 import hid_host_reload_windows as reload
+from motedeck import frida_hid_tap_injector as injector
+from motedeck import frida_hid_tap_runtime as runtime
+from motedeck import hid_host_reload_windows as reload
 
 
 DLL = Path(r"C:\Program Files\RemoteMic\owner\17.15.3-x64-hash-reload\RemoteMicRC003HidTap.dll")
@@ -45,7 +45,7 @@ class HostReloadTests(unittest.TestCase):
 
     def test_fresh_host_needs_no_device_operation(self):
         self.mocks["loaded_gadget_paths"].return_value = []
-        with mock.patch("ovb_rc003.gadget_windows.pending_injection_for_host",
+        with mock.patch("motedeck.gadget_windows.pending_injection_for_host",
                         return_value=False) as pending:
             self.assertEqual(reload.ensure_reload_capable_host(1234, DLL), "fresh")
         pending.assert_called_once_with(1234)

@@ -6,9 +6,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from ovb_rc003 import frida_compat, frida_hid_tap_runtime
-from ovb_rc003.diagnostic_trace import DiagnosticTrace
-from ovb_rc003.logging_setup import PrivacySafeExceptionFilter
+from motedeck import frida_compat, frida_hid_tap_runtime
+from motedeck.diagnostic_trace import DiagnosticTrace
+from motedeck.logging_setup import PrivacySafeExceptionFilter
 
 
 class HidTapDiagnosticsTests(unittest.TestCase):
@@ -153,7 +153,7 @@ class HidTapDiagnosticsTests(unittest.TestCase):
         version = mock.Mock(platform_version=(10, 0, 22621))
         with mock.patch.object(frida_compat.os, "name", "nt"), mock.patch.object(
             frida_compat.sys, "getwindowsversion", return_value=version, create=True
-        ), mock.patch("ovb_rc003.hid_elevation_windows.query_process_elevated", return_value=True), mock.patch.object(
+        ), mock.patch("motedeck.hid_elevation_windows.query_process_elevated", return_value=True), mock.patch.object(
             frida_hid_tap_runtime, "sha256_file", side_effect=["a" * 64, PermissionError("private-content"), FileNotFoundError("private-content")]
         ) as read_hash:
             fields = frida_compat._diagnostic_environment()

@@ -1,6 +1,6 @@
 import unittest
 
-from ovb_rc003 import audio_output
+from motedeck import audio_output
 
 
 class ResolveSelectedEndpointTests(unittest.TestCase):

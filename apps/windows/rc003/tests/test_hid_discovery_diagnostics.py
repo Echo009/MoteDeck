@@ -13,9 +13,9 @@ from types import SimpleNamespace
 from unittest import mock
 import zipfile
 
-from ovb_rc003 import app, diagnostic_trace, frida_compat, hid_identity, log_export, logging_setup
-from ovb_rc003 import frida_hid_tap_runtime as runtime
-from ovb_rc003 import raw_input_windows as raw, remote_selection as selection
+from motedeck import app, diagnostic_trace, frida_compat, hid_identity, log_export, logging_setup
+from motedeck import frida_hid_tap_runtime as runtime
+from motedeck import raw_input_windows as raw, remote_selection as selection
 
 CONTAINER = "11111111-1111-4111-8111-111111111111"
 OTHER = "22222222-2222-4222-8222-222222222222"
@@ -401,8 +401,8 @@ class NativeDiscoveryDiagnosticsTests(unittest.TestCase):
         script = r'''
 import ctypes, json, uuid, winreg
 from unittest import mock
-from ovb_rc003 import remote_selection as selection, raw_input_windows as raw
-from ovb_rc003 import frida_hid_tap_runtime as runtime
+from motedeck import remote_selection as selection, raw_input_windows as raw
+from motedeck import frida_hid_tap_runtime as runtime
 root_name = r"Software\RemoteMic-DiscoveryTest-" + uuid.uuid4().hex
 service = runtime.HID_SERVICE_PREFIX + "_" + runtime.RC003_HARDWARE_TOKEN
 paths = [root_name, root_name + "\\" + service, root_name + "\\" + service + r"\instance"]
